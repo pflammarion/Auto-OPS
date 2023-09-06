@@ -10,15 +10,15 @@ class Controller:
 
         self.technology_value = 45
         self.voltage_value = 1.2
+        # to initialize the value and the rcv mask
+        self.rcv_value = 0
+        self.x_position = 1500
+        self.y_position = 1500
 
         lam, G1, G2, Gap = self.parameters_init()
         self.image_matrix = self.draw_layout(lam, G1, G2, Gap)
-        points = np.where(self.image_matrix != 0, 1, 0)
-        mask = self.calc_and_plot_RCV()
 
-        result = cv2.addWeighted(points, 1, mask, 0.5, 0)
-
-        self.view.display_image(result)
+        self.print_original_image()
 
     def upload_image(self):
         file_dialog = QFileDialog()
@@ -115,6 +115,7 @@ class Controller:
         Gap = 0
         return lam, G1, G2, Gap
 
+    # TODO handle no input number
     def update_physics_values(self):
         self.technology_value = int(self.view.get_input_tech())
         self.voltage_value = int(self.view.get_input_voltage())
@@ -140,6 +141,25 @@ class Controller:
         num_pix_under_laser = np.sum(L > 0)
 
         amp_rel = amp_abs / num_pix_under_laser
+        self.rcv_value = amp_rel
         print("RCV (per nm²) = %.6f" % amp_rel)
 
         return np.where(L > 0, 1, 0)
+
+    def update_rcv_position(self):
+        self.x_position = int(self.view.get_input_x())
+        self.y_position = int(self.view.get_input_y())
+        self.print_rcv_image()
+        print("change")
+
+    def print_original_image(self):
+        self.view.display_image(self.image_matrix)
+
+    def print_rcv_image(self):
+        points = np.where(self.image_matrix != 0, 1, 0)
+        mask = self.calc_and_plot_RCV(offset=[self.y_position, self.x_position])
+
+        result = cv2.addWeighted(points, 1, mask, 0.5, 0)
+
+        self.view.display_image(result)
+        self.view.update_rcv_value(self.rcv_value)
