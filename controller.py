@@ -9,11 +9,20 @@ class Controller:
         self.view = view
 
         self.technology_value = 45
+        self.Kn_value = 1
+        self.Kp_value = -1.3
+        self.beta_value = 0
+        self.Pl_value = 0
         self.voltage_value = 1.2
+
         # to initialize the value and the rcv mask
         self.main_label_value = ""
         self.x_position = 1500
         self.y_position = 1500
+
+        self.lam_value = 1300
+        self.NA_value = 0.75
+        self.is_confocal = True
 
         lam, G1, G2, Gap = self.parameters_init()
         self.image_matrix = self.draw_layout(lam, G1, G2, Gap)
@@ -119,19 +128,17 @@ class Controller:
         return layout_full
 
     def parameters_init(self):
-        Kn = 1
-        Kp = -1.3
         lam = self.technology_value / 2
 
-        Gate_N = self.voltage_value * Kn * 1E7
-        lam3_N = 4 * 3 * self.voltage_value * Kn
-        lam4_N = 4 * 4 * self.voltage_value * Kn
-        lam6_N = 4 * 6 ** self.voltage_value * Kn
+        Gate_N = self.voltage_value * self.Kn_value * 1E7
+        lam3_N = 4 * 3 * self.voltage_value * self.Kn_value
+        lam4_N = 4 * 4 * self.voltage_value * self.Kn_value
+        lam6_N = 4 * 6 ** self.voltage_value * self.Kn_value
 
-        Gate_P = self.voltage_value * Kp * 1E7
-        lam3_P = 4 * 3 * self.voltage_value * Kp
-        lam4_P = 4 * 4 * self.voltage_value * Kp
-        lam6_P = 4 * 6 * self.voltage_value * Kp
+        Gate_P = self.voltage_value * self.Kp_value * 1E7
+        lam3_P = 4 * 3 * self.voltage_value * self.Kp_value
+        lam4_P = 4 * 4 * self.voltage_value * self.Kp_value
+        lam6_P = 4 * 6 * self.voltage_value * self.Kp_value
 
         G1 = Gate_N
         G2 = Gate_P
@@ -168,7 +175,6 @@ class Controller:
 
         amp_rel = amp_abs / num_pix_under_laser
         self.main_label_value = "RCV (per nm²) = %.6f" % amp_rel
-        print("RCV (per nm²) = %.6f" % amp_rel)
 
         return np.where(L > 0, 1, 0)
 
@@ -193,7 +199,6 @@ class Controller:
         FWHM = 1.22 / np.sqrt(2) * lam / NA
         FOV = 3000
 
-        print("FWHM = %.02f, is_confocal = %s" % (FWHM, is_confocal))
         self.main_label_value = "FWHM = %.02f, is_confocal = %s" % (FWHM, is_confocal)
 
         return self.psf_2d(FOV, lam, NA, FWHM // 2 if is_confocal else np.inf)
@@ -210,3 +215,9 @@ class Controller:
 
         self.view.display_image(R)
         self.view.update_rcv_value(self.main_label_value)
+
+    def update_settings(self):
+        self.lam_value = 1300
+        self.NA_value = 0.75
+        self.is_confocal = True
+        return

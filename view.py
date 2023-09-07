@@ -11,12 +11,20 @@ class View(QMainWindow):
         self.rcv_value = QLabel("", self)
         self.controller = controller.Controller(self)
 
-        self.info_input_tech = QLineEdit(self)
-        self.info_input_tech.setText(str(self.controller.technology_value))
+        self.info_input_Kn = QLineEdit(self)
+        self.info_input_Kp = QLineEdit(self)
+        self.info_input_alpha = QLineEdit(self)
+        self.info_input_beta = QLineEdit(self)
+        self.info_input_Pl = QLineEdit(self)
         self.info_input_voltage = QLineEdit(self)
         self.info_input_voltage.setText(str(self.controller.voltage_value))
-        self.selector_input_x = QLineEdit(self)
-        self.selector_input_y = QLineEdit(self)
+
+        self.selector_input_x = None
+        self.selector_input_y = None
+
+        self.selector_input_lam = None
+        self.selector_input_NA = None
+
         self.main_window = QMainWindow()
         self.init_ui()
 
@@ -44,34 +52,34 @@ class View(QMainWindow):
 
         info_widget = QWidget()
         info_label = QLabel("Physics info:", self)
-        info_label_tech = QLabel("Technology", self)
+        info_label_Kn = QLabel("Kn", self)
+        info_label_Kp = QLabel("Kp", self)
+        info_label_alpha = QLabel("Alpha", self)
+        info_label_beta = QLabel("Beta", self)
+        info_label_Pl = QLabel("Pl", self)
         info_label_voltage = QLabel("Voltage", self)
         info_button = QPushButton("Submit values", self)
         info_button.clicked.connect(self.controller.update_physics_values)
 
         input_layout = QGridLayout(info_widget)
         input_layout.addWidget(info_label, 0, 0)
-        input_layout.addWidget(info_label_tech, 1, 0)
-        input_layout.addWidget(self.info_input_tech, 2, 0)
-        input_layout.addWidget(info_label_voltage, 1, 1)
-        input_layout.addWidget(self.info_input_voltage, 2, 1)
-        input_layout.addWidget(info_button, 3, 0)
+        input_layout.addWidget(info_label_Kn, 1, 0)
+        input_layout.addWidget(self.info_input_Kn, 2, 0)
+        input_layout.addWidget(info_label_alpha, 1, 1)
+        input_layout.addWidget(self.info_input_alpha, 2, 1)
+        input_layout.addWidget(info_label_Pl, 1, 2)
+        input_layout.addWidget(self.info_input_Pl, 2, 2)
+        input_layout.addWidget(info_label_Kp, 3, 0)
+        input_layout.addWidget(self.info_input_Kp, 4, 0)
+        input_layout.addWidget(info_label_beta, 3, 1)
+        input_layout.addWidget(self.info_input_beta, 4, 1)
+        input_layout.addWidget(info_label_voltage, 3, 2)
+        input_layout.addWidget(self.info_input_voltage, 4, 2)
+        input_layout.addWidget(info_button, 5, 0)
 
         # Creating the selector widget
 
-        selector_widget = QWidget()
-        selector_labelx = QLabel("x: ", self)
-        selector_labely = QLabel("y: ", self)
 
-        selector_button = QPushButton("change position", self)
-        selector_button.clicked.connect(self.controller.update_rcv_position)
-
-        selector_layout = QGridLayout(selector_widget)
-        selector_layout.addWidget(selector_labelx, 0, 0)
-        selector_layout.addWidget(self.selector_input_x, 0, 1)
-        selector_layout.addWidget(selector_labely, 1, 0)
-        selector_layout.addWidget(self.selector_input_y, 1, 1)
-        selector_layout.addWidget(selector_button, 2, 1)
 
         # Creating the main widget
 
@@ -81,8 +89,10 @@ class View(QMainWindow):
         main_button1 = QPushButton("Show original output", self)
         main_button1.clicked.connect(self.controller.print_original_image)
         main_button2 = QPushButton("Calc RCV", self)
+        main_button2.clicked.connect(lambda: self.set_mode(layout, 1))
         main_button2.clicked.connect(self.controller.print_rcv_image)
         main_button3 = QPushButton("EOFM", self)
+        main_button3.clicked.connect(lambda: self.set_mode(layout, 2))
         main_button3.clicked.connect(self.controller.print_EOFM_image)
 
         main_btn_container_layout.addWidget(main_button1, 0, 0)
@@ -104,8 +114,20 @@ class View(QMainWindow):
 
         layout.addWidget(button_widget, 0, 0)
         layout.addWidget(info_widget, 0, 1)
-        layout.addWidget(selector_widget, 1, 0)
         layout.addWidget(main_widget, 1, 1)
+
+    def set_mode(self, layout, mode=0):
+        # Clear the layout if there's already a widget at position (1, 0)
+        if layout.itemAtPosition(1, 0) is not None:
+            item = layout.itemAtPosition(1, 0)
+            widget_to_remove = item.widget()
+            if widget_to_remove:
+                widget_to_remove.setParent(None)
+
+        if mode == 1:
+            widget = self.init_rcv_widget()
+            layout.addWidget(widget, 1, 0)
+
 
     def display_image(self, image_matrix):
         # TODO find a nicer solution to display images
@@ -113,8 +135,6 @@ class View(QMainWindow):
         self.image_view.setImage(image_matrix)
         self.rcv_value.setText("")
 
-    def get_input_tech(self):
-        return self.info_input_tech.text()
 
     def get_input_voltage(self):
         return self.info_input_voltage.text()
@@ -127,3 +147,27 @@ class View(QMainWindow):
 
     def get_input_y(self):
         return self.selector_input_y.text()
+
+    def init_rcv_widget(self) -> QWidget:
+        selector_widget = QWidget()
+        selector_label_x = QLabel("x: ", self)
+        selector_label_y = QLabel("y: ", self)
+
+        self.selector_input_x = QLineEdit(self)
+        self.selector_input_x.setText(str(self.controller.x_position))
+        self.selector_input_y = QLineEdit(self)
+        self.selector_input_y.setText(str(self.controller.y_position))
+
+        selector_button = QPushButton("change position", self)
+        selector_button.clicked.connect(self.controller.update_rcv_position)
+
+        selector_layout = QGridLayout(selector_widget)
+        selector_layout.addWidget(selector_label_x, 0, 0)
+        selector_layout.addWidget(self.selector_input_x, 0, 1)
+        selector_layout.addWidget(selector_label_y, 1, 0)
+        selector_layout.addWidget(self.selector_input_y, 1, 1)
+        selector_layout.addWidget(selector_button, 2, 1)
+
+        return selector_widget
+
+
