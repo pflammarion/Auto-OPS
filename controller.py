@@ -25,7 +25,7 @@ class Controller:
         self.NA_value = 0.75
         self.is_confocal = True
 
-        lam, G1, G2, Gap = self.parameters_init()
+        lam, G1, G2, Gap = self.parameters_init(self.Kn_value, self.Kp_value, self.voltage_value)
         self.image_matrix = self.draw_layout(lam, G1, G2, Gap)
 
         self.print_original_image()
@@ -128,18 +128,18 @@ class Controller:
 
         return layout_full
 
-    def parameters_init(self):
+    def parameters_init(self, Kn, Kp, voltage):
         lam = self.technology_value / 2
 
-        Gate_N = self.voltage_value * self.Kn_value * 1E7
-        lam3_N = 4 * 3 * self.voltage_value * self.Kn_value
-        lam4_N = 4 * 4 * self.voltage_value * self.Kn_value
-        lam6_N = 4 * 6 ** self.voltage_value * self.Kn_value
+        Gate_N = voltage*Kn*1E7
+        lam3_N = 4*3*voltage*Kn
+        lam4_N = 4*4*voltage*Kn
+        lam6_N = 4*6**voltage*Kn
 
-        Gate_P = self.voltage_value * self.Kp_value * 1E7
-        lam3_P = 4 * 3 * self.voltage_value * self.Kp_value
-        lam4_P = 4 * 4 * self.voltage_value * self.Kp_value
-        lam6_P = 4 * 6 * self.voltage_value * self.Kp_value
+        Gate_P = voltage*Kp*1E7
+        lam3_P = 4*3*voltage*Kp
+        lam4_P = 4*4*voltage*Kp
+        lam6_P = 4*6*voltage*Kp
 
         G1 = Gate_N
         G2 = Gate_P
@@ -151,21 +151,25 @@ class Controller:
     # TODO handle no input number
     def update_physics_values(self):
 
-        self.Kn_value = int(self.view.get_input_Kn())
-        self.Kp_value = int(self.view.get_input_Kp())
-        self.alpha_value = int(self.view.get_input_alpha())
-        self.beta_value = int(self.view.get_input_beta())
-        self.Pl_value = int(self.view.get_input_Pl())
-        self.voltage_value = int(self.view.get_input_voltage())
+        self.Kn_value = float(self.view.get_input_Kn())
+        self.Kp_value = float(self.view.get_input_Kp())
+        self.alpha_value = float(self.view.get_input_alpha())
+        self.beta_value = float(self.view.get_input_beta())
+        self.Pl_value = float(self.view.get_input_Pl())
+        self.voltage_value = float(self.view.get_input_voltage())
 
-        lam, G1, G2, Gap = self.parameters_init()
-        # TODO does the physics is based on the image matrix ?
+        lam, G1, G2, Gap = self.parameters_init(self.Kn_value, self.Kp_value, self.voltage_value)
         self.image_matrix = self.draw_layout(lam, G1, G2, Gap)
         self.view.display_image(self.image_matrix)
 
         print("Physic info were updated ", self.technology_value, " ", self.voltage_value)
 
-    def calc_and_plot_RCV(self, lam=1300, NA=0.75, is_confocal=True, offset=None):
+    def calc_and_plot_RCV(self, offset=None):
+
+        lam = self.lam_value
+        NA = self.NA_value
+        is_confocal = self.is_confocal
+
         FWHM = 1.22 / np.sqrt(2) * lam / NA
         FOV = 3000
         if not offset:
@@ -185,6 +189,7 @@ class Controller:
         return np.where(L > 0, 1, 0)
 
     def update_rcv_position(self):
+        self.update_settings()
         self.x_position = 3000 - int(self.view.get_input_x())
         self.y_position = int(self.view.get_input_y())
         self.print_rcv_image()
@@ -193,15 +198,19 @@ class Controller:
         self.view.display_image(self.image_matrix)
 
     def print_rcv_image(self):
+        self.update_settings()
         points = np.where(self.image_matrix != 0, 1, 0)
         mask = self.calc_and_plot_RCV(offset=[self.y_position, self.x_position])
 
         result = cv2.addWeighted(points, 1, mask, 0.5, 0)
 
         self.view.display_image(result)
-        self.view.update_rcv_value(self.main_label_value)
+        self.view.update_main_label_value(self.main_label_value)
 
-    def calc_and_plot_EOFM(self, lam=1300, NA=0.75, is_confocal=True):
+    def calc_and_plot_EOFM(self):
+        lam = self.lam_value
+        NA = self.NA_value
+        is_confocal = self.is_confocal
         FWHM = 1.22 / np.sqrt(2) * lam / NA
         FOV = 3000
 
@@ -209,21 +218,29 @@ class Controller:
 
         return self.psf_2d(FOV, lam, NA, FWHM // 2 if is_confocal else np.inf)
 
-
-        #ax[0].imshow(R, cmap='gist_gray')
-
-        #R_abs = np.abs(R)
-        #ax[1].imshow(R_abs, cmap='gist_gray')
-
     def print_EOFM_image(self):
+        self.update_settings()
         L = self.calc_and_plot_EOFM()
         R = fftconvolve(self.image_matrix, L, mode='same')
 
-        self.view.display_image(R)
-        self.view.update_rcv_value(self.main_label_value)
+        self.view.display_image(R, True)
+        self.view.update_main_label_value(self.main_label_value)
 
     def update_settings(self):
-        self.lam_value = 1300
-        self.NA_value = 0.75
-        self.is_confocal = True
-        return
+        self.lam_value = float(self.view.get_input_lam())
+        self.NA_value = float(self.view.get_input_NA())
+        self.is_confocal = bool(self.view.get_input_confocal())
+
+    def print_psf(self):
+        self.update_settings()
+        lam = self.lam_value
+        NA = self.NA_value
+        is_confocal = self.is_confocal
+
+        FWHM = 1.22/np.sqrt(2) * lam/NA
+        FOV = 2000
+        self.main_label_value = "FWHM = %.02f, is_confocal = %s" % (FWHM, is_confocal)
+        L = self.psf_2d(FOV, lam, NA, FWHM//2 if is_confocal else np.inf)
+        self.view.display_image(L)
+        self.view.update_main_label_value(self.main_label_value)
+

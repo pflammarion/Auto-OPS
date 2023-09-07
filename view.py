@@ -1,5 +1,6 @@
 import numpy as np
-from PyQt6.QtWidgets import QMainWindow, QWidget, QGridLayout, QLabel, QPushButton, QVBoxLayout, QLineEdit
+from PyQt6.QtWidgets import QMainWindow, QWidget, QGridLayout, QLabel, QPushButton, QVBoxLayout, QLineEdit, QCheckBox
+from PyQt6.QtCore import Qt
 import pyqtgraph as pg
 import controller
 
@@ -17,6 +18,13 @@ class View(QMainWindow):
         self.info_input_beta = QLineEdit(self)
         self.info_input_Pl = QLineEdit(self)
         self.info_input_voltage = QLineEdit(self)
+
+        #fill infos from controller
+        self.info_input_Kn.setText(str(self.controller.Kn_value))
+        self.info_input_Kp.setText(str(self.controller.Kp_value))
+        self.info_input_alpha.setText(str(self.controller.alpha_value))
+        self.info_input_beta.setText(str(self.controller.beta_value))
+        self.info_input_Pl.setText(str(self.controller.Pl_value))
         self.info_input_voltage.setText(str(self.controller.voltage_value))
 
         self.selector_input_x = None
@@ -24,6 +32,9 @@ class View(QMainWindow):
 
         self.selector_input_lam = None
         self.selector_input_NA = None
+        self.selector_input_confocal = None
+
+        self.seconde_image_view = None
 
         self.main_window = QMainWindow()
         self.init_ui()
@@ -50,6 +61,29 @@ class View(QMainWindow):
 
         # Creating the info widget
 
+        info_widget = self.init_physic_info_widget()
+
+        # Creating the side widget
+
+        side_widget = QWidget()
+        side_layout = QGridLayout(side_widget)
+
+        laser_widget = self.init_laser_widget()
+
+        side_layout.addWidget(laser_widget, 0, 0)
+
+        # Creating the main widget
+
+        main_widget = self.init_main_widget(side_layout)
+
+        # Add all to the window layout
+
+        layout.addWidget(button_widget, 0, 0)
+        layout.addWidget(info_widget, 0, 1)
+        layout.addWidget(side_widget, 1, 0)
+        layout.addWidget(main_widget, 1, 1)
+
+    def init_physic_info_widget(self) -> QWidget:
         info_widget = QWidget()
         info_label = QLabel("Physics info:", self)
         info_label_Kn = QLabel("Kn", self)
@@ -60,6 +94,9 @@ class View(QMainWindow):
         info_label_voltage = QLabel("Voltage", self)
         info_button = QPushButton("Submit values", self)
         info_button.clicked.connect(self.controller.update_physics_values)
+
+        # TODO set placeholder
+        #self.info_input_Kn.setPlaceholderText(self.controller.Kn_value)
 
         input_layout = QGridLayout(info_widget)
         input_layout.addWidget(info_label, 0, 0)
@@ -77,25 +114,29 @@ class View(QMainWindow):
         input_layout.addWidget(self.info_input_voltage, 4, 2)
         input_layout.addWidget(info_button, 5, 0)
 
-        # Creating the selector widget
+        return info_widget
 
-        # Creating the main widget
-
+    def init_main_widget(self, side_layout) -> QWidget:
         main_btn_container_widget = QWidget()
         main_btn_container_layout = QGridLayout(main_btn_container_widget)
 
+        main_button0 = QPushButton("Laser point spread", self)
+        main_button0.clicked.connect(self.controller.print_psf)
+        main_button0.clicked.connect(lambda: self.set_mode(side_layout, 0))
         main_button1 = QPushButton("Show original output", self)
         main_button1.clicked.connect(self.controller.print_original_image)
+        main_button1.clicked.connect(lambda: self.set_mode(side_layout, 0))
         main_button2 = QPushButton("Calc RCV", self)
-        main_button2.clicked.connect(lambda: self.set_mode(layout, 1))
+        main_button2.clicked.connect(lambda: self.set_mode(side_layout, 1))
         main_button2.clicked.connect(self.controller.print_rcv_image)
         main_button3 = QPushButton("EOFM", self)
-        main_button3.clicked.connect(lambda: self.set_mode(layout, 2))
+        main_button3.clicked.connect(lambda: self.set_mode(side_layout, 2))
         main_button3.clicked.connect(self.controller.print_EOFM_image)
 
-        main_btn_container_layout.addWidget(main_button1, 0, 0)
-        main_btn_container_layout.addWidget(main_button2, 0, 1)
-        main_btn_container_layout.addWidget(main_button3, 0, 2)
+        main_btn_container_layout.addWidget(main_button0, 0, 0)
+        main_btn_container_layout.addWidget(main_button1, 0, 1)
+        main_btn_container_layout.addWidget(main_button2, 0, 2)
+        main_btn_container_layout.addWidget(main_button3, 0, 3)
 
         self.image_view.ui.histogram.hide()
         self.image_view.ui.roiBtn.hide()
@@ -108,29 +149,62 @@ class View(QMainWindow):
         main_layout.addWidget(self.image_view, 1, 0)
         main_layout.addWidget(self.main_label, 2, 0)
 
-        # Add all to the window layout
+        return main_widget
 
-        layout.addWidget(button_widget, 0, 0)
-        layout.addWidget(info_widget, 0, 1)
-        layout.addWidget(main_widget, 1, 1)
+    def init_laser_widget(self) -> QWidget:
+        widget = QWidget()
+        layout = QGridLayout(widget)
+        self.selector_input_lam = QLineEdit(self)
+        self.selector_input_lam.setText(str(self.controller.lam_value))
+        label_lam = QLabel("Lambda")
+        self.selector_input_NA = QLineEdit(self)
+        self.selector_input_NA.setText(str(self.controller.NA_value))
+        label_NA = QLabel("NA")
+        self.selector_input_confocal = QCheckBox()
+        self.selector_input_confocal.setChecked(bool(self.controller.is_confocal))
+        label_confocal = QLabel("Confocal")
 
-    def set_mode(self, layout, mode=0):
+        widget_confocal = QWidget()
+        layout_confocal = QGridLayout(widget_confocal)
+        layout_confocal.addWidget(label_confocal, 0, 0)
+        layout_confocal.addWidget(self.selector_input_confocal, 0, 1)
+
+        layout.addWidget(label_lam, 0, 0)
+        layout.addWidget(self.selector_input_lam, 1, 0)
+        layout.addWidget(label_NA, 0, 1)
+        layout.addWidget(self.selector_input_NA, 1, 1)
+        layout.addWidget(widget_confocal, 2, 0)
+        layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+
+        return widget
+
+    def set_mode(self, side_layout, mode=0):
         # Clear the layout if there's already a widget at position (1, 0)
-        if layout.itemAtPosition(1, 0) is not None:
-            item = layout.itemAtPosition(1, 0)
+        if side_layout.itemAtPosition(1, 0) is not None:
+            item = side_layout.itemAtPosition(1, 0)
             widget_to_remove = item.widget()
             if widget_to_remove:
                 widget_to_remove.setParent(None)
 
         if mode == 1:
             widget = self.init_rcv_widget()
-            layout.addWidget(widget, 1, 0)
+            side_layout.addWidget(widget, 1, 0)
 
-    def display_image(self, image_matrix):
+        elif mode == 2:
+            self.seconde_image_view = pg.ImageView()
+            self.seconde_image_view.ui.histogram.hide()
+            self.seconde_image_view.ui.roiBtn.hide()
+            self.seconde_image_view.ui.menuBtn.hide()
+            side_layout.addWidget(self.seconde_image_view, 1, 0)
+
+    def display_image(self, image_matrix, eofm=False):
         # TODO find a nicer solution to display images
         image_matrix = np.rot90(image_matrix)
         self.image_view.setImage(image_matrix)
         self.main_label.setText("")
+        if eofm:
+            seconde_image_matrix = np.abs(image_matrix)
+            self.seconde_image_view.setImage(seconde_image_matrix)
 
     def get_input_Kn(self):
         return self.info_input_Kn.text()
@@ -158,6 +232,15 @@ class View(QMainWindow):
 
     def get_input_y(self):
         return self.selector_input_y.text()
+
+    def get_input_lam(self):
+        return self.selector_input_lam.text()
+
+    def get_input_NA(self):
+        return self.selector_input_NA.text()
+
+    def get_input_confocal(self):
+        return self.selector_input_confocal.isChecked()
 
     def init_rcv_widget(self) -> QWidget:
         selector_widget = QWidget()
