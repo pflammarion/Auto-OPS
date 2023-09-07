@@ -1,3 +1,5 @@
+import json
+
 from PyQt6.QtWidgets import QFileDialog
 import cv2
 import numpy as np
@@ -11,9 +13,8 @@ class Controller:
         self.technology_value = 45
         self.Kn_value = 1
         self.Kp_value = -1.3
-        self.alpha_value = 0
-        self.beta_value = 0
-        self.Pl_value = 0
+        self.beta_value = 1
+        self.Pl_value = 10E7
         self.voltage_value = 1.2
 
         # to initialize the value and the rcv mask
@@ -25,7 +26,7 @@ class Controller:
         self.NA_value = 0.75
         self.is_confocal = True
 
-        lam, G1, G2, Gap = self.parameters_init(self.Kn_value, self.Kp_value, self.voltage_value)
+        lam, G1, G2, Gap = self.parameters_init(self.Kn_value, self.Kp_value, self.voltage_value, self.beta_value, self.Pl_value)
         self.image_matrix = self.draw_layout(lam, G1, G2, Gap)
 
         self.print_original_image()
@@ -68,6 +69,22 @@ class Controller:
 
                 self.view.display_image(self.image_matrix)
                 print("Image loaded as a matrix")
+
+    def upload_json(self):
+        file_dialog = QFileDialog()
+        file_dialog.setFileMode(QFileDialog.FileMode.ExistingFiles)
+        file_dialog.setNameFilter("JSON (*.json)")
+
+        if file_dialog.exec():
+            selected_files = file_dialog.selectedFiles()
+            if selected_files:
+                # TODO check if only one file is selected or more
+                file_path = selected_files[0]
+                with open(file_path, "r") as json_file:
+                    data = json.load(json_file)
+
+                self.technology_value = int(data["technology"])
+                print("Tech value is now : ", self.technology_value)
 
     def psf_xy(self, lam, na, x, y, xc, yc, radius_max=np.inf):
 
@@ -128,23 +145,12 @@ class Controller:
 
         return layout_full
 
-    def parameters_init(self, Kn, Kp, voltage):
+    def parameters_init(self, Kn, Kp, voltage, beta, Pl):
         lam = self.technology_value / 2
 
-        Gate_N = voltage*Kn*1E7
-        lam3_N = 4*3*voltage*Kn
-        lam4_N = 4*4*voltage*Kn
-        lam6_N = 4*6**voltage*Kn
-
-        Gate_P = voltage*Kp*1E7
-        lam3_P = 4*3*voltage*Kp
-        lam4_P = 4*4*voltage*Kp
-        lam6_P = 4*6*voltage*Kp
-
-        G1 = Gate_N
-        G2 = Gate_P
-        D1 = lam4_N
-        D2 = lam4_P
+        # RCV values
+        G1 = voltage*Kn*beta*Pl
+        G2 = voltage*Kp*beta*Pl
         Gap = 0
         return lam, G1, G2, Gap
 
@@ -153,16 +159,13 @@ class Controller:
 
         self.Kn_value = float(self.view.get_input_Kn())
         self.Kp_value = float(self.view.get_input_Kp())
-        self.alpha_value = float(self.view.get_input_alpha())
         self.beta_value = float(self.view.get_input_beta())
         self.Pl_value = float(self.view.get_input_Pl())
         self.voltage_value = float(self.view.get_input_voltage())
 
-        lam, G1, G2, Gap = self.parameters_init(self.Kn_value, self.Kp_value, self.voltage_value)
+        lam, G1, G2, Gap = self.parameters_init(self.Kn_value, self.Kp_value, self.voltage_value, self.beta_value, self.Pl_value)
         self.image_matrix = self.draw_layout(lam, G1, G2, Gap)
         self.view.display_image(self.image_matrix)
-
-        print("Physic info were updated ", self.technology_value, " ", self.voltage_value)
 
     def calc_and_plot_RCV(self, offset=None):
 

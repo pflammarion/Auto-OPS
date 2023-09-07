@@ -14,7 +14,6 @@ class View(QMainWindow):
 
         self.info_input_Kn = QLineEdit(self)
         self.info_input_Kp = QLineEdit(self)
-        self.info_input_alpha = QLineEdit(self)
         self.info_input_beta = QLineEdit(self)
         self.info_input_Pl = QLineEdit(self)
         self.info_input_voltage = QLineEdit(self)
@@ -22,7 +21,6 @@ class View(QMainWindow):
         #fill infos from controller
         self.info_input_Kn.setText(str(self.controller.Kn_value))
         self.info_input_Kp.setText(str(self.controller.Kp_value))
-        self.info_input_alpha.setText(str(self.controller.alpha_value))
         self.info_input_beta.setText(str(self.controller.beta_value))
         self.info_input_Pl.setText(str(self.controller.Pl_value))
         self.info_input_voltage.setText(str(self.controller.voltage_value))
@@ -53,11 +51,15 @@ class View(QMainWindow):
         # Creating the add widget
 
         button_widget = QWidget()
-        button_add = QPushButton("Add png file", self)
-        button_add.clicked.connect(self.controller.upload_image)
+        button_add_png = QPushButton("Add png file", self)
+        button_add_png.clicked.connect(self.controller.upload_image)
+        button_add_json = QPushButton("Add JSON config", self)
+        # TODO do the json config input
+        button_add_json.clicked.connect(self.controller.upload_json)
 
         button_layout = QVBoxLayout(button_widget)
-        button_layout.addWidget(button_add)
+        button_layout.addWidget(button_add_png)
+        button_layout.addWidget(button_add_json)
 
         # Creating the info widget
 
@@ -88,7 +90,6 @@ class View(QMainWindow):
         info_label = QLabel("Physics info:", self)
         info_label_Kn = QLabel("Kn", self)
         info_label_Kp = QLabel("Kp", self)
-        info_label_alpha = QLabel("Alpha", self)
         info_label_beta = QLabel("Beta", self)
         info_label_Pl = QLabel("P_L", self)
         info_label_voltage = QLabel("Voltage", self)
@@ -102,17 +103,15 @@ class View(QMainWindow):
         input_layout.addWidget(info_label, 0, 0)
         input_layout.addWidget(info_label_Kn, 1, 0)
         input_layout.addWidget(self.info_input_Kn, 2, 0)
-        input_layout.addWidget(info_label_alpha, 1, 1)
-        input_layout.addWidget(self.info_input_alpha, 2, 1)
+        input_layout.addWidget(info_label_beta, 1, 1)
+        input_layout.addWidget(self.info_input_beta, 2, 1)
         input_layout.addWidget(info_label_Pl, 1, 2)
         input_layout.addWidget(self.info_input_Pl, 2, 2)
         input_layout.addWidget(info_label_Kp, 3, 0)
         input_layout.addWidget(self.info_input_Kp, 4, 0)
-        input_layout.addWidget(info_label_beta, 3, 1)
-        input_layout.addWidget(self.info_input_beta, 4, 1)
-        input_layout.addWidget(info_label_voltage, 3, 2)
-        input_layout.addWidget(self.info_input_voltage, 4, 2)
-        input_layout.addWidget(info_button, 5, 0)
+        input_layout.addWidget(info_label_voltage, 3, 1)
+        input_layout.addWidget(self.info_input_voltage, 4, 1)
+        input_layout.addWidget(info_button, 4, 2)
 
         return info_widget
 
@@ -211,9 +210,6 @@ class View(QMainWindow):
 
     def get_input_Kp(self):
         return self.info_input_Kp.text()
-
-    def get_input_alpha(self):
-        return self.info_input_alpha.text()
 
     def get_input_beta(self):
         return self.info_input_beta.text()
