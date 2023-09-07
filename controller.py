@@ -199,6 +199,7 @@ class Controller:
 
     def print_original_image(self):
         self.view.display_image(self.image_matrix)
+        self.view.update_main_label_value("")
 
     def print_rcv_image(self):
         self.update_settings()

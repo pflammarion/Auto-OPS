@@ -5,11 +5,15 @@ import pyqtgraph as pg
 import controller
 
 
+# TODO put lambda na and button in the same line and separate optional info in last box
+# TODO try to add color into plot especially for lps
+# TODO center plot in window
+
 class View(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.image_view = pg.ImageView()
-        self.main_label = QLabel("", self)
+        self.image_view = pg.ImageItem(None)
+        self.plot_widget = None
         self.controller = controller.Controller(self)
 
         self.info_input_Kn = QLineEdit(self)
@@ -32,7 +36,7 @@ class View(QMainWindow):
         self.selector_input_NA = None
         self.selector_input_confocal = None
 
-        self.seconde_image_view = None
+        self.second_image_view = pg.ImageItem(None)
 
         self.main_window = QMainWindow()
         self.init_ui()
@@ -54,7 +58,6 @@ class View(QMainWindow):
         button_add_png = QPushButton("Add png file", self)
         button_add_png.clicked.connect(self.controller.upload_image)
         button_add_json = QPushButton("Add JSON config", self)
-        # TODO do the json config input
         button_add_json.clicked.connect(self.controller.upload_json)
 
         button_layout = QVBoxLayout(button_widget)
@@ -137,16 +140,16 @@ class View(QMainWindow):
         main_btn_container_layout.addWidget(main_button2, 0, 2)
         main_btn_container_layout.addWidget(main_button3, 0, 3)
 
-        self.image_view.ui.histogram.hide()
-        self.image_view.ui.roiBtn.hide()
-        self.image_view.ui.menuBtn.hide()
+        self.plot_widget = pg.PlotWidget()
+        self.plot_widget.addItem(self.image_view)
+        self.plot_widget.setFixedWidth(400)
+        self.plot_widget.setFixedHeight(400)
 
         main_widget = QWidget()
         main_layout = QGridLayout(main_widget)
 
         main_layout.addWidget(main_btn_container_widget, 0, 0)
-        main_layout.addWidget(self.image_view, 1, 0)
-        main_layout.addWidget(self.main_label, 2, 0)
+        main_layout.addWidget(self.plot_widget, 1, 0)
 
         return main_widget
 
@@ -190,20 +193,21 @@ class View(QMainWindow):
             side_layout.addWidget(widget, 1, 0)
 
         elif mode == 2:
-            self.seconde_image_view = pg.ImageView()
-            self.seconde_image_view.ui.histogram.hide()
-            self.seconde_image_view.ui.roiBtn.hide()
-            self.seconde_image_view.ui.menuBtn.hide()
-            side_layout.addWidget(self.seconde_image_view, 1, 0)
+            second_plot_widget = pg.PlotWidget()
+            second_plot_widget.addItem(self.second_image_view)
+            second_plot_widget.setFixedWidth(200)
+            second_plot_widget.setFixedHeight(200)
+            side_layout.addWidget(second_plot_widget, 1, 0)
 
     def display_image(self, image_matrix, eofm=False):
         # TODO find a nicer solution to display images
         image_matrix = np.rot90(image_matrix)
+
         self.image_view.setImage(image_matrix)
-        self.main_label.setText("")
+
         if eofm:
             seconde_image_matrix = np.abs(image_matrix)
-            self.seconde_image_view.setImage(seconde_image_matrix)
+            self.second_image_view.setImage(seconde_image_matrix)
 
     def get_input_Kn(self):
         return self.info_input_Kn.text()
@@ -221,7 +225,8 @@ class View(QMainWindow):
         return self.info_input_voltage.text()
 
     def update_main_label_value(self, text):
-        self.main_label.setText(text)
+        if self.plot_widget is not None:
+            self.plot_widget.setTitle(text)
 
     def get_input_x(self):
         return self.selector_input_x.text()
