@@ -1,5 +1,4 @@
 import numpy as np
-from PyQt6.QtGui import QPixmap, QImage
 from PyQt6.QtWidgets import QMainWindow, QWidget, QGridLayout, QLabel, QPushButton, QVBoxLayout, QLineEdit
 import pyqtgraph as pg
 import controller
@@ -84,6 +83,7 @@ class View(QMainWindow):
         main_button2 = QPushButton("Calc RCV", self)
         main_button2.clicked.connect(self.controller.print_rcv_image)
         main_button3 = QPushButton("EOFM", self)
+        main_button3.clicked.connect(self.controller.print_EOFM_image)
 
         main_btn_container_layout.addWidget(main_button1, 0, 0)
         main_btn_container_layout.addWidget(main_button2, 0, 1)
@@ -119,8 +119,8 @@ class View(QMainWindow):
     def get_input_voltage(self):
         return self.info_input_voltage.text()
 
-    def update_rcv_value(self, rcv):
-        self.rcv_value.setText("RCV (per nm²) = %.6f" % rcv)
+    def update_rcv_value(self, text):
+        self.rcv_value.setText(text)
 
     def get_input_x(self):
         return self.selector_inputx.text()

@@ -3,3 +3,4 @@ numpy
 pyqt6
 opencv-python
 pyqtgraph
+scipy

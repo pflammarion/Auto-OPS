@@ -1,7 +1,7 @@
 from PyQt6.QtWidgets import QFileDialog
 import cv2
 import numpy as np
-import matplotlib.pyplot as plt
+from scipy.signal import fftconvolve
 
 
 class Controller:
@@ -11,7 +11,7 @@ class Controller:
         self.technology_value = 45
         self.voltage_value = 1.2
         # to initialize the value and the rcv mask
-        self.rcv_value = 0
+        self.main_label_value = ""
         self.x_position = 1500
         self.y_position = 1500
 
@@ -30,8 +30,34 @@ class Controller:
             if selected_files:
                 # TODO check if only one file is selected or more
                 image_path = selected_files[0]
-                image_matrix = cv2.imread(image_path)
-                self.view.display_image(image_matrix)
+                image_read = cv2.imread(image_path)
+
+                if image_read is None:
+                    print("Failed to load the image")
+                    return
+
+                original_height, original_width, _ = image_read.shape
+
+                # Calculate the center of the image
+                center_x, center_y = original_width // 2, original_height // 2
+
+                # Define the target size (3000x3000)
+                target_size = (3000, 3000)
+
+                # Calculate the cropping area
+                crop_x1 = max(0, center_x - target_size[0] // 2)
+                crop_x2 = min(original_width, center_x + target_size[0] // 2)
+                crop_y1 = max(0, center_y - target_size[1] // 2)
+                crop_y2 = min(original_height, center_y + target_size[1] // 2)
+
+                # Crop and resize the image to the target size
+                cropped_resized_image = image_read[crop_y1:crop_y2, crop_x1:crop_x2]
+                cropped_resized_image = cv2.resize(cropped_resized_image, target_size)
+
+                gray_image = cv2.cvtColor(cropped_resized_image, cv2.COLOR_BGR2GRAY)
+                self.image_matrix = gray_image
+
+                self.view.display_image(self.image_matrix)
                 print("Image loaded as a matrix")
 
     def psf_xy(self, lam, na, x, y, xc, yc, radius_max=np.inf):
@@ -121,6 +147,7 @@ class Controller:
         self.voltage_value = int(self.view.get_input_voltage())
 
         lam, G1, G2, Gap = self.parameters_init()
+        # TODO does the physics is based on the image matrix ?
         self.image_matrix = self.draw_layout(lam, G1, G2, Gap)
         self.view.display_image(self.image_matrix)
 
@@ -141,16 +168,15 @@ class Controller:
         num_pix_under_laser = np.sum(L > 0)
 
         amp_rel = amp_abs / num_pix_under_laser
-        self.rcv_value = amp_rel
+        self.main_label_value = "RCV (per nm²) = %.6f" % amp_rel
         print("RCV (per nm²) = %.6f" % amp_rel)
 
         return np.where(L > 0, 1, 0)
 
     def update_rcv_position(self):
-        self.x_position = int(self.view.get_input_x())
+        self.x_position = 3000 - int(self.view.get_input_x())
         self.y_position = int(self.view.get_input_y())
         self.print_rcv_image()
-        print("change")
 
     def print_original_image(self):
         self.view.display_image(self.image_matrix)
@@ -162,4 +188,26 @@ class Controller:
         result = cv2.addWeighted(points, 1, mask, 0.5, 0)
 
         self.view.display_image(result)
-        self.view.update_rcv_value(self.rcv_value)
+        self.view.update_rcv_value(self.main_label_value)
+
+    def calc_and_plot_EOFM(self, lam=1300, NA=0.75, is_confocal=True):
+        FWHM = 1.22 / np.sqrt(2) * lam / NA
+        FOV = 3000
+
+        print("FWHM = %.02f, is_confocal = %s" % (FWHM, is_confocal))
+        self.main_label_value = "FWHM = %.02f, is_confocal = %s" % (FWHM, is_confocal)
+
+        return self.psf_2d(FOV, lam, NA, FWHM // 2 if is_confocal else np.inf)
+
+
+        #ax[0].imshow(R, cmap='gist_gray')
+
+        #R_abs = np.abs(R)
+        #ax[1].imshow(R_abs, cmap='gist_gray')
+
+    def print_EOFM_image(self):
+        L = self.calc_and_plot_EOFM()
+        R = fftconvolve(self.image_matrix, L, mode='same')
+
+        self.view.display_image(R)
+        self.view.update_rcv_value(self.main_label_value)
