@@ -8,7 +8,7 @@ class View(QMainWindow):
     def __init__(self):
         super().__init__()
         self.image_view = pg.ImageView()
-        self.rcv_value = QLabel("", self)
+        self.main_label = QLabel("", self)
         self.controller = controller.Controller(self)
 
         self.info_input_Kn = QLineEdit(self)
@@ -56,7 +56,7 @@ class View(QMainWindow):
         info_label_Kp = QLabel("Kp", self)
         info_label_alpha = QLabel("Alpha", self)
         info_label_beta = QLabel("Beta", self)
-        info_label_Pl = QLabel("Pl", self)
+        info_label_Pl = QLabel("P_L", self)
         info_label_voltage = QLabel("Voltage", self)
         info_button = QPushButton("Submit values", self)
         info_button.clicked.connect(self.controller.update_physics_values)
@@ -78,8 +78,6 @@ class View(QMainWindow):
         input_layout.addWidget(info_button, 5, 0)
 
         # Creating the selector widget
-
-
 
         # Creating the main widget
 
@@ -108,7 +106,7 @@ class View(QMainWindow):
 
         main_layout.addWidget(main_btn_container_widget, 0, 0)
         main_layout.addWidget(self.image_view, 1, 0)
-        main_layout.addWidget(self.rcv_value, 2, 0)
+        main_layout.addWidget(self.main_label, 2, 0)
 
         # Add all to the window layout
 
@@ -128,19 +126,32 @@ class View(QMainWindow):
             widget = self.init_rcv_widget()
             layout.addWidget(widget, 1, 0)
 
-
     def display_image(self, image_matrix):
         # TODO find a nicer solution to display images
         image_matrix = np.rot90(image_matrix)
         self.image_view.setImage(image_matrix)
-        self.rcv_value.setText("")
+        self.main_label.setText("")
 
+    def get_input_Kn(self):
+        return self.info_input_Kn.text()
+
+    def get_input_Kp(self):
+        return self.info_input_Kp.text()
+
+    def get_input_alpha(self):
+        return self.info_input_alpha.text()
+
+    def get_input_beta(self):
+        return self.info_input_beta.text()
+
+    def get_input_Pl(self):
+        return self.info_input_Pl.text()
 
     def get_input_voltage(self):
         return self.info_input_voltage.text()
 
-    def update_rcv_value(self, text):
-        self.rcv_value.setText(text)
+    def update_main_label_value(self, text):
+        self.main_label.setText(text)
 
     def get_input_x(self):
         return self.selector_input_x.text()
@@ -169,5 +180,3 @@ class View(QMainWindow):
         selector_layout.addWidget(selector_button, 2, 1)
 
         return selector_widget
-
-

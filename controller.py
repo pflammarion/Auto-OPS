@@ -11,6 +11,7 @@ class Controller:
         self.technology_value = 45
         self.Kn_value = 1
         self.Kp_value = -1.3
+        self.alpha_value = 0
         self.beta_value = 0
         self.Pl_value = 0
         self.voltage_value = 1.2
@@ -149,7 +150,12 @@ class Controller:
 
     # TODO handle no input number
     def update_physics_values(self):
-        self.technology_value = int(self.view.get_input_tech())
+
+        self.Kn_value = int(self.view.get_input_Kn())
+        self.Kp_value = int(self.view.get_input_Kp())
+        self.alpha_value = int(self.view.get_input_alpha())
+        self.beta_value = int(self.view.get_input_beta())
+        self.Pl_value = int(self.view.get_input_Pl())
         self.voltage_value = int(self.view.get_input_voltage())
 
         lam, G1, G2, Gap = self.parameters_init()
