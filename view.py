@@ -8,16 +8,16 @@ class View(QMainWindow):
     def __init__(self):
         super().__init__()
         self.image_view = pg.ImageView()
-
-        # TODO add default values for the user
+        self.rcv_value = QLabel("", self)
+        self.controller = controller.Controller(self)
 
         self.info_input_tech = QLineEdit(self)
+        self.info_input_tech.setText(str(self.controller.technology_value))
         self.info_input_voltage = QLineEdit(self)
-        self.rcv_value = QLabel("", self)
-        self.selector_inputx = QLineEdit(self)
-        self.selector_inputy = QLineEdit(self)
+        self.info_input_voltage.setText(str(self.controller.voltage_value))
+        self.selector_input_x = QLineEdit(self)
+        self.selector_input_y = QLineEdit(self)
         self.main_window = QMainWindow()
-        self.controller = controller.Controller(self)
         self.init_ui()
 
     def init_ui(self):
@@ -68,9 +68,9 @@ class View(QMainWindow):
 
         selector_layout = QGridLayout(selector_widget)
         selector_layout.addWidget(selector_labelx, 0, 0)
-        selector_layout.addWidget(self.selector_inputx, 0, 1)
+        selector_layout.addWidget(self.selector_input_x, 0, 1)
         selector_layout.addWidget(selector_labely, 1, 0)
-        selector_layout.addWidget(self.selector_inputy, 1, 1)
+        selector_layout.addWidget(self.selector_input_y, 1, 1)
         selector_layout.addWidget(selector_button, 2, 1)
 
         # Creating the main widget
@@ -123,7 +123,7 @@ class View(QMainWindow):
         self.rcv_value.setText(text)
 
     def get_input_x(self):
-        return self.selector_inputx.text()
+        return self.selector_input_x.text()
 
     def get_input_y(self):
-        return self.selector_inputy.text()
+        return self.selector_input_y.text()

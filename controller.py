@@ -41,7 +41,6 @@ class Controller:
                 # Calculate the center of the image
                 center_x, center_y = original_width // 2, original_height // 2
 
-                # Define the target size (3000x3000)
                 target_size = (3000, 3000)
 
                 # Calculate the cropping area
