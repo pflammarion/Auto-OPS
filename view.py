@@ -54,7 +54,6 @@ class View(QMainWindow):
     def init_ui(self):
 
         self.setWindowTitle("CMOS-INV-GUI")
-        self.setStyleSheet(open('style.css').read())
         self.setGeometry(0, 0, 1000, 800)
 
         central_widget = QWidget()
