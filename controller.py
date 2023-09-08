@@ -1,4 +1,5 @@
 import json
+import os
 
 from PyQt6.QtWidgets import QFileDialog
 import cv2
@@ -12,7 +13,6 @@ class Controller:
     def __init__(self):
 
         # init all class variables
-
         self.technology_value = 45
         self.Kn_value = 1
         self.Kp_value = -1.3
@@ -21,7 +21,6 @@ class Controller:
         self.voltage_value = 1.2
 
         # to initialize the value and the rcv mask
-        self.main_label_value = ""
         self.x_position = 1500
         self.y_position = 1500
 
@@ -29,12 +28,45 @@ class Controller:
         self.NA_value = 0.75
         self.is_confocal = True
 
+        self.data = self.load_settings_from_json()
+
+        self.main_label_value = ""
+
         self.view = view.View(self)
 
         lam, G1, G2, Gap = self.parameters_init(self.Kn_value, self.Kp_value, self.voltage_value, self.beta_value, self.Pl_value)
         self.image_matrix = self.draw_layout(lam, G1, G2, Gap)
 
         self.print_original_image()
+
+    def load_settings_from_json(self):
+        json_file_path = "config.json"
+        if os.path.exists(json_file_path):
+            try:
+                with open(json_file_path, "r") as json_file:
+                    data = json.load(json_file)
+
+                self.technology_value = data["technology"]
+                self.Kn_value = data["Kn"]
+                self.Kp_value = data["Kp"]
+                self.beta_value = data["beta"]
+                self.Pl_value = data["Pl"]
+                self.voltage_value = data["voltage"]
+
+                self.x_position = data["x_position"]
+                self.y_position = data["y_position"]
+
+                self.lam_value = data["lam"]
+                self.NA_value = data["NA"]
+                self.is_confocal = data["is_confocal"]
+
+                return data
+
+            except Exception as e:
+                print(f"Error loading JSON data: {e}")
+        else:
+            print(f"JSON file '{json_file_path}' does not exist.")
+
 
     def upload_image(self):
         file_dialog = QFileDialog()
@@ -159,14 +191,39 @@ class Controller:
         Gap = 0
         return lam, G1, G2, Gap
 
-    # TODO handle no input number
     def update_physics_values(self):
 
-        self.Kn_value = float(self.view.get_input_Kn())
-        self.Kp_value = float(self.view.get_input_Kp())
-        self.beta_value = float(self.view.get_input_beta())
-        self.Pl_value = float(self.view.get_input_Pl())
-        self.voltage_value = float(self.view.get_input_voltage())
+        Kn_input = self.view.get_input_Kn()
+        Kp_input = self.view.get_input_Kp()
+        beta_input = self.view.get_input_beta()
+        Pl_input = self.view.get_input_Pl()
+        voltage_input = self.view.get_input_voltage()
+
+        # Check if the inputs are not null (not None) and not empty before converting to floats
+        if Kn_input is not None and Kn_input != "":
+            self.Kn_value = float(Kn_input)
+        else:
+            self.Kn_value = self.data["Kn"]
+
+        if Kp_input is not None and Kp_input != "":
+            self.Kp_value = float(Kp_input)
+        else:
+            self.Kp_value = self.data["Kp"]
+
+        if beta_input is not None and beta_input != "":
+            self.beta_value = float(beta_input)
+        else:
+            self.beta_value = self.data["beta"]
+
+        if Pl_input is not None and Pl_input != "":
+            self.Pl_value = float(Pl_input)
+        else:
+            self.Pl_value = self.data["Pl"]
+
+        if voltage_input is not None and voltage_input != "":
+            self.voltage_value = float(voltage_input)
+        else:
+            self.voltage_value = self.data["voltage"]
 
         lam, G1, G2, Gap = self.parameters_init(self.Kn_value, self.Kp_value, self.voltage_value, self.beta_value, self.Pl_value)
         self.image_matrix = self.draw_layout(lam, G1, G2, Gap)
@@ -197,9 +254,20 @@ class Controller:
         return np.where(L > 0, 1, 0)
 
     def update_rcv_position(self):
+        x_input = self.view.get_input_x()
+        y_input = self.view.get_input_y()
+
+        if x_input is not None and x_input != "":
+            self.x_position = int(x_input)
+        else:
+            self.x_position = self.data["x_position"]
+
+        if y_input is not None and y_input != "":
+            self.y_position = int(y_input)
+        else:
+            self.y_position = self.data["y_position"]
+
         self.update_settings()
-        self.x_position = int(self.view.get_input_x())
-        self.y_position = int(self.view.get_input_y())
         self.print_rcv_image()
 
     def print_original_image(self):
@@ -236,9 +304,24 @@ class Controller:
         self.view.update_main_label_value(self.main_label_value)
 
     def update_settings(self):
-        self.lam_value = float(self.view.get_input_lam())
-        self.NA_value = float(self.view.get_input_NA())
-        self.is_confocal = bool(self.view.get_input_confocal())
+        lam_input = self.view.get_input_lam()
+        NA_input = self.view.get_input_NA()
+        confocal_input = self.view.get_input_confocal()
+
+        if lam_input is not None and lam_input != "":
+            self.lam_value = float(lam_input)
+        else:
+            self.lam_value = self.data["lam"]
+
+        if NA_input is not None and NA_input != "":
+            self.NA_value = float(NA_input)
+        else:
+            self.NA_value = self.data["NA"]
+
+        if confocal_input is not None and confocal_input != "":
+            self.is_confocal = bool(confocal_input)
+        else:
+            self.is_confocal = self.data["is_confocal"]
 
     def print_psf(self):
         self.update_settings()

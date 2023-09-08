@@ -20,10 +20,15 @@ class View(QMainWindow):
 
         # fill infos from controller
         self.info_input_Kn.setText(str(self.controller.Kn_value))
+        self.info_input_Kn.setPlaceholderText(str(self.controller.Kn_value))
         self.info_input_Kp.setText(str(self.controller.Kp_value))
+        self.info_input_Kp.setPlaceholderText(str(self.controller.Kp_value))
         self.info_input_beta.setText(str(self.controller.beta_value))
+        self.info_input_beta.setPlaceholderText(str(self.controller.beta_value))
         self.info_input_Pl.setText(str(self.controller.Pl_value))
+        self.info_input_Pl.setPlaceholderText(str(self.controller.Pl_value))
         self.info_input_voltage.setText(str(self.controller.voltage_value))
+        self.info_input_voltage.setPlaceholderText(str(self.controller.voltage_value))
 
         self.selector_input_x = None
         self.selector_input_y = None
@@ -187,9 +192,11 @@ class View(QMainWindow):
         layout = QGridLayout(widget)
         self.selector_input_lam = QLineEdit(self)
         self.selector_input_lam.setText(str(self.controller.lam_value))
+        self.selector_input_lam.setPlaceholderText(str(self.controller.lam_value))
         label_lam = QLabel("Lambda")
         self.selector_input_NA = QLineEdit(self)
         self.selector_input_NA.setText(str(self.controller.NA_value))
+        self.selector_input_NA.setPlaceholderText(str(self.controller.NA_value))
         label_NA = QLabel("NA")
         self.selector_input_confocal = QCheckBox()
         self.selector_input_confocal.setChecked(bool(self.controller.is_confocal))
@@ -216,8 +223,10 @@ class View(QMainWindow):
 
         self.selector_input_x = QLineEdit(self)
         self.selector_input_x.setText(str(self.controller.x_position))
+        self.selector_input_x.setPlaceholderText(str(self.controller.x_position))
         self.selector_input_y = QLineEdit(self)
         self.selector_input_y.setText(str(self.controller.y_position))
+        self.selector_input_y.setPlaceholderText(str(self.controller.y_position))
 
         selector_button = QPushButton("change position", self)
         selector_button.clicked.connect(self.controller.update_rcv_position)
