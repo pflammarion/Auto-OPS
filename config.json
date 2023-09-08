@@ -6,7 +6,7 @@
   "Pl": 10E7,
   "voltage": 1.2,
   "x_position": 1500,
-  "y_position": 1200,
+  "y_position": 1500,
   "lam": 1300,
   "NA": 0.75,
   "is_confocal": true

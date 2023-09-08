@@ -4,6 +4,7 @@ import os
 from PyQt6.QtWidgets import QFileDialog
 import cv2
 import numpy as np
+import pandas as pd
 from scipy.signal import fftconvolve
 
 import view
@@ -20,6 +21,9 @@ class Controller:
         self.Pl_value = 10E7
         self.voltage_value = 1.2
 
+        self.max_voltage_high_gate_state = float('-inf')
+        self.high_gate_state_layout = None
+
         # to initialize the value and the rcv mask
         self.x_position = 1500
         self.y_position = 1500
@@ -29,6 +33,8 @@ class Controller:
         self.is_confocal = True
 
         self.data = self.load_settings_from_json()
+
+        self.dataframe = None
 
         self.main_label_value = ""
 
@@ -76,7 +82,6 @@ class Controller:
         if file_dialog.exec():
             selected_files = file_dialog.selectedFiles()
             if selected_files:
-                # TODO check if only one file is selected or more
                 image_path = selected_files[0]
                 image_read = cv2.imread(image_path)
 
@@ -115,7 +120,6 @@ class Controller:
         if file_dialog.exec():
             selected_files = file_dialog.selectedFiles()
             if selected_files:
-                # TODO check if only one file is selected or more
                 file_path = selected_files[0]
                 with open(file_path, "r") as json_file:
                     data = json.load(json_file)
@@ -154,6 +158,25 @@ class Controller:
     def round(self, i):
         return int(np.rint(i))
 
+    def draw_one_gate_layout(self, lam, G1):
+
+        layout_width = 3000
+        layout_height = 3000
+
+        layout = np.empty(shape=(layout_height, layout_width))
+        layout.fill(0)
+
+        x = self.round(2 * lam)
+        y = self.round(4 * lam)
+
+        start_x = (layout_width - x) // 2
+        start_y = (layout_height - y) // 2
+
+        layout[start_y:start_y + y, start_x:start_x + x] = G1
+
+        return layout
+
+    # TODO update sajjad code to be nicer and do not duplicate with the draw_one_gate_layout func
     def draw_layout(self, lam, G1, G2, Gap):
         layout = np.empty(shape=(1000, 1000))
         layout.fill(0)
@@ -184,12 +207,27 @@ class Controller:
 
     def parameters_init(self, Kn, Kp, voltage, beta, Pl):
         lam = self.technology_value / 2
-
         # RCV values
         G1 = voltage*Kn*beta*Pl
         G2 = voltage*Kp*beta*Pl
         Gap = 0
         return lam, G1, G2, Gap
+
+    def calc_unique_rcv(self, K, voltage, beta, Pl, L, lam):
+        gate = voltage*K*beta*Pl
+        generated_gate_image = self.draw_one_gate_layout(lam, gate)
+
+        # for preview in gui of current position of laser
+        if voltage > self.max_voltage_high_gate_state:
+            self.high_gate_state_layout = generated_gate_image
+            self.max_voltage_high_gate_state = voltage
+
+        amp_abs = np.sum(generated_gate_image * L)
+        num_pix_under_laser = np.sum(L > 0)
+
+        amp_rel = amp_abs / num_pix_under_laser
+
+        return amp_rel
 
     def update_physics_values(self):
 
@@ -268,13 +306,20 @@ class Controller:
             self.y_position = self.data["y_position"]
 
         self.update_settings()
-        self.print_rcv_image()
+
+        if self.dataframe is not None :
+            self.plot_rcv_calc()
+
+        else:
+            self.print_rcv_image()
 
     def print_original_image(self):
+        self.dataframe = None
         self.view.display_image(self.image_matrix)
         self.view.update_main_label_value("")
 
     def print_rcv_image(self):
+        self.dataframe = None
         self.update_settings()
         points = np.where(self.image_matrix != 0, 1, 0)
         mask = self.calc_and_plot_RCV(offset=[self.y_position, 3000 - self.x_position])
@@ -296,6 +341,7 @@ class Controller:
         return self.psf_2d(FOV, lam, NA, FWHM // 2 if is_confocal else np.inf)
 
     def print_EOFM_image(self):
+        self.dataframe = None
         self.update_settings()
         L = self.calc_and_plot_EOFM()
         R = fftconvolve(self.image_matrix, L, mode='same')
@@ -324,6 +370,7 @@ class Controller:
             self.is_confocal = self.data["is_confocal"]
 
     def print_psf(self):
+        self.dataframe = None
         self.update_settings()
         lam = self.lam_value
         NA = self.NA_value
@@ -339,3 +386,38 @@ class Controller:
     def get_view(self):
         return self.view
 
+    def upload_csv(self):
+        file_dialog = QFileDialog()
+        file_dialog.setFileMode(QFileDialog.FileMode.ExistingFiles)
+        file_dialog.setNameFilter("CSV (*.csv)")
+
+        if file_dialog.exec():
+            selected_files = file_dialog.selectedFiles()
+            if selected_files:
+                file_path = selected_files[0]
+                self.dataframe = pd.read_csv(file_path)
+                self.plot_rcv_calc()
+
+    def plot_rcv_calc(self):
+        self.max_voltage_high_gate_state = float('-inf')
+        self.high_gate_state_layout = None
+        lam = self.lam_value
+        NA = self.NA_value
+        is_confocal = self.is_confocal
+
+        FWHM = 1.22 / np.sqrt(2) * lam / NA
+        FOV = 3000
+        # TODO check if it is the right x an y values
+        offset = [self.x_position, self.y_position]
+        L = self.psf_2d_pos(FOV, lam, NA, offset[0], offset[1], FWHM // 2 if is_confocal else np.inf)
+        mask = np.where(L > 0, 1, 0)
+
+        self.dataframe['RCV'] = self.dataframe.apply(lambda row: self.calc_unique_rcv(self.Kn_value, row["/A Y"], self.beta_value, self.Pl_value, L, lam), axis=1)
+
+        self.view.plot_dataframe(self.dataframe)
+
+        if self.high_gate_state_layout is not None:
+            # TODO fix this high value
+            points = np.where(self.high_gate_state_layout != 0, 1, 0)
+            result = cv2.addWeighted(points, 1, mask, 0.5, 0)
+            self.view.display_image(result, True)

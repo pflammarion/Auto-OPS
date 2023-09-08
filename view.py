@@ -3,6 +3,8 @@ from PyQt6.QtGui import QFont
 from PyQt6.QtWidgets import QMainWindow, QWidget, QGridLayout, QLabel, QPushButton, QVBoxLayout, QLineEdit, QCheckBox
 from PyQt6.QtCore import Qt
 import pyqtgraph as pg
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.figure import Figure
 
 
 # TODO try to add color into plot especially for lps
@@ -48,6 +50,9 @@ class View(QMainWindow):
         self.second_plot_label = QLabel()
         self.second_plot_label.setFont(title)
 
+        self.figure = None
+        self.canvas = None
+
         self.main_window = QMainWindow()
         self.init_ui()
 
@@ -63,7 +68,7 @@ class View(QMainWindow):
 
         # Creating the add widget
 
-        button_widget = self.init_button_widget()
+        button_widget = self.init_button_widget(layout)
 
         # Creating the info widget
 
@@ -73,11 +78,13 @@ class View(QMainWindow):
 
         laser_widget = self.init_laser_widget()
 
-        # optional widget
-        optional_widget = QWidget()
-        optional_layout = self.init_optional_layout(optional_widget)
+        # Creating the navigation bar widget
+        nav_bar = self.init_nav_bar(layout)
 
-        nav_bar = self.init_nav_bar(optional_layout)
+        # Optional widget
+
+        optional_widget = QWidget()
+        self.init_optional_layout(optional_widget)
 
         # Creating the plot widget
 
@@ -91,6 +98,49 @@ class View(QMainWindow):
         layout.addWidget(nav_bar, 1, 1)
         layout.addWidget(optional_widget, 2, 0)
         layout.addWidget(plot_container_widget, 2, 1)
+
+    def set_mode(self, layout, mode=0):
+
+        optional_layout = layout.itemAtPosition(2, 0).widget().layout()
+        plot_layout = layout.itemAtPosition(2, 1).widget().layout()
+
+        # Find and clear the second_plot_widget
+        main_plot_widget = plot_layout.itemAtPosition(1, 0).widget()
+        main_plot_widget_df = plot_layout.itemAtPosition(2, 0).widget()
+        second_plot_widget = optional_layout.itemAtPosition(2, 0).widget()
+        self.second_plot_label.setText("")
+        if second_plot_widget is not None:
+            second_plot_widget.hide()
+
+        if main_plot_widget_df is not None:
+            main_plot_widget_df.hide()
+
+        if main_plot_widget is not None:
+            main_plot_widget.show()
+
+        # Clear the layout if there's already a widget at position (0, 0)
+        if optional_layout.itemAtPosition(0, 0) is not None:
+            item = optional_layout.itemAtPosition(0, 0)
+            widget_to_remove = item.widget()
+            if widget_to_remove:
+                widget_to_remove.setParent(None)
+
+        if mode == 1:
+            widget = self.init_rcv_widget()
+            optional_layout.addWidget(widget, 0, 0)
+
+        elif (mode == 2) & (second_plot_widget is not None):
+            self.second_plot_label.setText("Inverted EOFM plot")
+            second_plot_widget.show()
+
+        elif mode == 3:
+            # TODO remove voltage input and add list of possible plot
+            widget = self.init_rcv_widget()
+            optional_layout.addWidget(widget, 0, 0)
+            main_plot_widget_df.show()
+            main_plot_widget.hide()
+            second_plot_widget.show()
+
 
     def init_nav_bar(self, optional_layout) -> QWidget:
         nav_bar_widget = QWidget()
@@ -116,16 +166,20 @@ class View(QMainWindow):
 
         return nav_bar_widget
 
-    def init_button_widget(self) -> QWidget:
+    def init_button_widget(self, optional_layout) -> QWidget:
         button_widget = QWidget()
         button_add_png = QPushButton("Add png file", self)
         button_add_png.clicked.connect(self.controller.upload_image)
         button_add_json = QPushButton("Add JSON config", self)
         button_add_json.clicked.connect(self.controller.upload_json)
+        button_add_csv = QPushButton("Add csv file", self)
+        button_add_csv.clicked.connect(self.controller.upload_csv)
+        button_add_csv.clicked.connect(lambda: self.set_mode(optional_layout, 3))
 
         button_layout = QVBoxLayout(button_widget)
         button_layout.addWidget(button_add_png)
         button_layout.addWidget(button_add_json)
+        button_layout.addWidget(button_add_csv)
 
         return button_widget
 
@@ -154,9 +208,6 @@ class View(QMainWindow):
         info_button = QPushButton("Submit values", self)
         info_button.clicked.connect(self.controller.update_physics_values)
 
-        # TODO set placeholder
-        # self.info_input_Kn.setPlaceholderText(self.controller.Kn_value)
-
         input_layout = QGridLayout(info_widget)
         input_layout.addWidget(info_label, 0, 0)
         input_layout.addWidget(info_label_Kn, 1, 0)
@@ -174,15 +225,20 @@ class View(QMainWindow):
         return info_widget
 
     def init_plot_widget(self) -> QWidget:
-        self.plot_widget = pg.PlotWidget()
-        self.plot_widget.addItem(self.image_view)
-        self.plot_widget.setFixedWidth(400)
-        self.plot_widget.setFixedHeight(400)
+        plot_widget = pg.PlotWidget()
+        plot_widget.addItem(self.image_view)
+        plot_widget.setFixedWidth(400)
+        plot_widget.setFixedHeight(400)
 
         plot_container_widget = QWidget()
         plot_layout = QGridLayout(plot_container_widget)
-        plot_layout.addWidget(self.main_plot_label)
-        plot_layout.addWidget(self.plot_widget)
+        plot_layout.addWidget(self.main_plot_label, 0, 0)
+        plot_layout.addWidget(plot_widget, 1, 0)
+
+        self.figure = Figure()
+        self.canvas = FigureCanvas(self.figure)
+        plot_layout.addWidget(self.canvas, 2, 0)
+        self.canvas.hide()
 
         return plot_container_widget
 
@@ -239,27 +295,6 @@ class View(QMainWindow):
 
         return selector_widget
 
-    def set_mode(self, optional_layout, mode=0):
-        # find the second_plot_widget
-        second_plot_widget = optional_layout.itemAtPosition(2, 0).widget()
-        self.second_plot_label.setText("")
-        if second_plot_widget is not None:
-            second_plot_widget.hide()
-
-        # Clear the layout if there's already a widget at position (1, 0)
-        if optional_layout.itemAtPosition(0, 0) is not None:
-            item = optional_layout.itemAtPosition(0, 0)
-            widget_to_remove = item.widget()
-            if widget_to_remove:
-                widget_to_remove.setParent(None)
-
-        if mode == 1:
-            widget = self.init_rcv_widget()
-            optional_layout.addWidget(widget, 0, 0)
-
-        elif (mode == 2) & (second_plot_widget is not None):
-            self.second_plot_label.setText("Inverted EOFM plot")
-            second_plot_widget.show()
 
     def display_image(self, image_matrix, eofm=False):
         image_matrix = np.rot90(image_matrix)
@@ -301,3 +336,24 @@ class View(QMainWindow):
 
     def get_input_confocal(self):
         return self.selector_input_confocal.isChecked()
+
+    def plot_dataframe(self, df):
+        self.figure.clear()
+
+        ax1 = self.figure.add_subplot(111)
+        ax2 = ax1.twinx()
+
+        ax1.plot(df['/A X'], df['/A Y'], label='Voltage', color='blue')
+        ax2.plot(df['/A X'], df['RCV'], label='RCV', color='red')
+
+        ax1.set_xlabel('Time (s)')
+        ax1.set_ylabel('Voltage (V)', color='blue')
+        ax2.set_ylabel('RCV (nm²)', color='red')
+
+        ax1.set_title('DataFrame Plot')
+        ax1.legend(loc='upper left')
+        ax2.legend(loc='upper right')
+
+        ax1.set_xlim(df['/A X'].min(), df['/A X'].max())
+
+        self.canvas.draw()
