@@ -193,7 +193,7 @@ class Controller:
 
     def update_rcv_position(self):
         self.update_settings()
-        self.x_position = 3000 - int(self.view.get_input_x())
+        self.x_position = int(self.view.get_input_x())
         self.y_position = int(self.view.get_input_y())
         self.print_rcv_image()
 
@@ -204,7 +204,7 @@ class Controller:
     def print_rcv_image(self):
         self.update_settings()
         points = np.where(self.image_matrix != 0, 1, 0)
-        mask = self.calc_and_plot_RCV(offset=[self.y_position, self.x_position])
+        mask = self.calc_and_plot_RCV(offset=[self.y_position, 3000 - self.x_position])
 
         result = cv2.addWeighted(points, 1, mask, 0.5, 0)
 
