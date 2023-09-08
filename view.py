@@ -2,19 +2,19 @@ import numpy as np
 from PyQt6.QtWidgets import QMainWindow, QWidget, QGridLayout, QLabel, QPushButton, QVBoxLayout, QLineEdit, QCheckBox
 from PyQt6.QtCore import Qt
 import pyqtgraph as pg
-import controller
 
 
 # TODO put lambda na and button in the same line and separate optional info in last box
 # TODO try to add color into plot especially for lps
 # TODO center plot in window
+# fix RuntimeError: wrapped C/C++ object of type ImageItem has been deleted
 
 class View(QMainWindow):
-    def __init__(self):
+    def __init__(self, controller):
         super().__init__()
         self.image_view = pg.ImageItem(None)
         self.plot_widget = None
-        self.controller = controller.Controller(self)
+        self.controller = controller
 
         self.info_input_Kn = QLineEdit(self)
         self.info_input_Kp = QLineEdit(self)

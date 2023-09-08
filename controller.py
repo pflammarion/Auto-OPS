@@ -5,10 +5,13 @@ import cv2
 import numpy as np
 from scipy.signal import fftconvolve
 
+import view
+
 
 class Controller:
-    def __init__(self, view):
-        self.view = view
+    def __init__(self):
+
+        # init all class variables
 
         self.technology_value = 45
         self.Kn_value = 1
@@ -25,6 +28,8 @@ class Controller:
         self.lam_value = 1300
         self.NA_value = 0.75
         self.is_confocal = True
+
+        self.view = view.View(self)
 
         lam, G1, G2, Gap = self.parameters_init(self.Kn_value, self.Kp_value, self.voltage_value, self.beta_value, self.Pl_value)
         self.image_matrix = self.draw_layout(lam, G1, G2, Gap)
@@ -247,4 +252,7 @@ class Controller:
         L = self.psf_2d(FOV, lam, NA, FWHM//2 if is_confocal else np.inf)
         self.view.display_image(L)
         self.view.update_main_label_value(self.main_label_value)
+
+    def get_view(self):
+        return self.view
 
