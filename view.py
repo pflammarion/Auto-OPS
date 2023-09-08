@@ -1,19 +1,15 @@
 import numpy as np
+from PyQt6.QtGui import QFont
 from PyQt6.QtWidgets import QMainWindow, QWidget, QGridLayout, QLabel, QPushButton, QVBoxLayout, QLineEdit, QCheckBox
 from PyQt6.QtCore import Qt
 import pyqtgraph as pg
 
 
-# TODO put lambda na and button in the same line and separate optional info in last box
 # TODO try to add color into plot especially for lps
-# TODO center plot in window
-# fix RuntimeError: wrapped C/C++ object of type ImageItem has been deleted
 
 class View(QMainWindow):
     def __init__(self, controller):
         super().__init__()
-        self.image_view = pg.ImageItem(None)
-        self.plot_widget = None
         self.controller = controller
 
         self.info_input_Kn = QLineEdit(self)
@@ -22,7 +18,7 @@ class View(QMainWindow):
         self.info_input_Pl = QLineEdit(self)
         self.info_input_voltage = QLineEdit(self)
 
-        #fill infos from controller
+        # fill infos from controller
         self.info_input_Kn.setText(str(self.controller.Kn_value))
         self.info_input_Kp.setText(str(self.controller.Kp_value))
         self.info_input_beta.setText(str(self.controller.beta_value))
@@ -36,7 +32,16 @@ class View(QMainWindow):
         self.selector_input_NA = None
         self.selector_input_confocal = None
 
+        title = QFont()
+        title.setPointSize(16)
+        title.setBold(True)
+
+        self.image_view = pg.ImageItem(None)
+        self.main_plot_label = QLabel()
+        self.main_plot_label.setFont(title)
         self.second_image_view = pg.ImageItem(None)
+        self.second_plot_label = QLabel()
+        self.second_plot_label.setFont(title)
 
         self.main_window = QMainWindow()
         self.init_ui()
@@ -54,6 +59,60 @@ class View(QMainWindow):
 
         # Creating the add widget
 
+        button_widget = self.init_button_widget()
+
+        # Creating the info widget
+
+        info_widget = self.init_physic_info_widget()
+
+        # Creating the laser widget
+
+        laser_widget = self.init_laser_widget()
+
+        # optional widget
+        optional_widget = QWidget()
+        optional_layout = self.init_optional_layout(optional_widget)
+
+        nav_bar = self.init_nav_bar(optional_layout)
+
+        # Creating the plot widget
+
+        plot_container_widget = self.init_plot_widget()
+
+        # Add all to the window layout
+
+        layout.addWidget(button_widget, 0, 0)
+        layout.addWidget(info_widget, 0, 1)
+        layout.addWidget(laser_widget, 1, 0)
+        layout.addWidget(nav_bar, 1, 1)
+        layout.addWidget(optional_widget, 2, 0)
+        layout.addWidget(plot_container_widget, 2, 1)
+
+    def init_nav_bar(self, optional_layout) -> QWidget:
+        nav_bar_widget = QWidget()
+        nav_bar_container_layout = QGridLayout(nav_bar_widget)
+
+        main_button0 = QPushButton("Laser point spread", self)
+        main_button0.clicked.connect(self.controller.print_psf)
+        main_button0.clicked.connect(lambda: self.set_mode(optional_layout, 0))
+        main_button1 = QPushButton("Show original output", self)
+        main_button1.clicked.connect(self.controller.print_original_image)
+        main_button1.clicked.connect(lambda: self.set_mode(optional_layout, 0))
+        main_button2 = QPushButton("Calc RCV", self)
+        main_button2.clicked.connect(lambda: self.set_mode(optional_layout, 1))
+        main_button2.clicked.connect(self.controller.print_rcv_image)
+        main_button3 = QPushButton("EOFM", self)
+        main_button3.clicked.connect(lambda: self.set_mode(optional_layout, 2))
+        main_button3.clicked.connect(self.controller.print_EOFM_image)
+
+        nav_bar_container_layout.addWidget(main_button0, 0, 0)
+        nav_bar_container_layout.addWidget(main_button1, 0, 1)
+        nav_bar_container_layout.addWidget(main_button2, 0, 2)
+        nav_bar_container_layout.addWidget(main_button3, 0, 3)
+
+        return nav_bar_widget
+
+    def init_button_widget(self) -> QWidget:
         button_widget = QWidget()
         button_add_png = QPushButton("Add png file", self)
         button_add_png.clicked.connect(self.controller.upload_image)
@@ -64,57 +123,21 @@ class View(QMainWindow):
         button_layout.addWidget(button_add_png)
         button_layout.addWidget(button_add_json)
 
-        # Creating the info widget
+        return button_widget
 
-        info_widget = self.init_physic_info_widget()
+    def init_optional_layout(self, optional_widget) -> QGridLayout:
+        optional_layout = QGridLayout(optional_widget)
 
-        # Creating the side widget
+        optional_layout.addWidget(self.second_plot_label, 1, 0)
 
-        side_widget = QWidget()
-        side_layout = QGridLayout(side_widget)
+        second_plot_widget = pg.PlotWidget()
+        second_plot_widget.addItem(self.second_image_view)
+        second_plot_widget.setFixedWidth(400)
+        second_plot_widget.setFixedHeight(400)
+        optional_layout.addWidget(second_plot_widget, 2, 0)
+        second_plot_widget.hide()
 
-        laser_widget = self.init_laser_widget()
-
-        side_layout.addWidget(laser_widget, 0, 0)
-
-        nav_bar = self.init_nav_bar(layout)
-
-        # Creating the main widget
-
-        plot_container_widget = self.init_plot_widget()
-
-        # Add all to the window layout
-
-        layout.addWidget(button_widget, 0, 0)
-        layout.addWidget(info_widget, 0, 1)
-        layout.addWidget(side_widget, 1, 0)
-        layout.addWidget(nav_bar, 1, 1)
-        layout.addWidget(plot_container_widget, 2, 1)
-
-    def init_nav_bar(self, layout) -> QWidget:
-        nav_bar_widget = QWidget()
-        nav_bar_container_layout = QGridLayout(nav_bar_widget)
-
-        main_button0 = QPushButton("Laser point spread", self)
-        main_button0.clicked.connect(self.controller.print_psf)
-        main_button0.clicked.connect(lambda: self.set_mode(layout, 0))
-        main_button1 = QPushButton("Show original output", self)
-        main_button1.clicked.connect(self.controller.print_original_image)
-        main_button1.clicked.connect(lambda: self.set_mode(layout, 0))
-        main_button2 = QPushButton("Calc RCV", self)
-        main_button2.clicked.connect(lambda: self.set_mode(layout, 1))
-        main_button2.clicked.connect(self.controller.print_rcv_image)
-        main_button3 = QPushButton("EOFM", self)
-        main_button3.clicked.connect(lambda: self.set_mode(layout, 2))
-        main_button3.clicked.connect(self.controller.print_EOFM_image)
-
-        nav_bar_container_layout.addWidget(main_button0, 0, 0)
-        nav_bar_container_layout.addWidget(main_button1, 0, 1)
-        nav_bar_container_layout.addWidget(main_button2, 0, 2)
-        nav_bar_container_layout.addWidget(main_button3, 0, 3)
-
-        return nav_bar_widget
-
+        return optional_layout
 
     def init_physic_info_widget(self) -> QWidget:
         info_widget = QWidget()
@@ -128,7 +151,7 @@ class View(QMainWindow):
         info_button.clicked.connect(self.controller.update_physics_values)
 
         # TODO set placeholder
-        #self.info_input_Kn.setPlaceholderText(self.controller.Kn_value)
+        # self.info_input_Kn.setPlaceholderText(self.controller.Kn_value)
 
         input_layout = QGridLayout(info_widget)
         input_layout.addWidget(info_label, 0, 0)
@@ -147,7 +170,6 @@ class View(QMainWindow):
         return info_widget
 
     def init_plot_widget(self) -> QWidget:
-
         self.plot_widget = pg.PlotWidget()
         self.plot_widget.addItem(self.image_view)
         self.plot_widget.setFixedWidth(400)
@@ -155,6 +177,7 @@ class View(QMainWindow):
 
         plot_container_widget = QWidget()
         plot_layout = QGridLayout(plot_container_widget)
+        plot_layout.addWidget(self.main_plot_label)
         plot_layout.addWidget(self.plot_widget)
 
         return plot_container_widget
@@ -186,29 +209,52 @@ class View(QMainWindow):
 
         return widget
 
-    def set_mode(self, layout, mode=0):
+    def init_rcv_widget(self) -> QWidget:
+        selector_widget = QWidget()
+        selector_label_x = QLabel("x: ", self)
+        selector_label_y = QLabel("y: ", self)
+
+        self.selector_input_x = QLineEdit(self)
+        self.selector_input_x.setText(str(self.controller.x_position))
+        self.selector_input_y = QLineEdit(self)
+        self.selector_input_y.setText(str(self.controller.y_position))
+
+        selector_button = QPushButton("change position", self)
+        selector_button.clicked.connect(self.controller.update_rcv_position)
+
+        selector_layout = QGridLayout(selector_widget)
+        selector_layout.addWidget(selector_label_x, 0, 0)
+        selector_layout.addWidget(self.selector_input_x, 0, 1)
+        selector_layout.addWidget(selector_label_y, 1, 0)
+        selector_layout.addWidget(self.selector_input_y, 1, 1)
+        selector_layout.addWidget(selector_button, 2, 1)
+
+        return selector_widget
+
+    def set_mode(self, optional_layout, mode=0):
+        # find the second_plot_widget
+        second_plot_widget = optional_layout.itemAtPosition(2, 0).widget()
+        self.second_plot_label.setText("")
+        if second_plot_widget is not None:
+            second_plot_widget.hide()
+
         # Clear the layout if there's already a widget at position (1, 0)
-        if layout.itemAtPosition(2, 0) is not None:
-            item = layout.itemAtPosition(2, 0)
+        if optional_layout.itemAtPosition(0, 0) is not None:
+            item = optional_layout.itemAtPosition(0, 0)
             widget_to_remove = item.widget()
             if widget_to_remove:
                 widget_to_remove.setParent(None)
 
         if mode == 1:
             widget = self.init_rcv_widget()
-            layout.addWidget(widget, 2, 0)
+            optional_layout.addWidget(widget, 0, 0)
 
-        elif mode == 2:
-            second_plot_widget = pg.PlotWidget()
-            second_plot_widget.addItem(self.second_image_view)
-            second_plot_widget.setFixedWidth(400)
-            second_plot_widget.setFixedHeight(400)
-            layout.addWidget(second_plot_widget, 2, 0)
+        elif (mode == 2) & (second_plot_widget is not None):
+            self.second_plot_label.setText("Inverted EOFM plot")
+            second_plot_widget.show()
 
     def display_image(self, image_matrix, eofm=False):
-        # TODO find a nicer solution to display images
         image_matrix = np.rot90(image_matrix)
-
         self.image_view.setImage(image_matrix)
 
         if eofm:
@@ -231,8 +277,7 @@ class View(QMainWindow):
         return self.info_input_voltage.text()
 
     def update_main_label_value(self, text):
-        if self.plot_widget is not None:
-            self.plot_widget.setTitle(text)
+        self.main_plot_label.setText(text)
 
     def get_input_x(self):
         return self.selector_input_x.text()
@@ -248,25 +293,3 @@ class View(QMainWindow):
 
     def get_input_confocal(self):
         return self.selector_input_confocal.isChecked()
-
-    def init_rcv_widget(self) -> QWidget:
-        selector_widget = QWidget()
-        selector_label_x = QLabel("x: ", self)
-        selector_label_y = QLabel("y: ", self)
-
-        self.selector_input_x = QLineEdit(self)
-        self.selector_input_x.setText(str(self.controller.x_position))
-        self.selector_input_y = QLineEdit(self)
-        self.selector_input_y.setText(str(self.controller.y_position))
-
-        selector_button = QPushButton("change position", self)
-        selector_button.clicked.connect(self.controller.update_rcv_position)
-
-        selector_layout = QGridLayout(selector_widget)
-        selector_layout.addWidget(selector_label_x, 0, 0)
-        selector_layout.addWidget(self.selector_input_x, 0, 1)
-        selector_layout.addWidget(selector_label_y, 1, 0)
-        selector_layout.addWidget(self.selector_input_y, 1, 1)
-        selector_layout.addWidget(selector_button, 2, 1)
-
-        return selector_widget
