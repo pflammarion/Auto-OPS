@@ -45,7 +45,7 @@ class View(QMainWindow):
 
         self.setWindowTitle("CMOS-INV-GUI")
         self.setStyleSheet(open('style.css').read())
-        self.setGeometry(0, 0, 800, 600)
+        self.setGeometry(0, 0, 1000, 800)
 
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
@@ -77,16 +77,44 @@ class View(QMainWindow):
 
         side_layout.addWidget(laser_widget, 0, 0)
 
+        nav_bar = self.init_nav_bar(layout)
+
         # Creating the main widget
 
-        main_widget = self.init_main_widget(side_layout)
+        plot_container_widget = self.init_plot_widget()
 
         # Add all to the window layout
 
         layout.addWidget(button_widget, 0, 0)
         layout.addWidget(info_widget, 0, 1)
         layout.addWidget(side_widget, 1, 0)
-        layout.addWidget(main_widget, 1, 1)
+        layout.addWidget(nav_bar, 1, 1)
+        layout.addWidget(plot_container_widget, 2, 1)
+
+    def init_nav_bar(self, layout) -> QWidget:
+        nav_bar_widget = QWidget()
+        nav_bar_container_layout = QGridLayout(nav_bar_widget)
+
+        main_button0 = QPushButton("Laser point spread", self)
+        main_button0.clicked.connect(self.controller.print_psf)
+        main_button0.clicked.connect(lambda: self.set_mode(layout, 0))
+        main_button1 = QPushButton("Show original output", self)
+        main_button1.clicked.connect(self.controller.print_original_image)
+        main_button1.clicked.connect(lambda: self.set_mode(layout, 0))
+        main_button2 = QPushButton("Calc RCV", self)
+        main_button2.clicked.connect(lambda: self.set_mode(layout, 1))
+        main_button2.clicked.connect(self.controller.print_rcv_image)
+        main_button3 = QPushButton("EOFM", self)
+        main_button3.clicked.connect(lambda: self.set_mode(layout, 2))
+        main_button3.clicked.connect(self.controller.print_EOFM_image)
+
+        nav_bar_container_layout.addWidget(main_button0, 0, 0)
+        nav_bar_container_layout.addWidget(main_button1, 0, 1)
+        nav_bar_container_layout.addWidget(main_button2, 0, 2)
+        nav_bar_container_layout.addWidget(main_button3, 0, 3)
+
+        return nav_bar_widget
+
 
     def init_physic_info_widget(self) -> QWidget:
         info_widget = QWidget()
@@ -118,40 +146,18 @@ class View(QMainWindow):
 
         return info_widget
 
-    def init_main_widget(self, side_layout) -> QWidget:
-        main_btn_container_widget = QWidget()
-        main_btn_container_layout = QGridLayout(main_btn_container_widget)
-
-        main_button0 = QPushButton("Laser point spread", self)
-        main_button0.clicked.connect(self.controller.print_psf)
-        main_button0.clicked.connect(lambda: self.set_mode(side_layout, 0))
-        main_button1 = QPushButton("Show original output", self)
-        main_button1.clicked.connect(self.controller.print_original_image)
-        main_button1.clicked.connect(lambda: self.set_mode(side_layout, 0))
-        main_button2 = QPushButton("Calc RCV", self)
-        main_button2.clicked.connect(lambda: self.set_mode(side_layout, 1))
-        main_button2.clicked.connect(self.controller.print_rcv_image)
-        main_button3 = QPushButton("EOFM", self)
-        main_button3.clicked.connect(lambda: self.set_mode(side_layout, 2))
-        main_button3.clicked.connect(self.controller.print_EOFM_image)
-
-        main_btn_container_layout.addWidget(main_button0, 0, 0)
-        main_btn_container_layout.addWidget(main_button1, 0, 1)
-        main_btn_container_layout.addWidget(main_button2, 0, 2)
-        main_btn_container_layout.addWidget(main_button3, 0, 3)
+    def init_plot_widget(self) -> QWidget:
 
         self.plot_widget = pg.PlotWidget()
         self.plot_widget.addItem(self.image_view)
         self.plot_widget.setFixedWidth(400)
         self.plot_widget.setFixedHeight(400)
 
-        main_widget = QWidget()
-        main_layout = QGridLayout(main_widget)
+        plot_container_widget = QWidget()
+        plot_layout = QGridLayout(plot_container_widget)
+        plot_layout.addWidget(self.plot_widget)
 
-        main_layout.addWidget(main_btn_container_widget, 0, 0)
-        main_layout.addWidget(self.plot_widget, 1, 0)
-
-        return main_widget
+        return plot_container_widget
 
     def init_laser_widget(self) -> QWidget:
         widget = QWidget()
@@ -180,24 +186,24 @@ class View(QMainWindow):
 
         return widget
 
-    def set_mode(self, side_layout, mode=0):
+    def set_mode(self, layout, mode=0):
         # Clear the layout if there's already a widget at position (1, 0)
-        if side_layout.itemAtPosition(1, 0) is not None:
-            item = side_layout.itemAtPosition(1, 0)
+        if layout.itemAtPosition(2, 0) is not None:
+            item = layout.itemAtPosition(2, 0)
             widget_to_remove = item.widget()
             if widget_to_remove:
                 widget_to_remove.setParent(None)
 
         if mode == 1:
             widget = self.init_rcv_widget()
-            side_layout.addWidget(widget, 1, 0)
+            layout.addWidget(widget, 2, 0)
 
         elif mode == 2:
             second_plot_widget = pg.PlotWidget()
             second_plot_widget.addItem(self.second_image_view)
-            second_plot_widget.setFixedWidth(200)
-            second_plot_widget.setFixedHeight(200)
-            side_layout.addWidget(second_plot_widget, 1, 0)
+            second_plot_widget.setFixedWidth(400)
+            second_plot_widget.setFixedHeight(400)
+            layout.addWidget(second_plot_widget, 2, 0)
 
     def display_image(self, image_matrix, eofm=False):
         # TODO find a nicer solution to display images
