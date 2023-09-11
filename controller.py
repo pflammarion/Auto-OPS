@@ -36,6 +36,7 @@ class Controller:
         self.data = self.load_settings_from_json()
 
         self.dataframe = None
+        self.selected_columns = None
 
         self.main_label_value = ""
 
@@ -145,8 +146,8 @@ class Controller:
                 # Create and show the column selection dialog
                 dialog = ColumnSelectionDialog(column_names)
                 if dialog.exec():
-                    selected_columns = dialog.get_selected_columns()
-                    self.plot_rcv_calc(selected_columns)
+                    self.selected_columns = dialog.get_selected_columns()
+                    self.plot_rcv_calc()
 
     def psf_xy(self, lam, na, x, y, xc, yc, radius_max=np.inf):
 
@@ -408,13 +409,14 @@ class Controller:
     def get_view(self):
         return self.view
 
-    def plot_rcv_calc(self, selected_columns):
+    def plot_rcv_calc(self):
         self.max_voltage_high_gate_state = float('-inf')
         self.high_gate_state_layout = None
         lam = self.lam_value
         draw_lam = self.technology_value / 2
         NA = self.NA_value
         is_confocal = self.is_confocal
+        selected_columns = self.selected_columns
 
         FWHM = 1.22 / np.sqrt(2) * lam / NA
         FOV = 3000
