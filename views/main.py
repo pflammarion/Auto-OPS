@@ -32,6 +32,9 @@ class MainView(QMainWindow):
         self.info_input_voltage.setText(str(self.controller.voltage_value))
         self.info_input_voltage.setPlaceholderText(str(self.controller.voltage_value))
 
+        self.info_button_column_voltage = QPushButton("Voltage columns")
+        self.info_button_column_voltage.clicked.connect(self.controller.volage_column_dialog)
+
         self.selector_input_x = None
         self.selector_input_y = None
 
@@ -103,11 +106,21 @@ class MainView(QMainWindow):
 
         optional_layout = layout.itemAtPosition(2, 0).widget().layout()
         plot_layout = layout.itemAtPosition(2, 1).widget().layout()
+        info_layout = layout.itemAtPosition(0, 1).widget().layout()
 
         # Find and clear the second_plot_widget
         main_plot_widget = plot_layout.itemAtPosition(1, 0).widget()
         main_plot_widget_df = plot_layout.itemAtPosition(2, 0).widget()
         second_plot_widget = optional_layout.itemAtPosition(2, 0).widget()
+
+        voltage_input = info_layout.itemAtPosition(4, 1).widget()
+
+        # TODO fix overwrite sometime
+        if voltage_input:
+            voltage_input.hide()
+            info_layout.addWidget(self.info_input_voltage, 4, 1)
+            self.info_input_voltage.show()
+
         self.second_plot_label.setText("")
         if second_plot_widget is not None:
             second_plot_widget.hide()
@@ -125,21 +138,27 @@ class MainView(QMainWindow):
             if widget_to_remove:
                 widget_to_remove.setParent(None)
 
+        # RCV mode
         if mode == 1:
             widget = self.init_rcv_widget()
             optional_layout.addWidget(widget, 0, 0)
 
+        # EOFM mode
         elif (mode == 2) & (second_plot_widget is not None):
             self.second_plot_label.setText("Inverted EOFM plot")
             second_plot_widget.show()
+            info_layout.addWidget(self.info_input_voltage, 4, 1)
 
+        # CSV mode
         elif mode == 3:
-            # TODO remove voltage input and add list of possible plot
+            voltage_input.hide()
             widget = self.init_rcv_widget()
             optional_layout.addWidget(widget, 0, 0)
             main_plot_widget_df.show()
             main_plot_widget.hide()
             second_plot_widget.show()
+            info_layout.addWidget(self.info_button_column_voltage, 4, 1)
+            self.info_button_column_voltage.show()
 
 
     def init_nav_bar(self, optional_layout) -> QWidget:

@@ -15,6 +15,7 @@ class ColumnSelectionDialog(QDialog):
         self.label2 = QLabel("Select voltage column:")
         self.column_combo2 = QComboBox()
         self.column_combo2.addItems(column_names)
+        self.column_combo2.setCurrentIndex(1)
 
         self.ok_button = QPushButton("OK")
         self.ok_button.clicked.connect(self.accept)

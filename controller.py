@@ -139,15 +139,8 @@ class Controller:
             if selected_files:
                 file_path = selected_files[0]
                 self.dataframe = pd.read_csv(file_path)
+                self.volage_column_dialog()
 
-                # Get the column names from the dataframe
-                column_names = self.dataframe.columns.tolist()
-
-                # Create and show the column selection dialog
-                dialog = ColumnSelectionDialog(column_names)
-                if dialog.exec():
-                    self.selected_columns = dialog.get_selected_columns()
-                    self.plot_rcv_calc()
 
     def psf_xy(self, lam, na, x, y, xc, yc, radius_max=np.inf):
 
@@ -434,3 +427,14 @@ class Controller:
             points = np.where(self.high_gate_state_layout != 0, 1, 0)
             result = cv2.addWeighted(points, 1, mask, 0.5, 0)
             self.view.display_image(result, True)
+
+    def volage_column_dialog(self):
+        # Get the column names from the dataframe
+        column_names = self.dataframe.columns.tolist()
+
+        # Create and show the column selection dialog
+        dialog = ColumnSelectionDialog(column_names)
+        if dialog.exec():
+            self.selected_columns = dialog.get_selected_columns()
+            self.plot_rcv_calc()
+
