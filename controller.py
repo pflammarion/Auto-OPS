@@ -14,6 +14,8 @@ from views.main import MainView
 class Controller:
     def __init__(self):
 
+        self.imported_image = False
+
         # init all class variables
         self.technology_value = 45
         self.Kn_value = 1
@@ -46,11 +48,12 @@ class Controller:
 
         self.view = MainView(self)
 
-        self.relaod_view()
+        self.reload_view()
 
-    def relaod_view(self):
-        if self.app_state != 4:
-            lam, G1, G2, Gap = self.parameters_init(self.Kn_value, self.Kp_value, self.voltage_value, self.beta_value, self.Pl_value)
+    def reload_view(self):
+        if self.app_state != 4 and self.imported_image is False:
+            lam, G1, G2, Gap = self.parameters_init(self.Kn_value, self.Kp_value, self.voltage_value, self.beta_value,
+                                                    self.Pl_value)
             self.image_matrix = self.draw_layout(lam, G1, G2, Gap)
 
         if self.app_state == 1:
@@ -69,7 +72,7 @@ class Controller:
 
     def set_state(self, state):
         self.app_state = int(state)
-        self.relaod_view()
+        self.reload_view()
 
     def load_settings_from_json(self):
         json_file_path = "config.json"
@@ -135,6 +138,7 @@ class Controller:
                 self.image_matrix = gray_image
 
                 self.view.display_image(self.image_matrix)
+                self.imported_image = True
                 print("Image loaded as a matrix")
 
     def upload_json(self):
@@ -163,7 +167,6 @@ class Controller:
                 file_path = selected_files[0]
                 self.dataframe = pd.read_csv(file_path)
                 self.volage_column_dialog()
-
 
     def psf_xy(self, lam, na, x, y, xc, yc, radius_max=np.inf):
 
@@ -269,6 +272,8 @@ class Controller:
 
     def update_physics_values(self):
 
+        self.imported_image = False
+
         Kn_input = self.view.get_input_Kn()
         Kp_input = self.view.get_input_Kp()
         beta_input = self.view.get_input_beta()
@@ -301,7 +306,7 @@ class Controller:
         else:
             self.voltage_value = self.data["voltage"]
 
-        self.relaod_view()
+        self.reload_view()
 
     def calc_and_plot_RCV(self, offset=None):
 
@@ -343,23 +348,21 @@ class Controller:
 
         self.update_settings()
 
-        self.relaod_view()
+        self.reload_view()
 
     def print_original_image(self):
         self.dataframe = None
         self.view.display_image(self.image_matrix)
-        self.view.update_main_label_value("")
 
     def print_rcv_image(self):
         self.dataframe = None
         self.update_settings()
         points = np.where(self.image_matrix != 0, 1, 0)
-        mask = self.calc_and_plot_RCV(offset=[self.y_position, 3000 - self.x_position])
+        mask = self.calc_and_plot_RCV(offset=[self.y_position, self.x_position])
 
         result = cv2.addWeighted(points, 1, mask, 0.5, 0)
 
         self.view.display_image(result)
-        self.view.update_main_label_value(self.main_label_value)
 
     def calc_and_plot_EOFM(self):
         lam = self.lam_value
@@ -378,8 +381,9 @@ class Controller:
         L = self.calc_and_plot_EOFM()
         R = fftconvolve(self.image_matrix, L, mode='same')
 
-        self.view.display_image(R, True)
-        self.view.update_main_label_value(self.main_label_value)
+        self.view.display_image(R)
+        inverted_image = np.abs(R)
+        self.view.display_second_image(inverted_image)
 
     def update_settings(self):
         lam_input = self.view.get_input_lam()
@@ -412,8 +416,7 @@ class Controller:
         FOV = 2000
         self.main_label_value = "FWHM = %.02f, is_confocal = %s" % (FWHM, is_confocal)
         L = self.psf_2d(FOV, lam, NA, FWHM // 2 if is_confocal else np.inf)
-        self.view.display_image(L)
-        self.view.update_main_label_value(self.main_label_value)
+        self.view.display_image(L, lps=True)
 
     def get_view(self):
         return self.view
@@ -430,20 +433,21 @@ class Controller:
 
         FWHM = 1.22 / np.sqrt(2) * lam / NA
         FOV = 3000
-        offset = [self.y_position, 3000 - self.x_position]
+        offset = [self.y_position, self.x_position]
         L = self.psf_2d_pos(FOV, lam, NA, offset[0], offset[1], FWHM // 2 if is_confocal else np.inf)
         mask = np.where(L > 0, 1, 0)
 
         self.dataframe['RCV'] = self.dataframe.apply(
-            lambda row: self.calc_unique_rcv(self.Kn_value, row[selected_columns[1]], self.beta_value, self.Pl_value, L, draw_lam),
+            lambda row: self.calc_unique_rcv(self.Kn_value, row[selected_columns[1]], self.beta_value, self.Pl_value, L,
+                                             draw_lam),
             axis=1)
-
-        self.view.plot_dataframe(self.dataframe, selected_columns)
 
         if self.high_gate_state_layout is not None:
             points = np.where(self.high_gate_state_layout != 0, 1, 0)
             result = cv2.addWeighted(points, 1, mask, 0.5, 0)
-            self.view.display_image(result, True)
+            self.view.display_second_image(result)
+
+        self.view.plot_dataframe(self.dataframe, selected_columns)
 
     def volage_column_dialog(self):
         # Get the column names from the dataframe
@@ -456,4 +460,3 @@ class Controller:
             self.selected_columns = dialog.get_selected_columns()
 
             self.plot_rcv_calc()
-

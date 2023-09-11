@@ -2,12 +2,9 @@ import numpy as np
 from PyQt6.QtGui import QFont
 from PyQt6.QtWidgets import QMainWindow, QWidget, QGridLayout, QLabel, QPushButton, QVBoxLayout, QLineEdit, QCheckBox
 from PyQt6.QtCore import Qt
-import pyqtgraph as pg
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 
-
-# TODO try to add color into plot especially for lps
 
 class MainView(QMainWindow):
     def __init__(self, controller):
@@ -46,15 +43,16 @@ class MainView(QMainWindow):
         title.setPointSize(16)
         title.setBold(True)
 
-        self.image_view = pg.ImageItem(None)
         self.main_plot_label = QLabel()
         self.main_plot_label.setFont(title)
-        self.second_image_view = pg.ImageItem(None)
         self.second_plot_label = QLabel()
         self.second_plot_label.setFont(title)
 
-        self.figure = None
-        self.canvas = None
+        self.main_figure = None
+        self.main_canvas = None
+
+        self.second_figure = None
+        self.second_canvas = None
 
         self.main_window = QMainWindow()
         self.init_ui()
@@ -105,12 +103,9 @@ class MainView(QMainWindow):
     def set_mode(self, layout, mode=0):
 
         optional_layout = layout.itemAtPosition(2, 0).widget().layout()
-        plot_layout = layout.itemAtPosition(2, 1).widget().layout()
         info_layout = layout.itemAtPosition(0, 1).widget().layout()
 
         # Find and clear the second_plot_widget
-        main_plot_widget = plot_layout.itemAtPosition(1, 0).widget()
-        main_plot_widget_df = plot_layout.itemAtPosition(2, 0).widget()
         second_plot_widget = optional_layout.itemAtPosition(2, 0).widget()
 
         # hide and show the voltage button for csv mode
@@ -121,12 +116,6 @@ class MainView(QMainWindow):
         self.second_plot_label.setText("")
         if second_plot_widget is not None:
             second_plot_widget.hide()
-
-        if main_plot_widget_df is not None:
-            main_plot_widget_df.hide()
-
-        if main_plot_widget is not None:
-            main_plot_widget.show()
 
         # Clear the layout if there's already a widget at position (0, 0)
         if optional_layout.itemAtPosition(0, 0) is not None:
@@ -141,8 +130,7 @@ class MainView(QMainWindow):
             optional_layout.addWidget(widget, 0, 0)
 
         # EOFM mode
-        elif (mode == 2) & (second_plot_widget is not None):
-            self.second_plot_label.setText("Inverted EOFM plot")
+        elif mode == 2 and second_plot_widget is not None:
             second_plot_widget.show()
             info_layout.addWidget(self.info_input_voltage, 4, 1)
 
@@ -151,29 +139,26 @@ class MainView(QMainWindow):
             self.info_input_voltage.hide()
             widget = self.init_rcv_widget()
             optional_layout.addWidget(widget, 0, 0)
-            main_plot_widget_df.show()
-            main_plot_widget.hide()
             second_plot_widget.show()
             info_layout.addWidget(self.info_button_column_voltage, 4, 1)
             self.info_button_column_voltage.show()
-
 
     def init_nav_bar(self, optional_layout) -> QWidget:
         nav_bar_widget = QWidget()
         nav_bar_container_layout = QGridLayout(nav_bar_widget)
 
         main_button0 = QPushButton("Laser point spread", self)
-        main_button0.clicked.connect(self.controller.print_psf)
+        main_button0.clicked.connect(lambda: self.controller.set_state(1))
         main_button0.clicked.connect(lambda: self.set_mode(optional_layout, 0))
         main_button1 = QPushButton("Show original output", self)
-        main_button1.clicked.connect(self.controller.print_original_image)
+        main_button1.clicked.connect(lambda: self.controller.set_state(0))
         main_button1.clicked.connect(lambda: self.set_mode(optional_layout, 0))
         main_button2 = QPushButton("Calc RCV", self)
         main_button2.clicked.connect(lambda: self.set_mode(optional_layout, 1))
-        main_button2.clicked.connect(self.controller.print_rcv_image)
+        main_button2.clicked.connect(lambda: self.controller.set_state(2))
         main_button3 = QPushButton("EOFM", self)
         main_button3.clicked.connect(lambda: self.set_mode(optional_layout, 2))
-        main_button3.clicked.connect(self.controller.print_EOFM_image)
+        main_button3.clicked.connect(lambda: self.controller.set_state(3))
 
         nav_bar_container_layout.addWidget(main_button0, 0, 0)
         nav_bar_container_layout.addWidget(main_button1, 0, 1)
@@ -204,12 +189,10 @@ class MainView(QMainWindow):
 
         optional_layout.addWidget(self.second_plot_label, 1, 0)
 
-        second_plot_widget = pg.PlotWidget()
-        second_plot_widget.addItem(self.second_image_view)
-        second_plot_widget.setFixedWidth(400)
-        second_plot_widget.setFixedHeight(400)
-        optional_layout.addWidget(second_plot_widget, 2, 0)
-        second_plot_widget.hide()
+        self.second_figure = Figure()
+        self.second_canvas = FigureCanvas(self.second_figure)
+        optional_layout.addWidget(self.second_canvas, 2, 0)
+        self.second_canvas.hide()
 
         return optional_layout
 
@@ -241,20 +224,14 @@ class MainView(QMainWindow):
         return info_widget
 
     def init_plot_widget(self) -> QWidget:
-        plot_widget = pg.PlotWidget()
-        plot_widget.addItem(self.image_view)
-        plot_widget.setFixedWidth(400)
-        plot_widget.setFixedHeight(400)
 
         plot_container_widget = QWidget()
         plot_layout = QGridLayout(plot_container_widget)
         plot_layout.addWidget(self.main_plot_label, 0, 0)
-        plot_layout.addWidget(plot_widget, 1, 0)
 
-        self.figure = Figure()
-        self.canvas = FigureCanvas(self.figure)
-        plot_layout.addWidget(self.canvas, 2, 0)
-        self.canvas.hide()
+        self.main_figure = Figure()
+        self.main_canvas = FigureCanvas(self.main_figure)
+        plot_layout.addWidget(self.main_canvas)
 
         return plot_container_widget
 
@@ -299,7 +276,7 @@ class MainView(QMainWindow):
         self.selector_input_y.setText(str(self.controller.y_position))
         self.selector_input_y.setPlaceholderText(str(self.controller.y_position))
 
-        selector_button = QPushButton("change position", self)
+        selector_button = QPushButton("Submit values", self)
         selector_button.clicked.connect(self.controller.update_rcv_position)
 
         selector_layout = QGridLayout(selector_widget)
@@ -311,14 +288,23 @@ class MainView(QMainWindow):
 
         return selector_widget
 
+    def display_image(self, image_matrix, lps=False):
+        self.main_figure.clear()
 
-    def display_image(self, image_matrix, eofm=False):
-        image_matrix = np.rot90(image_matrix)
-        self.image_view.setImage(image_matrix)
+        ax = self.main_figure.add_subplot(111)
+        if lps:
+            im = ax.imshow(image_matrix)
+            self.main_figure.colorbar(im)
+        else:
+            ax.imshow(image_matrix, cmap='gist_gray')
 
-        if eofm:
-            seconde_image_matrix = np.abs(image_matrix)
-            self.second_image_view.setImage(seconde_image_matrix)
+        self.main_canvas.draw()
+
+    def display_second_image(self, image_matrix):
+        self.second_figure.clear()
+        ax = self.second_figure.add_subplot(111)
+        ax.imshow(image_matrix, cmap='gist_gray')
+        self.second_canvas.draw()
 
     def get_input_Kn(self):
         return self.info_input_Kn.text()
@@ -354,12 +340,12 @@ class MainView(QMainWindow):
         return self.selector_input_confocal.isChecked()
 
     def plot_dataframe(self, df, selected_columns):
-        self.figure.clear()
+        self.main_figure.clear()
 
         time = df[selected_columns[0]]
         voltage = df[selected_columns[1]]
 
-        ax1 = self.figure.add_subplot(111)
+        ax1 = self.main_figure.add_subplot(111)
         ax2 = ax1.twinx()
 
         ax1.plot(time, voltage, label=f"Voltage ({selected_columns[1]})", color='blue')
@@ -375,4 +361,4 @@ class MainView(QMainWindow):
 
         ax1.set_xlim(time.min(), time.max())
 
-        self.canvas.draw()
+        self.main_canvas.draw()
