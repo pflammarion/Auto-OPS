@@ -331,7 +331,8 @@ class MainView(QMainWindow):
         time = df[selected_columns[0]]
         voltage = df[selected_columns[1]]
         rcv = df['RCV']
-        noisy_rcv = rcv + np.random.normal(0, 2, len(rcv))
+        percentage = 0.05
+        noisy_rcv = rcv + np.random.normal(0, rcv.std(), time.size) * percentage
 
         ax1 = self.main_figure.add_subplot(211)
 
