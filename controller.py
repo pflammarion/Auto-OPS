@@ -346,7 +346,10 @@ class Controller:
         else:
             self.y_position = self.data["y_position"]
 
-        self.update_settings()
+
+
+        if self.imported_image is False:
+            self.update_settings()
 
         self.reload_view()
 

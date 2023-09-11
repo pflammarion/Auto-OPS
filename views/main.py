@@ -1,3 +1,4 @@
+import numpy as np
 from PyQt6.QtWidgets import QMainWindow, QWidget, QGridLayout, QLabel, QPushButton, QVBoxLayout, QLineEdit, QCheckBox
 from PyQt6.QtCore import Qt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
@@ -329,21 +330,30 @@ class MainView(QMainWindow):
 
         time = df[selected_columns[0]]
         voltage = df[selected_columns[1]]
+        rcv = df['RCV']
+        noisy_rcv = rcv + np.random.normal(0, 2, len(rcv))
 
-        ax1 = self.main_figure.add_subplot(111)
-        ax2 = ax1.twinx()
+        ax1 = self.main_figure.add_subplot(211)
 
-        ax1.plot(time, voltage, label=f"Voltage ({selected_columns[1]})", color='blue')
-        ax2.plot(time, df['RCV'], label='RCV', color='red')
+        ax2 = self.main_figure.add_subplot(212)
+        ax3 = ax2.twinx()
 
-        ax1.set_xlabel(f"Time (s) - ({selected_columns[0]})")
-        ax1.set_ylabel('Voltage (V)', color='blue')
+        ax1.plot(time, rcv, label="RCV", color='purple')
+        ax2.plot(time, noisy_rcv, label='Noisy RCV', color='red')
+        ax3.plot(time, voltage, label=f'Voltage - ({selected_columns[1]})', color='blue', linewidth=0.5)
+
+        ax2.set_xlabel(f"Time (s) - ({selected_columns[0]})")
+        ax3.set_ylabel('Voltage (V)', color='blue')
+        ax1.set_ylabel('RCV (nm²)', color='purple')
         ax2.set_ylabel('RCV (nm²)', color='red')
 
         ax1.set_title('RCV in function of time')
         ax1.legend(loc='upper left')
-        ax2.legend(loc='upper right')
+        ax2.legend(loc='upper left')
+        ax3.legend(loc='upper right')
 
         ax1.set_xlim(time.min(), time.max())
+        ax2.set_xlim(time.min(), time.max())
 
         self.main_canvas.draw()
+
