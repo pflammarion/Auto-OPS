@@ -40,13 +40,36 @@ class Controller:
 
         self.main_label_value = ""
 
+        self.image_matrix = None
+
+        self.app_state = 0
+
         self.view = MainView(self)
 
-        lam, G1, G2, Gap = self.parameters_init(self.Kn_value, self.Kp_value, self.voltage_value, self.beta_value,
-                                                self.Pl_value)
-        self.image_matrix = self.draw_layout(lam, G1, G2, Gap)
+        self.relaod_view()
 
-        self.print_original_image()
+    def relaod_view(self):
+        if self.app_state != 4:
+            lam, G1, G2, Gap = self.parameters_init(self.Kn_value, self.Kp_value, self.voltage_value, self.beta_value, self.Pl_value)
+            self.image_matrix = self.draw_layout(lam, G1, G2, Gap)
+
+        if self.app_state == 1:
+            self.print_psf()
+
+        elif self.app_state == 2:
+            self.print_rcv_image()
+
+        elif self.app_state == 3:
+            self.print_EOFM_image()
+
+        elif self.app_state == 4:
+            self.plot_rcv_calc()
+        else:
+            self.print_original_image()
+
+    def set_state(self, state):
+        self.app_state = int(state)
+        self.relaod_view()
 
     def load_settings_from_json(self):
         json_file_path = "config.json"
@@ -278,10 +301,7 @@ class Controller:
         else:
             self.voltage_value = self.data["voltage"]
 
-        lam, G1, G2, Gap = self.parameters_init(self.Kn_value, self.Kp_value, self.voltage_value, self.beta_value,
-                                                self.Pl_value)
-        self.image_matrix = self.draw_layout(lam, G1, G2, Gap)
-        self.view.display_image(self.image_matrix)
+        self.relaod_view()
 
     def calc_and_plot_RCV(self, offset=None):
 
@@ -323,11 +343,7 @@ class Controller:
 
         self.update_settings()
 
-        if self.dataframe is not None:
-            self.plot_rcv_calc()
-
-        else:
-            self.print_rcv_image()
+        self.relaod_view()
 
     def print_original_image(self):
         self.dataframe = None
@@ -403,6 +419,7 @@ class Controller:
         return self.view
 
     def plot_rcv_calc(self):
+        self.app_state = 4
         self.max_voltage_high_gate_state = float('-inf')
         self.high_gate_state_layout = None
         lam = self.lam_value
@@ -431,10 +448,12 @@ class Controller:
     def volage_column_dialog(self):
         # Get the column names from the dataframe
         column_names = self.dataframe.columns.tolist()
+        column_names_filtered = [col for col in column_names if col != "RCV"]
 
         # Create and show the column selection dialog
-        dialog = ColumnSelectionDialog(column_names)
+        dialog = ColumnSelectionDialog(column_names_filtered)
         if dialog.exec():
             self.selected_columns = dialog.get_selected_columns()
+
             self.plot_rcv_calc()
 
