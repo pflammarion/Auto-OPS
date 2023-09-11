@@ -158,7 +158,7 @@ class Controller:
     def round(self, i):
         return int(np.rint(i))
 
-    def draw_one_gate_layout(self, lam, G1):
+    def draw_one_gate_layout(self, G1, draw_lam):
 
         layout_width = 3000
         layout_height = 3000
@@ -166,8 +166,8 @@ class Controller:
         layout = np.empty(shape=(layout_height, layout_width))
         layout.fill(0)
 
-        x = self.round(2 * lam)
-        y = self.round(4 * lam)
+        x = self.round(2 * draw_lam)
+        y = self.round(4 * draw_lam)
 
         start_x = (layout_width - x) // 2
         start_y = (layout_height - y) // 2
@@ -213,9 +213,9 @@ class Controller:
         Gap = 0
         return lam, G1, G2, Gap
 
-    def calc_unique_rcv(self, K, voltage, beta, Pl, L, lam):
+    def calc_unique_rcv(self, K, voltage, beta, Pl, L, draw_lam):
         gate = voltage*K*beta*Pl
-        generated_gate_image = self.draw_one_gate_layout(lam, gate)
+        generated_gate_image = self.draw_one_gate_layout(gate, draw_lam)
 
         # for preview in gui of current position of laser
         if voltage > self.max_voltage_high_gate_state:
@@ -402,22 +402,21 @@ class Controller:
         self.max_voltage_high_gate_state = float('-inf')
         self.high_gate_state_layout = None
         lam = self.lam_value
+        draw_lam = self.technology_value/2
         NA = self.NA_value
         is_confocal = self.is_confocal
 
         FWHM = 1.22 / np.sqrt(2) * lam / NA
         FOV = 3000
-        # TODO check if it is the right x an y values
-        offset = [self.x_position, self.y_position]
+        offset = [self.y_position, 3000 - self.x_position]
         L = self.psf_2d_pos(FOV, lam, NA, offset[0], offset[1], FWHM // 2 if is_confocal else np.inf)
         mask = np.where(L > 0, 1, 0)
 
-        self.dataframe['RCV'] = self.dataframe.apply(lambda row: self.calc_unique_rcv(self.Kn_value, row["/A Y"], self.beta_value, self.Pl_value, L, lam), axis=1)
+        self.dataframe['RCV'] = self.dataframe.apply(lambda row: self.calc_unique_rcv(self.Kn_value, row["/A Y"], self.beta_value, self.Pl_value, L, draw_lam), axis=1)
 
         self.view.plot_dataframe(self.dataframe)
 
         if self.high_gate_state_layout is not None:
-            # TODO fix this high value
             points = np.where(self.high_gate_state_layout != 0, 1, 0)
             result = cv2.addWeighted(points, 1, mask, 0.5, 0)
             self.view.display_image(result, True)
