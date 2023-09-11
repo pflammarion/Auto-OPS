@@ -1,5 +1,3 @@
-import numpy as np
-from PyQt6.QtGui import QFont
 from PyQt6.QtWidgets import QMainWindow, QWidget, QGridLayout, QLabel, QPushButton, QVBoxLayout, QLineEdit, QCheckBox
 from PyQt6.QtCore import Qt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
@@ -38,15 +36,6 @@ class MainView(QMainWindow):
         self.selector_input_lam = None
         self.selector_input_NA = None
         self.selector_input_confocal = None
-
-        title = QFont()
-        title.setPointSize(16)
-        title.setBold(True)
-
-        self.main_plot_label = QLabel()
-        self.main_plot_label.setFont(title)
-        self.second_plot_label = QLabel()
-        self.second_plot_label.setFont(title)
 
         self.main_figure = None
         self.main_canvas = None
@@ -105,17 +94,12 @@ class MainView(QMainWindow):
         optional_layout = layout.itemAtPosition(2, 0).widget().layout()
         info_layout = layout.itemAtPosition(0, 1).widget().layout()
 
-        # Find and clear the second_plot_widget
-        second_plot_widget = optional_layout.itemAtPosition(2, 0).widget()
-
         # hide and show the voltage button for csv mode
         self.info_button_column_voltage.hide()
         info_layout.addWidget(self.info_input_voltage, 4, 1)
         self.info_input_voltage.show()
 
-        self.second_plot_label.setText("")
-        if second_plot_widget is not None:
-            second_plot_widget.hide()
+        self.second_canvas.hide()
 
         # Clear the layout if there's already a widget at position (0, 0)
         if optional_layout.itemAtPosition(0, 0) is not None:
@@ -130,8 +114,8 @@ class MainView(QMainWindow):
             optional_layout.addWidget(widget, 0, 0)
 
         # EOFM mode
-        elif mode == 2 and second_plot_widget is not None:
-            second_plot_widget.show()
+        elif mode == 2:
+            self.second_canvas.show()
             info_layout.addWidget(self.info_input_voltage, 4, 1)
 
         # CSV mode
@@ -139,7 +123,7 @@ class MainView(QMainWindow):
             self.info_input_voltage.hide()
             widget = self.init_rcv_widget()
             optional_layout.addWidget(widget, 0, 0)
-            second_plot_widget.show()
+            self.second_canvas.show()
             info_layout.addWidget(self.info_button_column_voltage, 4, 1)
             self.info_button_column_voltage.show()
 
@@ -187,11 +171,9 @@ class MainView(QMainWindow):
     def init_optional_layout(self, optional_widget) -> QGridLayout:
         optional_layout = QGridLayout(optional_widget)
 
-        optional_layout.addWidget(self.second_plot_label, 1, 0)
-
         self.second_figure = Figure()
         self.second_canvas = FigureCanvas(self.second_figure)
-        optional_layout.addWidget(self.second_canvas, 2, 0)
+        optional_layout.addWidget(self.second_canvas, 1, 0)
         self.second_canvas.hide()
 
         return optional_layout
@@ -227,7 +209,6 @@ class MainView(QMainWindow):
 
         plot_container_widget = QWidget()
         plot_layout = QGridLayout(plot_container_widget)
-        plot_layout.addWidget(self.main_plot_label, 0, 0)
 
         self.main_figure = Figure()
         self.main_canvas = FigureCanvas(self.main_figure)
@@ -288,7 +269,7 @@ class MainView(QMainWindow):
 
         return selector_widget
 
-    def display_image(self, image_matrix, lps=False):
+    def display_image(self, image_matrix, title="", lps=False):
         self.main_figure.clear()
 
         ax = self.main_figure.add_subplot(111)
@@ -298,12 +279,19 @@ class MainView(QMainWindow):
         else:
             ax.imshow(image_matrix, cmap='gist_gray')
 
+        ax.set_title(str(title))
+        ax.set_xlabel("x")
+        ax.set_ylabel('y')
+
         self.main_canvas.draw()
 
-    def display_second_image(self, image_matrix):
+    def display_second_image(self, image_matrix, title=""):
         self.second_figure.clear()
         ax = self.second_figure.add_subplot(111)
         ax.imshow(image_matrix, cmap='gist_gray')
+        ax.set_title(str(title))
+        ax.set_xlabel("x")
+        ax.set_ylabel('y')
         self.second_canvas.draw()
 
     def get_input_Kn(self):
@@ -320,9 +308,6 @@ class MainView(QMainWindow):
 
     def get_input_voltage(self):
         return self.info_input_voltage.text()
-
-    def update_main_label_value(self, text):
-        self.main_plot_label.setText(text)
 
     def get_input_x(self):
         return self.selector_input_x.text()
@@ -355,7 +340,7 @@ class MainView(QMainWindow):
         ax1.set_ylabel('Voltage (V)', color='blue')
         ax2.set_ylabel('RCV (nm²)', color='red')
 
-        ax1.set_title('DataFrame Plot')
+        ax1.set_title('RCV in function of time')
         ax1.legend(loc='upper left')
         ax2.legend(loc='upper right')
 

@@ -362,7 +362,7 @@ class Controller:
 
         result = cv2.addWeighted(points, 1, mask, 0.5, 0)
 
-        self.view.display_image(result)
+        self.view.display_image(result, self.main_label_value)
 
     def calc_and_plot_EOFM(self):
         lam = self.lam_value
@@ -381,9 +381,9 @@ class Controller:
         L = self.calc_and_plot_EOFM()
         R = fftconvolve(self.image_matrix, L, mode='same')
 
-        self.view.display_image(R)
+        self.view.display_image(R, self.main_label_value)
         inverted_image = np.abs(R)
-        self.view.display_second_image(inverted_image)
+        self.view.display_second_image(inverted_image, "Absolute EOFM")
 
     def update_settings(self):
         lam_input = self.view.get_input_lam()
@@ -416,7 +416,7 @@ class Controller:
         FOV = 2000
         self.main_label_value = "FWHM = %.02f, is_confocal = %s" % (FWHM, is_confocal)
         L = self.psf_2d(FOV, lam, NA, FWHM // 2 if is_confocal else np.inf)
-        self.view.display_image(L, lps=True)
+        self.view.display_image(L, self.main_label_value, lps=True)
 
     def get_view(self):
         return self.view
