@@ -113,13 +113,10 @@ class MainView(QMainWindow):
         main_plot_widget_df = plot_layout.itemAtPosition(2, 0).widget()
         second_plot_widget = optional_layout.itemAtPosition(2, 0).widget()
 
-        voltage_input = info_layout.itemAtPosition(4, 1).widget()
-
-        # TODO fix overwrite sometime
-        if voltage_input:
-            voltage_input.hide()
-            info_layout.addWidget(self.info_input_voltage, 4, 1)
-            self.info_input_voltage.show()
+        # hide and show the voltage button for csv mode
+        self.info_button_column_voltage.hide()
+        info_layout.addWidget(self.info_input_voltage, 4, 1)
+        self.info_input_voltage.show()
 
         self.second_plot_label.setText("")
         if second_plot_widget is not None:
@@ -151,7 +148,7 @@ class MainView(QMainWindow):
 
         # CSV mode
         elif mode == 3:
-            voltage_input.hide()
+            self.info_input_voltage.hide()
             widget = self.init_rcv_widget()
             optional_layout.addWidget(widget, 0, 0)
             main_plot_widget_df.show()
@@ -365,10 +362,10 @@ class MainView(QMainWindow):
         ax1 = self.figure.add_subplot(111)
         ax2 = ax1.twinx()
 
-        ax1.plot(time, voltage, label='Voltage', color='blue')
+        ax1.plot(time, voltage, label=f"Voltage ({selected_columns[1]})", color='blue')
         ax2.plot(time, df['RCV'], label='RCV', color='red')
 
-        ax1.set_xlabel('Time (s)')
+        ax1.set_xlabel(f"Time (s) - ({selected_columns[0]})")
         ax1.set_ylabel('Voltage (V)', color='blue')
         ax2.set_ylabel('RCV (nm²)', color='red')
 
