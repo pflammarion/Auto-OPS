@@ -9,7 +9,7 @@ from matplotlib.figure import Figure
 
 # TODO try to add color into plot especially for lps
 
-class View(QMainWindow):
+class MainView(QMainWindow):
     def __init__(self, controller):
         super().__init__()
         self.controller = controller
@@ -337,14 +337,17 @@ class View(QMainWindow):
     def get_input_confocal(self):
         return self.selector_input_confocal.isChecked()
 
-    def plot_dataframe(self, df):
+    def plot_dataframe(self, df, selected_columns):
         self.figure.clear()
+
+        time = df[selected_columns[0]]
+        voltage = df[selected_columns[1]]
 
         ax1 = self.figure.add_subplot(111)
         ax2 = ax1.twinx()
 
-        ax1.plot(df['/A X'], df['/A Y'], label='Voltage', color='blue')
-        ax2.plot(df['/A X'], df['RCV'], label='RCV', color='red')
+        ax1.plot(time, voltage, label='Voltage', color='blue')
+        ax2.plot(time, df['RCV'], label='RCV', color='red')
 
         ax1.set_xlabel('Time (s)')
         ax1.set_ylabel('Voltage (V)', color='blue')
@@ -354,6 +357,6 @@ class View(QMainWindow):
         ax1.legend(loc='upper left')
         ax2.legend(loc='upper right')
 
-        ax1.set_xlim(df['/A X'].min(), df['/A X'].max())
+        ax1.set_xlim(time.min(), time.max())
 
         self.canvas.draw()

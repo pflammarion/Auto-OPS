@@ -7,7 +7,8 @@ import numpy as np
 import pandas as pd
 from scipy.signal import fftconvolve
 
-import view
+from views.column_dialog import ColumnSelectionDialog
+from views.main import MainView
 
 
 class Controller:
@@ -38,9 +39,10 @@ class Controller:
 
         self.main_label_value = ""
 
-        self.view = view.View(self)
+        self.view = MainView(self)
 
-        lam, G1, G2, Gap = self.parameters_init(self.Kn_value, self.Kp_value, self.voltage_value, self.beta_value, self.Pl_value)
+        lam, G1, G2, Gap = self.parameters_init(self.Kn_value, self.Kp_value, self.voltage_value, self.beta_value,
+                                                self.Pl_value)
         self.image_matrix = self.draw_layout(lam, G1, G2, Gap)
 
         self.print_original_image()
@@ -72,7 +74,6 @@ class Controller:
                 print(f"Error loading JSON data: {e}")
         else:
             print(f"JSON file '{json_file_path}' does not exist.")
-
 
     def upload_image(self):
         file_dialog = QFileDialog()
@@ -126,6 +127,26 @@ class Controller:
 
                 self.technology_value = int(data["technology"])
                 print("Tech value is now : ", self.technology_value)
+
+    def upload_csv(self):
+        file_dialog = QFileDialog()
+        file_dialog.setFileMode(QFileDialog.FileMode.ExistingFiles)
+        file_dialog.setNameFilter("CSV (*.csv)")
+
+        if file_dialog.exec():  # Note the use of exec_() instead of exec()
+            selected_files = file_dialog.selectedFiles()
+            if selected_files:
+                file_path = selected_files[0]
+                self.dataframe = pd.read_csv(file_path)
+
+                # Get the column names from the dataframe
+                column_names = self.dataframe.columns.tolist()
+
+                # Create and show the column selection dialog
+                dialog = ColumnSelectionDialog(column_names)
+                if dialog.exec():
+                    selected_columns = dialog.get_selected_columns()
+                    self.plot_rcv_calc(selected_columns)
 
     def psf_xy(self, lam, na, x, y, xc, yc, radius_max=np.inf):
 
@@ -208,13 +229,13 @@ class Controller:
     def parameters_init(self, Kn, Kp, voltage, beta, Pl):
         lam = self.technology_value / 2
         # RCV values
-        G1 = voltage*Kn*beta*Pl
-        G2 = voltage*Kp*beta*Pl
+        G1 = voltage * Kn * beta * Pl
+        G2 = voltage * Kp * beta * Pl
         Gap = 0
         return lam, G1, G2, Gap
 
     def calc_unique_rcv(self, K, voltage, beta, Pl, L, draw_lam):
-        gate = voltage*K*beta*Pl
+        gate = voltage * K * beta * Pl
         generated_gate_image = self.draw_one_gate_layout(gate, draw_lam)
 
         # for preview in gui of current position of laser
@@ -263,7 +284,8 @@ class Controller:
         else:
             self.voltage_value = self.data["voltage"]
 
-        lam, G1, G2, Gap = self.parameters_init(self.Kn_value, self.Kp_value, self.voltage_value, self.beta_value, self.Pl_value)
+        lam, G1, G2, Gap = self.parameters_init(self.Kn_value, self.Kp_value, self.voltage_value, self.beta_value,
+                                                self.Pl_value)
         self.image_matrix = self.draw_layout(lam, G1, G2, Gap)
         self.view.display_image(self.image_matrix)
 
@@ -307,7 +329,7 @@ class Controller:
 
         self.update_settings()
 
-        if self.dataframe is not None :
+        if self.dataframe is not None:
             self.plot_rcv_calc()
 
         else:
@@ -376,33 +398,21 @@ class Controller:
         NA = self.NA_value
         is_confocal = self.is_confocal
 
-        FWHM = 1.22/np.sqrt(2) * lam/NA
+        FWHM = 1.22 / np.sqrt(2) * lam / NA
         FOV = 2000
         self.main_label_value = "FWHM = %.02f, is_confocal = %s" % (FWHM, is_confocal)
-        L = self.psf_2d(FOV, lam, NA, FWHM//2 if is_confocal else np.inf)
+        L = self.psf_2d(FOV, lam, NA, FWHM // 2 if is_confocal else np.inf)
         self.view.display_image(L)
         self.view.update_main_label_value(self.main_label_value)
 
     def get_view(self):
         return self.view
 
-    def upload_csv(self):
-        file_dialog = QFileDialog()
-        file_dialog.setFileMode(QFileDialog.FileMode.ExistingFiles)
-        file_dialog.setNameFilter("CSV (*.csv)")
-
-        if file_dialog.exec():
-            selected_files = file_dialog.selectedFiles()
-            if selected_files:
-                file_path = selected_files[0]
-                self.dataframe = pd.read_csv(file_path)
-                self.plot_rcv_calc()
-
-    def plot_rcv_calc(self):
+    def plot_rcv_calc(self, selected_columns):
         self.max_voltage_high_gate_state = float('-inf')
         self.high_gate_state_layout = None
         lam = self.lam_value
-        draw_lam = self.technology_value/2
+        draw_lam = self.technology_value / 2
         NA = self.NA_value
         is_confocal = self.is_confocal
 
@@ -412,9 +422,11 @@ class Controller:
         L = self.psf_2d_pos(FOV, lam, NA, offset[0], offset[1], FWHM // 2 if is_confocal else np.inf)
         mask = np.where(L > 0, 1, 0)
 
-        self.dataframe['RCV'] = self.dataframe.apply(lambda row: self.calc_unique_rcv(self.Kn_value, row["/A Y"], self.beta_value, self.Pl_value, L, draw_lam), axis=1)
+        self.dataframe['RCV'] = self.dataframe.apply(
+            lambda row: self.calc_unique_rcv(self.Kn_value, row[selected_columns[1]], self.beta_value, self.Pl_value, L, draw_lam),
+            axis=1)
 
-        self.view.plot_dataframe(self.dataframe)
+        self.view.plot_dataframe(self.dataframe, selected_columns)
 
         if self.high_gate_state_layout is not None:
             points = np.where(self.high_gate_state_layout != 0, 1, 0)
