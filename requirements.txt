@@ -2,7 +2,7 @@ matplotlib
 numpy
 PyQt6
 opencv-python
-pyqtgraph
 scipy
 pandas
 matplotlib
+gdspy

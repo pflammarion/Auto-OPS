@@ -11,7 +11,7 @@ from views.column_dialog import ColumnSelectionDialog
 from views.main import MainView
 
 
-class Controller:
+class MainController:
     def __init__(self):
 
         self.imported_image = False
