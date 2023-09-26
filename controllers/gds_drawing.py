@@ -1,3 +1,12 @@
+import gdspy
+import matplotlib.pyplot as plt
+import numpy as np
+import json
+
+from shapely.geometry import Polygon
+from shapely.ops import unary_union
+
+
 class GdsDrawing:
     """
     Represents a drawing element in a GDS (Graphics Data System) layout.
@@ -33,4 +42,158 @@ class GdsDrawing:
         self.polysilicon_layer = polysilicon_layer
         self.positions = positions
         self.state = state
+
+        self.main()
+
+    def mergePolygons(self, polygons):
+        polygons = [Polygon(p) for p in polygons]
+
+        # Create a list to hold merged polygons
+        merged_polygons = []
+
+        while len(polygons) > 0:
+            current_polygon = polygons.pop(0)  # Take the first polygon in the list
+            connected_polygons = [current_polygon]
+
+            i = 0
+            while i < len(connected_polygons):
+                for other_polygon in polygons:
+                    if connected_polygons[i].intersects(other_polygon):
+                        connected_polygons.append(other_polygon)
+                        polygons.remove(other_polygon)
+                i += 1
+
+            # Merge connected polygons using unary_union
+            merged_polygon = unary_union(connected_polygons)
+            merged_polygons.append(merged_polygon)
+
+        return merged_polygons
+
+    def sortPointsClockwise(self, coordinates):
+        x, y = zip(*coordinates)
+
+        centroid_x = sum(x) / len(x)
+        centroid_y = sum(y) / len(y)
+
+        polar_angles = [np.arctan2(yi - centroid_y, xi - centroid_x) for xi, yi in coordinates]
+
+        sorted_points = [point for _, point in sorted(zip(polar_angles, coordinates))]
+
+        return sorted_points
+
+
+    def plotShape(self, data):
+        fig, ax = plt.subplots()
+
+        point_number = 1
+
+        # Iterate through the sub-dictionaries ('top' and 'bottom')
+        for key, sub_dict in data.items():
+            # Iterate through the sub-dictionary items ('diff_1', 'diff_2', 'poly')
+            for sub_key, coordinates in sub_dict.items():
+
+                sorted_points = self.sortPointsClockwise(coordinates)
+                x, y = zip(*sorted_points)
+
+                ax.scatter(x, y, label=f'{key} - {sub_key}', marker='o')
+
+                for xi, yi in zip(x, y):
+                    ax.annotate(str(point_number), (xi, yi), textcoords="offset points", xytext=(0, 10), ha='center')
+                    point_number += 1
+
+                ax.fill_between(x, y, alpha=0.2)
+
+        ax.set_xlabel('X-coordinate')
+        ax.set_ylabel('Y-coordinate')
+        #ax.legend()
+
+        plt.show()
+
+    def find_extreme_points(self, points):
+        sorted_points = sorted(points, key=lambda point: point[0])
+
+        extreme_left = sorted_points[:2]
+        extreme_right = sorted_points[-2:]
+
+        return extreme_left, extreme_right
+
+    def main(self):
+        lib = gdspy.GdsLibrary()
+        lib.read_gds(self.gds)
+        cell = lib.cells[self.gate_type]
+
+        polygons = cell.get_polygons(by_spec=True)
+
+        # TODO check about the polygons (layers) selection for gds files (idem for diff)
+        polysilicon_polygon = polygons.get((self.polysilicon_layer, 0), [])
+
+        # find the rectangle
+        merged_polysilicon_polygon = self.mergePolygons(polysilicon_polygon)[0]
+
+        x_poly, y_poly = merged_polysilicon_polygon.exterior.xy
+
+        min_y_poly = min(y_poly)
+        max_y_poly = max(y_poly)
+        x_max_poly = max(x_poly)
+        x_min_poly = min(x_poly)
+
+
+        diffusion_polygons = polygons.get((self.diffusion_layer, 0), [])
+
+        filtered_diffusion_polygons = [polygon for polygon in diffusion_polygons if all(min_y_poly <= y <= max_y_poly for _, y in polygon)]
+        merged_diffusion_polygons = self.mergePolygons(filtered_diffusion_polygons)
+        sorted_polygons = sorted(merged_diffusion_polygons, key=lambda polygon: min(polygon.exterior.xy[1]), reverse=True)
+
+
+        for merged_polygon in sorted_polygons:
+            x, y = merged_polygon.exterior.xy
+            plt.plot(x, y)
+
+        plt.plot(x_poly, y_poly)
+
+        plt.show()
+
+        final_shape = {}
+
+        for i in range(len(sorted_polygons)):
+            key = "element_" + str(i)
+            final_shape[key] = {}
+
+            if sorted_polygons[i].intersects(merged_polysilicon_polygon):
+                intersection_polygons = sorted_polygons[i].intersection(merged_polysilicon_polygon)
+                for index, intersection_polygon in enumerate(intersection_polygons.geoms):
+                    x, y = intersection_polygon.exterior.xy
+                    unique_coordinates = list(set(zip(x, y)))
+                    ploysilicon_key = "poly_" + str(index)
+                    final_shape[key][ploysilicon_key] = unique_coordinates
+
+
+                diff_coordinates_x, diff_coordinates_y = sorted_polygons[i].exterior.xy
+                extreme_left_diff, extreme_right_diff = self.find_extreme_points(list(set(zip(diff_coordinates_x, diff_coordinates_y))))
+
+                poly_key_list = list(final_shape[key].keys())
+
+                for j in range(len(poly_key_list) + 1):
+                    diffusion_key = "diff_" + str(j)
+                    if j == 0:
+                        poly_left, poly_right = self.find_extreme_points(final_shape[key][poly_key_list[j]])
+                        combined_points = extreme_left_diff + poly_left
+                    elif j == len(poly_key_list):
+                        poly_left, poly_right = self.find_extreme_points(final_shape[key][poly_key_list[j - 1]])
+                        combined_points = poly_right + extreme_right_diff
+                    else:
+                        poly_left, poly_right = self.find_extreme_points(final_shape[key][poly_key_list[j]])
+                        poly_left_before, poly_right_before = self.find_extreme_points(final_shape[key][poly_key_list[j-1]])
+                        combined_points = poly_right_before + poly_left
+
+                    final_shape[key][diffusion_key] = combined_points
+
+
+        with open('resources/data.json', 'w') as json_file:
+            json.dump(final_shape, json_file, indent=4)
+
+        self.plotShape(final_shape)
+
+
+
 
