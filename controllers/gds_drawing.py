@@ -58,20 +58,17 @@ def plotShape(data, state):
             sorted_points = sortPointsClockwise(coordinates)
             x, y = zip(*sorted_points)
 
-            ax.scatter(x, y, label=f'{key} - {sub_key}', marker='o')
+            #ax.scatter(x, y, label=f'{key} - {sub_key}', marker='o')
 
             for xi, yi in zip(x, y):
-                ax.annotate(str(point_number), (xi, yi), textcoords="offset points", xytext=(0, 10), ha='center')
+                #ax.annotate(str(point_number), (xi, yi), textcoords="offset points", xytext=(0, 10), ha='center')
                 point_number += 1
 
-            color = 0
+            color = 'black'
             if counter < len(state):
-                color = state[counter]
+                color = 'white' if state[counter] else 'black'
 
-            if color == 1:
-                ax.fill_between(x, y, facecolor='white', alpha=0.2)
-            elif color == 0:
-                ax.fill_between(x, y, facecolor='black', alpha=0.2)
+            ax.fill(x, y, facecolor=color, alpha=0.2, edgecolor='black', linewidth=1)
 
             counter += 1
 
@@ -165,9 +162,11 @@ class GdsDrawing:
         polysilicon_polygon = polygons.get((self.polysilicon_layer, 0), [])
 
         # find the rectangle
-        merged_polysilicon_polygon = mergePolygons(polysilicon_polygon)[0]
+        merged_polysilicon_polygons = mergePolygons(polysilicon_polygon)
+        sorted_polysilicon_polygons = sorted(merged_polysilicon_polygons, key=lambda polygon: min(polygon.exterior.xy[0]))
 
-        x_poly, y_poly = merged_polysilicon_polygon.exterior.xy
+
+        x_poly, y_poly = merged_polysilicon_polygons[0].exterior.xy
 
         min_y_poly = min(y_poly)
         max_y_poly = max(y_poly)
@@ -184,7 +183,9 @@ class GdsDrawing:
             x, y = merged_polygon.exterior.xy
             plt.plot(x, y)
 
-        plt.plot(x_poly, y_poly)
+        for merged_polysilicon_polygon in sorted_polysilicon_polygons:
+            x, y = merged_polysilicon_polygon.exterior.xy
+            plt.plot(x, y)
 
         plt.show()
 
@@ -193,47 +194,48 @@ class GdsDrawing:
         for i in range(len(sorted_polygons)):
             key = "element_" + str(i)
             final_shape[key] = {}
+            intersection_counter = 0
 
-            if sorted_polygons[i].intersects(merged_polysilicon_polygon):
-                intersection_polygons = sorted_polygons[i].intersection(merged_polysilicon_polygon)
+            for merged_polysilicon_polygon in sorted_polysilicon_polygons:
+                if sorted_polygons[i].intersects(merged_polysilicon_polygon):
+                    intersection_polygons = sorted_polygons[i].intersection(merged_polysilicon_polygon)
 
-                # init var to handle error
-                if hasattr(intersection_polygons, "geoms"):
-                    for index, intersection_polygon in enumerate(intersection_polygons.geoms):
-                        x, y = intersection_polygon.exterior.xy
-                        ploysilicon_key = "poly_" + str(index)
+                    # init var to handle error
+                    if hasattr(intersection_polygons, "geoms"):
+                        for index, intersection_polygon in enumerate(intersection_polygons.geoms):
+                            x, y = intersection_polygon.exterior.xy
+                            ploysilicon_key = "poly_" + str(intersection_counter)
+                            unique_coordinates = list(set(zip(x, y)))
+                            final_shape[key][ploysilicon_key] = unique_coordinates
+                            intersection_counter += 1
+                    else:
+                        x, y = intersection_polygons.exterior.xy
+                        ploysilicon_key = "poly_" + str(intersection_counter)
                         unique_coordinates = list(set(zip(x, y)))
                         final_shape[key][ploysilicon_key] = unique_coordinates
+                        intersection_counter += 1
+
+            diff_coordinates_x, diff_coordinates_y = sorted_polygons[i].exterior.xy
+            extreme_left_diff, extreme_right_diff = find_extreme_points(
+                list(set(zip(diff_coordinates_x, diff_coordinates_y))))
+
+            poly_key_list = list(final_shape[key].keys())
+
+            for j in range(len(poly_key_list) + 1):
+                diffusion_key = "diff_" + str(j)
+                if j == 0:
+                    poly_left, poly_right = find_extreme_points(final_shape[key][poly_key_list[j]])
+                    combined_points = extreme_left_diff + poly_left
+                elif j == len(poly_key_list):
+                    poly_left, poly_right = find_extreme_points(final_shape[key][poly_key_list[j - 1]])
+                    combined_points = poly_right + extreme_right_diff
                 else:
-                    x, y = intersection_polygons.exterior.xy
-                    ploysilicon_key = "poly_0"
-                    unique_coordinates = list(set(zip(x, y)))
-                    final_shape[key][ploysilicon_key] = unique_coordinates
+                    poly_left, poly_right = find_extreme_points(final_shape[key][poly_key_list[j]])
+                    poly_left_before, poly_right_before = find_extreme_points(
+                        final_shape[key][poly_key_list[j - 1]])
+                    combined_points = poly_right_before + poly_left
 
-
-
-
-                diff_coordinates_x, diff_coordinates_y = sorted_polygons[i].exterior.xy
-                extreme_left_diff, extreme_right_diff = find_extreme_points(
-                    list(set(zip(diff_coordinates_x, diff_coordinates_y))))
-
-                poly_key_list = list(final_shape[key].keys())
-
-                for j in range(len(poly_key_list) + 1):
-                    diffusion_key = "diff_" + str(j)
-                    if j == 0:
-                        poly_left, poly_right = find_extreme_points(final_shape[key][poly_key_list[j]])
-                        combined_points = extreme_left_diff + poly_left
-                    elif j == len(poly_key_list):
-                        poly_left, poly_right = find_extreme_points(final_shape[key][poly_key_list[j - 1]])
-                        combined_points = poly_right + extreme_right_diff
-                    else:
-                        poly_left, poly_right = find_extreme_points(final_shape[key][poly_key_list[j]])
-                        poly_left_before, poly_right_before = find_extreme_points(
-                            final_shape[key][poly_key_list[j - 1]])
-                        combined_points = poly_right_before + poly_left
-
-                    final_shape[key][diffusion_key] = combined_points
+                final_shape[key][diffusion_key] = combined_points
 
         sorted_dict = sort_dict_alternating_keys(final_shape)
 
