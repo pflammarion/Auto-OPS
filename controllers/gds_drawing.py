@@ -2,6 +2,7 @@ import gdspy
 import matplotlib.pyplot as plt
 import numpy as np
 import json
+import math
 
 from shapely.geometry import Polygon
 from shapely.ops import unary_union
@@ -33,48 +34,89 @@ def mergePolygons(polygons):
 
 
 def sortPointsClockwise(coordinates):
-    x, y = zip(*coordinates)
+    cx, cy = np.mean(coordinates, axis=0)
 
-    centroid_x = sum(x) / len(x)
-    centroid_y = sum(y) / len(y)
+    polar_angles = [np.arctan2(yi - cy, xi - cx) for xi, yi in coordinates]
 
-    polar_angles = [np.arctan2(yi - centroid_y, xi - centroid_x) for xi, yi in coordinates]
+    polar_angles = [angle + 2 * np.pi if angle < 0 else angle for angle in polar_angles]
 
     sorted_points = [point for _, point in sorted(zip(polar_angles, coordinates))]
 
-    return sorted_points
+    return [sorted_points]
+
+def separate_to_rectangles(coordinates):
+    x_coords = sorted(list(set(point[0] for point in coordinates)))
+
+    mid_x = x_coords[1]
+    min_x = x_coords[0]
+    max_x = x_coords[2]
+
+    min_y_when_min_x = None
+    max_y_when_min_x = None
+    for point in coordinates:
+        x, y = point
+        if x == min_x:
+            if min_y_when_min_x is None or y <= min_y_when_min_x:
+                min_y_when_min_x = y
+            if max_y_when_min_x is None or y >= max_y_when_min_x:
+                max_y_when_min_x = y
+
+    max_y_when_max_x = None
+    min_y_when_max_x = None
+    for point in coordinates:
+        x, y = point
+        if x == max_x:
+            if min_y_when_max_x is None or y <= min_y_when_max_x:
+                min_y_when_max_x = y
+            if max_y_when_max_x is None or y >= max_y_when_max_x:
+                max_y_when_max_x = y
+
+    left_rectangle = [(min_x, min_y_when_min_x), (min_x, max_y_when_min_x), (mid_x, max_y_when_min_x), (mid_x, min_y_when_min_x)]
+    right_rectangle = [(mid_x, min_y_when_max_x), (mid_x, max_y_when_max_x), (max_x, max_y_when_max_x), (max_x, min_y_when_max_x)]
+
+    return [left_rectangle, right_rectangle]
 
 
-def plotShape(data, state):
+def plotShape(data, state, title):
     fig, ax = plt.subplots()
 
     point_number = 1
     counter = 0
+    debug_color = ['black', 'white']
 
     # Iterate through the sub-dictionaries ('top' and 'bottom')
     for key, sub_dict in data.items():
         # Iterate through the sub-dictionary items ('diff_1', 'diff_2', 'poly')
         for sub_key, coordinates in sub_dict.items():
-            sorted_points = sortPointsClockwise(coordinates)
-            x, y = zip(*sorted_points)
 
-            #ax.scatter(x, y, label=f'{key} - {sub_key}', marker='o')
+            if len(coordinates) > 4:
+                sorted_points_list = separate_to_rectangles(coordinates)
+            else:
+                sorted_points_list = sortPointsClockwise(coordinates)
+            for sorted_points in sorted_points_list:
 
-            for xi, yi in zip(x, y):
-                #ax.annotate(str(point_number), (xi, yi), textcoords="offset points", xytext=(0, 10), ha='center')
-                point_number += 1
+                x, y = zip(*sorted_points)
 
-            color = 'black'
-            if counter < len(state):
-                color = 'white' if state[counter] else 'black'
+                ax.scatter(x, y, label=f'{key} - {sub_key}', marker='o')
 
-            ax.fill(x, y, facecolor=color, alpha=0.2, edgecolor='black', linewidth=1)
+                for xi, yi in zip(x, y):
+                    #ax.annotate(str(point_number), (xi, yi), textcoords="offset points", xytext=(0, 10), ha='center')
+                    point_number += 1
+
+                color = debug_color[0]
+                #if counter < len(state):
+                 #   color = 'white' if state[counter] else 'black'
+                if counter % 2 == 0:
+                    color = debug_color[1]
+
+                ax.fill(x, y, facecolor=color, alpha=0.2, edgecolor='black', linewidth=1)
 
             counter += 1
 
     ax.set_xlabel('X-coordinate')
     ax.set_ylabel('Y-coordinate')
     # ax.legend()
+    plt.title(title)
 
     plt.show()
 
@@ -165,11 +207,12 @@ class GdsDrawing:
         merged_polysilicon_polygons = mergePolygons(polysilicon_polygon)
         sorted_polysilicon_polygons = sorted(merged_polysilicon_polygons, key=lambda polygon: min(polygon.exterior.xy[0]))
 
+        min_y_coords = [min(polygon.exterior.xy[1]) for polygon in merged_polysilicon_polygons]
+        max_y_coords = [max(polygon.exterior.xy[1]) for polygon in merged_polysilicon_polygons]
 
-        x_poly, y_poly = merged_polysilicon_polygons[0].exterior.xy
+        min_y_poly = min(min_y_coords)
+        max_y_poly = max(max_y_coords)
 
-        min_y_poly = min(y_poly)
-        max_y_poly = max(y_poly)
 
         diffusion_polygons = polygons.get((self.diffusion_layer, 0), [])
 
@@ -186,6 +229,7 @@ class GdsDrawing:
         for merged_polysilicon_polygon in sorted_polysilicon_polygons:
             x, y = merged_polysilicon_polygon.exterior.xy
             plt.plot(x, y)
+        plt.title(self.gate_type)
 
         plt.show()
 
@@ -216,8 +260,8 @@ class GdsDrawing:
                         intersection_counter += 1
 
             diff_coordinates_x, diff_coordinates_y = sorted_polygons[i].exterior.xy
-            extreme_left_diff, extreme_right_diff = find_extreme_points(
-                list(set(zip(diff_coordinates_x, diff_coordinates_y))))
+            diff_coordinates_list = list(set(zip(diff_coordinates_x, diff_coordinates_y)))
+            extreme_left_diff, extreme_right_diff = find_extreme_points(diff_coordinates_list)
 
             poly_key_list = list(final_shape[key].keys())
 
@@ -235,6 +279,30 @@ class GdsDrawing:
                         final_shape[key][poly_key_list[j - 1]])
                     combined_points = poly_right_before + poly_left
 
+                unique_y_values = set(point[1] for point in combined_points)
+                num_unique_y = len(unique_y_values)
+
+                if num_unique_y > 2:
+                    min_x = min(point[0] for point in combined_points)
+                    max_x = max(point[0] for point in combined_points)
+                    min_y = min(point[1] for point in combined_points)
+                    max_y = max(point[1] for point in combined_points)
+
+                    filtered_points = [
+                        point for point in diff_coordinates_list
+                        if min_x <= point[0] <= max_x and min_y <= point[1] <= max_y
+                    ]
+                    existing_y_coords_combined = set(point[1] for point in combined_points)
+                    existing_y_coords_filtered = set(point[1] for point in filtered_points)
+                    missing_y = existing_y_coords_combined - existing_y_coords_filtered
+
+                    if missing_y:
+                        missing_x = set(point[0] for point in filtered_points)
+                        new_point = list(set(zip(missing_x, missing_y)))
+                        combined_points = combined_points + new_point
+
+                    combined_points = combined_points + filtered_points
+
                 final_shape[key][diffusion_key] = combined_points
 
         sorted_dict = sort_dict_alternating_keys(final_shape)
@@ -242,4 +310,4 @@ class GdsDrawing:
         with open('resources/data.json', 'w') as json_file:
             json.dump(sorted_dict, json_file, indent=4)
 
-        plotShape(sorted_dict, self.state)
+        plotShape(sorted_dict, self.state, self.gate_type)
