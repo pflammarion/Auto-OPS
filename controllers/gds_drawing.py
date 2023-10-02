@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import json
 
-from shapely.geometry import Polygon
+from shapely.geometry import Polygon, MultiPolygon, Point
 from shapely.ops import unary_union
 
 
@@ -195,6 +195,7 @@ class GdsDrawing:
         self.truthtable = truthtable
         self.connection_layer = connection_layer
         self.label_layer = label_layer
+        self.label_list = []
 
         self.main()
 
@@ -205,6 +206,7 @@ class GdsDrawing:
 
         for label in cell.labels:
             if label.layer == self.label_layer:
+                self.label_list.append(label)
                 print("Label:")
                 print("Text:", label.text)
                 print("Position:", label.position)
@@ -231,7 +233,7 @@ class GdsDrawing:
         filtered_diffusion_polygons = [polygon for polygon in diffusion_polygons if
                                        all(min_y_poly <= y <= max_y_poly for _, y in polygon)]
         merged_diffusion_polygons = mergePolygons(filtered_diffusion_polygons)
-        sorted_polygons = sorted(merged_diffusion_polygons, key=lambda polygon: min(polygon.exterior.xy[1]),
+        sorted_diffusion_polygons = sorted(merged_diffusion_polygons, key=lambda polygon: min(polygon.exterior.xy[1]),
                                  reverse=True)
 
         connection_polygons = polygons.get((self.connection_layer, 0), [])
@@ -240,11 +242,10 @@ class GdsDrawing:
         label_polygons = polygons.get((self.label_layer, 0), [])
         merged_label_polygons = mergePolygons(label_polygons)
 
-        for label in cell.labels:
-            if label.layer == self.label_layer:
-                x, y = label.position
-                plt.scatter(x, y)
-                plt.annotate(label.text, (x, y))
+        for label in self.label_list:
+            x, y = label.position
+            plt.scatter(x, y)
+            plt.annotate(label.text, (x, y))
 
         for merged_polygon in merged_label_polygons:
             x, y = merged_polygon.exterior.xy
@@ -254,9 +255,9 @@ class GdsDrawing:
             x, y = merged_polygon.exterior.xy
             plt.plot(x, y)
 
-        for merged_polygon in sorted_polygons:
-            x, y = merged_polygon.exterior.xy
-            plt.plot(x, y)
+       # for merged_polygon in sorted_diffusion_polygons:
+        #    x, y = merged_polygon.exterior.xy
+         #   plt.plot(x, y)
 
         for merged_polysilicon_polygon in sorted_polysilicon_polygons:
             x, y = merged_polysilicon_polygon.exterior.xy
@@ -268,14 +269,63 @@ class GdsDrawing:
 
         final_shape = {}
 
-        for i in range(len(sorted_polygons)):
+        ### new code
+
+        linked_list = []
+        check_label_list = self.label_list
+        # first loop to check if a poly is an input
+        for polysilicon in merged_polysilicon_polygons:
+            for connection in merged_connection_polygons:
+                for metal in merged_label_polygons:
+                    for label in check_label_list:
+                        label_position = Point(label.position.tolist())
+                        if polysilicon.intersects(connection) and metal.intersects(connection) and polysilicon.intersects(metal) and metal.contains(label_position):
+                            linked_list.append(['polysilicon', polysilicon, label])
+                            check_label_list.remove(label)
+
+        # first loop to check if a metal is an output
+        for metal in merged_label_polygons:
+            for label in check_label_list:
+                label_position = Point(label.position.tolist())
+                if metal.contains(label_position):
+                    linked_list.append(["metal", metal, label])
+                    check_label_list.remove(label)
+
+        for poly in linked_list:
+            print("This ploy:")
+            print(poly[1])
+            print(" is linked to input " + poly[2].text)
+            x, y = poly[1].exterior.xy
+            plt.plot(x, y)
+            x, y = poly[2].position
+            plt.scatter(x, y)
+            plt.annotate(poly[2].text, (x, y))
+
+
+        plt.title("in and out")
+        plt.show()
+
+
+
+
+
+           # for poly in sorted_polysilicon_polygons:
+            #    for label in self.label_list:
+             #       for merged_label_polygon in merged_label_polygons:
+              #          label_position = Point(label.position.tolist())
+               #         if merged_label_polygon.contains(label_position):
+
+
+        ## old code
+
+        for i in range(len(sorted_diffusion_polygons)):
             key = "element_" + str(i)
             final_shape[key] = {}
             intersection_counter = 0
 
             for merged_polysilicon_polygon in sorted_polysilicon_polygons:
-                if sorted_polygons[i].intersects(merged_polysilicon_polygon):
-                    intersection_polygons = sorted_polygons[i].intersection(merged_polysilicon_polygon)
+                if sorted_diffusion_polygons[i].intersects(merged_polysilicon_polygon):
+                    intersection_polygons = sorted_diffusion_polygons[i].intersection(merged_polysilicon_polygon)
 
                     # init var to handle error
                     if hasattr(intersection_polygons, "geoms"):
@@ -292,7 +342,7 @@ class GdsDrawing:
                         final_shape[key][ploysilicon_key] = unique_coordinates
                         intersection_counter += 1
 
-            diff_coordinates_x, diff_coordinates_y = sorted_polygons[i].exterior.xy
+            diff_coordinates_x, diff_coordinates_y = sorted_diffusion_polygons[i].exterior.xy
             diff_coordinates_list = list(set(zip(diff_coordinates_x, diff_coordinates_y)))
             extreme_left_diff, extreme_right_diff = find_extreme_points(diff_coordinates_list)
 
