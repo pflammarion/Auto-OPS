@@ -210,7 +210,6 @@ class GdsDrawing:
                 print("Position:", label.position)
                 print("-----------")
 
-
         polygons = cell.get_polygons(by_spec=True)
 
         # TODO check about the polygons (layers) selection for gds files (idem for diff)
@@ -241,6 +240,12 @@ class GdsDrawing:
         label_polygons = polygons.get((self.label_layer, 0), [])
         merged_label_polygons = mergePolygons(label_polygons)
 
+        for label in cell.labels:
+            if label.layer == self.label_layer:
+                x, y = label.position
+                plt.scatter(x, y)
+                plt.annotate(label.text, (x, y))
+
         for merged_polygon in merged_label_polygons:
             x, y = merged_polygon.exterior.xy
             plt.plot(x, y)
@@ -256,6 +261,7 @@ class GdsDrawing:
         for merged_polysilicon_polygon in sorted_polysilicon_polygons:
             x, y = merged_polysilicon_polygon.exterior.xy
             plt.plot(x, y)
+
         plt.title(self.gate_type)
 
         plt.show()
