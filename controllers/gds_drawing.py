@@ -2,7 +2,6 @@ import gdspy
 import matplotlib.pyplot as plt
 import numpy as np
 import json
-import math
 
 from shapely.geometry import Polygon
 from shapely.ops import unary_union
@@ -44,6 +43,7 @@ def sortPointsClockwise(coordinates):
 
     return [sorted_points]
 
+
 def separate_to_rectangles(coordinates):
     x_coords = sorted(list(set(point[0] for point in coordinates)))
 
@@ -71,8 +71,10 @@ def separate_to_rectangles(coordinates):
             if max_y_when_max_x is None or y >= max_y_when_max_x:
                 max_y_when_max_x = y
 
-    left_rectangle = [(min_x, min_y_when_min_x), (min_x, max_y_when_min_x), (mid_x, max_y_when_min_x), (mid_x, min_y_when_min_x)]
-    right_rectangle = [(mid_x, min_y_when_max_x), (mid_x, max_y_when_max_x), (max_x, max_y_when_max_x), (max_x, min_y_when_max_x)]
+    left_rectangle = [(min_x, min_y_when_min_x), (min_x, max_y_when_min_x), (mid_x, max_y_when_min_x),
+                      (mid_x, min_y_when_min_x)]
+    right_rectangle = [(mid_x, min_y_when_max_x), (mid_x, max_y_when_max_x), (max_x, max_y_when_max_x),
+                       (max_x, min_y_when_max_x)]
 
     return [left_rectangle, right_rectangle]
 
@@ -100,12 +102,12 @@ def plotShape(data, state, title):
                 ax.scatter(x, y, label=f'{key} - {sub_key}', marker='o')
 
                 for xi, yi in zip(x, y):
-                    #ax.annotate(str(point_number), (xi, yi), textcoords="offset points", xytext=(0, 10), ha='center')
+                    # ax.annotate(str(point_number), (xi, yi), textcoords="offset points", xytext=(0, 10), ha='center')
                     point_number += 1
 
                 color = debug_color[0]
-                #if counter < len(state):
-                 #   color = 'white' if state[counter] else 'black'
+                # if counter < len(state):
+                #   color = 'white' if state[counter] else 'black'
                 if counter % 2 == 0:
                     color = debug_color[1]
 
@@ -152,8 +154,6 @@ def sort_dict_alternating_keys(input_dict):
     return sorted_dict
 
 
-
-
 class GdsDrawing:
     """
     Represents a drawing element in a GDS (Graphics Data System) layout.
@@ -164,8 +164,9 @@ class GdsDrawing:
         diffusion_layer (int): The number affiliated to the layer of the n and p diffusion.
         polysilicon_layer (int): The number affiliated to the layer of the polysilicon.
         positions (list): A list containing the X and Y coordinates of the drawing's position.
-        state (list): The state of each part of the gate of diffusion and polysilicon from
-        left to right and then from top to bottom.
+        truthtable (dict): The truthtable is a list containing the information the output based on the input for a gate.
+        connection_layer (int): The number affiliated to the layer of the conections.
+        label_layer(int): The number affiliated to the layer of labels.
 
     Attributes:
         gds (str): The GDS file path or name.
@@ -173,23 +174,27 @@ class GdsDrawing:
         diffusion_layer (int): The number affiliated to the layer of the n and p diffusion.
         polysilicon_layer (int): The number affiliated to the layer of the polysilicon.
         positions (list): A list containing the X and Y coordinates of the drawing's position.
-        state (list): The state or status of the drawing.
+        truthtable (dict): The truthtable is a list containing the information the output based on the input for a gate.
+        connection_layer (int): The number affiliated to the layer of the conections.
+        label_layer(int): The number affiliated to the layer of labels.
 
     Example:
         To create a GdsDrawing instance:
 
-        >>> drawing = GdsDrawing("example.gds", "INV_X1", 1, 9, [10, 20], [0, 1, 0, 1, 0, 1])
+        >>> drawing = GdsDrawing("example.gds", "INV_X1", 1, 9, 10, 11, [10, 20], [({'A': True}, {'ZN': False}), ({'A': False}, {'ZN': True})])
 
     This class draw over a GDS input the optical state of each gate depending on the position and gates states.
     """
 
-    def __init__(self, gds, gate_type, diffusion_layer, polysilicon_layer, positions, state):
+    def __init__(self, gds, gate_type, diffusion_layer, polysilicon_layer, connection_layer, label_layer, positions, truthtable):
         self.gds = gds
         self.gate_type = gate_type
         self.diffusion_layer = diffusion_layer
         self.polysilicon_layer = polysilicon_layer
         self.positions = positions
-        self.state = state
+        self.truthtable = truthtable
+        self.connection_layer = connection_layer
+        self.label_layer = label_layer
 
         self.main()
 
@@ -198,6 +203,14 @@ class GdsDrawing:
         lib.read_gds(self.gds)
         cell = lib.cells[self.gate_type]
 
+        for label in cell.labels:
+            if label.layer == self.label_layer:
+                print("Label:")
+                print("Text:", label.text)
+                print("Position:", label.position)
+                print("-----------")
+
+
         polygons = cell.get_polygons(by_spec=True)
 
         # TODO check about the polygons (layers) selection for gds files (idem for diff)
@@ -205,14 +218,14 @@ class GdsDrawing:
 
         # find the rectangle
         merged_polysilicon_polygons = mergePolygons(polysilicon_polygon)
-        sorted_polysilicon_polygons = sorted(merged_polysilicon_polygons, key=lambda polygon: min(polygon.exterior.xy[0]))
+        sorted_polysilicon_polygons = sorted(merged_polysilicon_polygons,
+                                             key=lambda polygon: min(polygon.exterior.xy[0]))
 
         min_y_coords = [min(polygon.exterior.xy[1]) for polygon in merged_polysilicon_polygons]
         max_y_coords = [max(polygon.exterior.xy[1]) for polygon in merged_polysilicon_polygons]
 
         min_y_poly = min(min_y_coords)
         max_y_poly = max(max_y_coords)
-
 
         diffusion_polygons = polygons.get((self.diffusion_layer, 0), [])
 
@@ -221,6 +234,20 @@ class GdsDrawing:
         merged_diffusion_polygons = mergePolygons(filtered_diffusion_polygons)
         sorted_polygons = sorted(merged_diffusion_polygons, key=lambda polygon: min(polygon.exterior.xy[1]),
                                  reverse=True)
+
+        connection_polygons = polygons.get((self.connection_layer, 0), [])
+        merged_connection_polygons = mergePolygons(connection_polygons)
+
+        label_polygons = polygons.get((self.label_layer, 0), [])
+        merged_label_polygons = mergePolygons(label_polygons)
+
+        for merged_polygon in merged_label_polygons:
+            x, y = merged_polygon.exterior.xy
+            plt.plot(x, y)
+
+        for merged_polygon in merged_connection_polygons:
+            x, y = merged_polygon.exterior.xy
+            plt.plot(x, y)
 
         for merged_polygon in sorted_polygons:
             x, y = merged_polygon.exterior.xy
@@ -310,4 +337,10 @@ class GdsDrawing:
         with open('resources/data.json', 'w') as json_file:
             json.dump(sorted_dict, json_file, indent=4)
 
-        plotShape(sorted_dict, self.state, self.gate_type)
+        state = self.convertTruthtableToStates()
+
+        #plotShape(sorted_dict, state, self.gate_type)
+
+    def convertTruthtableToStates(self):
+        print(self.truthtable)
+        return [1, 0, 1, 0, 1, 0, 1]

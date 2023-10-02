@@ -7,7 +7,7 @@ from controllers.lib_reader import LibReader
 from controllers.main_controller import MainController
 
 if __name__ == "__main__":
-    program = 3
+    program = 2
     if program == 1:
         app = QApplication(sys.argv)
         controller = MainController()
@@ -152,14 +152,14 @@ if __name__ == "__main__":
                  'XOR2_X1',
                  'XOR2_X2']
 
-        prefix = 'SDFF'
+        prefix = 'INV_X1'
 
-        filtered_cells = [cell for cell in cells if cell.startswith(prefix)]
+        #filtered_cells = [cell for cell in cells if cell.startswith(prefix)]
+        filtered_cells=[prefix]
 
         for cell in filtered_cells:
-            GdsDrawing("resources/stdcells.gds", cell, 1, 9, [0, 0], [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0])
+            lib_reader = LibReader(cell, "Platforms/PDK45nm/NangateOpenCellLibrary_typical.lib")
+            truth_table = lib_reader.extract_truth_table()
+            print(truth_table)
+            GdsDrawing("resources/stdcells.gds", cell, 1, 9, 10, 11, [0, 0], truth_table)
 
-    elif program == 3:
-        lib_reader = LibReader("OAI22_X1", "Platforms/PDK45nm/NangateOpenCellLibrary_typical.lib")
-        truth_table = lib_reader.extract_truth_table()
-        print(truth_table)

@@ -56,13 +56,13 @@ class LibReader:
                 print("\n")
                 print(pin_group['function'])
                 str_function = str(pin_group['function'])
-                return self.calculateOutputFunction(str_function)
+                return self.calculateOutputFunction(str_function, pin_name)
             else:
                 print("input")
 
             print("\n")
 
-    def calculateOutputFunction(self, function):
+    def calculateOutputFunction(self, function, pin_name):
         # Use regular expression to find input symbols with letters and numbers
         input_symbols = re.findall(r'\w+', function)
         input_symbols = sorted(set(input_symbols))
@@ -79,11 +79,12 @@ class LibReader:
                 eval_expression = eval_expression.replace(symbol, str(value))
 
             # Replace not logical operator for Python's operators
-            eval_expression = eval_expression.replace("!", "not")
+            eval_expression = eval_expression.replace("!", "not ")
 
             # Evaluate the expression two time to convert it from a string to a result
             result = eval(eval(eval_expression))
-            truth_table.append((input_values, result))
+
+            truth_table.append((input_values, {pin_name: result}))
 
         return truth_table
 
