@@ -160,5 +160,6 @@ if __name__ == "__main__":
             GdsDrawing("resources/stdcells.gds", cell, 1, 9, [0, 0], [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0])
 
     elif program == 3:
-        lib_reader = LibReader("AND2_X1", "Platforms/PDK45nm/NangateOpenCellLibrary_typical.lib")
+        lib_reader = LibReader("OAI22_X1", "Platforms/PDK45nm/NangateOpenCellLibrary_typical.lib")
         truth_table = lib_reader.extract_truth_table()
+        print(truth_table)
