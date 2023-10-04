@@ -79,17 +79,23 @@ def separate_to_rectangles(coordinates):
     return [left_rectangle, right_rectangle]
 
 
-def plotShape(data, state, title):
+def plotShape(data, title):
     fig, ax = plt.subplots()
 
     point_number = 1
     counter = 0
-    debug_color = ['black', 'white']
+    color_list = ['black', 'white']
 
     # Iterate through the sub-dictionaries ('top' and 'bottom')
     for key, sub_dict in data.items():
         # Iterate through the sub-dictionary items ('diff_1', 'diff_2', 'poly')
-        for sub_key, coordinates in sub_dict.items():
+        for sub_key, part in sub_dict.items():
+
+            coordinates = part["position"]
+
+            state = 0
+            if part.get("state"):
+                state = part["state"]
 
             if len(coordinates) > 4:
                 sorted_points_list = separate_to_rectangles(coordinates)
@@ -105,11 +111,7 @@ def plotShape(data, state, title):
                     # ax.annotate(str(point_number), (xi, yi), textcoords="offset points", xytext=(0, 10), ha='center')
                     point_number += 1
 
-                color = debug_color[0]
-                # if counter < len(state):
-                #   color = 'white' if state[counter] else 'black'
-                if counter % 2 == 0:
-                    color = debug_color[1]
+                color = color_list[state]
 
                 ax.fill(x, y, facecolor=color, alpha=0.2, edgecolor='black', linewidth=1)
 
@@ -186,7 +188,8 @@ class GdsDrawing:
     This class draw over a GDS input the optical state of each gate depending on the position and gates states.
     """
 
-    def __init__(self, gds, gate_type, diffusion_layer, polysilicon_layer, connection_layer, label_layer, positions, truthtable):
+    def __init__(self, gds, gate_type, diffusion_layer, polysilicon_layer, connection_layer, label_layer, positions,
+                 truthtable):
         self.gds = gds
         self.gate_type = gate_type
         self.diffusion_layer = diffusion_layer
@@ -196,6 +199,10 @@ class GdsDrawing:
         self.connection_layer = connection_layer
         self.label_layer = label_layer
         self.label_list = []
+        self.inputs = {
+            "A1": 0,
+            "A2": 1
+        }
 
         self.main()
 
@@ -207,10 +214,6 @@ class GdsDrawing:
         for label in cell.labels:
             if label.layer == self.label_layer:
                 self.label_list.append(label)
-                print("Label:")
-                print("Text:", label.text)
-                print("Position:", label.position)
-                print("-----------")
 
         polygons = cell.get_polygons(by_spec=True)
 
@@ -234,7 +237,7 @@ class GdsDrawing:
                                        all(min_y_poly <= y <= max_y_poly for _, y in polygon)]
         merged_diffusion_polygons = mergePolygons(filtered_diffusion_polygons)
         sorted_diffusion_polygons = sorted(merged_diffusion_polygons, key=lambda polygon: min(polygon.exterior.xy[1]),
-                                 reverse=True)
+                                           reverse=True)
 
         connection_polygons = polygons.get((self.connection_layer, 0), [])
         merged_connection_polygons = mergePolygons(connection_polygons)
@@ -255,9 +258,9 @@ class GdsDrawing:
             x, y = merged_polygon.exterior.xy
             plt.plot(x, y)
 
-       # for merged_polygon in sorted_diffusion_polygons:
+        # for merged_polygon in sorted_diffusion_polygons:
         #    x, y = merged_polygon.exterior.xy
-         #   plt.plot(x, y)
+        #   plt.plot(x, y)
 
         for merged_polysilicon_polygon in sorted_polysilicon_polygons:
             x, y = merged_polysilicon_polygon.exterior.xy
@@ -279,7 +282,8 @@ class GdsDrawing:
                 for metal in merged_label_polygons:
                     for label in check_label_list:
                         label_position = Point(label.position.tolist())
-                        if polysilicon.intersects(connection) and metal.intersects(connection) and polysilicon.intersects(metal) and metal.contains(label_position):
+                        if polysilicon.intersects(connection) and metal.intersects(
+                                connection) and polysilicon.intersects(metal) and metal.contains(label_position):
                             linked_list.append(['polysilicon', polysilicon, label])
                             check_label_list.remove(label)
 
@@ -300,31 +304,18 @@ class GdsDrawing:
                     _, point_y = label.position
                     if y == point_y:
                         linked_list.append(["metal", metal, label])
-                        print(label)
                         check_label_list.remove(label)
-
 
         for poly in linked_list:
             x, y = poly[1].exterior.xy
             plt.plot(x, y)
+
             x, y = poly[2].position
             plt.scatter(x, y)
             plt.annotate(poly[2].text, (x, y))
 
-
         plt.title("in and out")
         plt.show()
-
-
-
-
-
-           # for poly in sorted_polysilicon_polygons:
-            #    for label in self.label_list:
-             #       for merged_label_polygon in merged_label_polygons:
-              #          label_position = Point(label.position.tolist())
-               #         if merged_label_polygon.contains(label_position):
-
 
         ## old code
 
@@ -333,23 +324,36 @@ class GdsDrawing:
             final_shape[key] = {}
             intersection_counter = 0
 
-            for merged_polysilicon_polygon in sorted_polysilicon_polygons:
-                if sorted_diffusion_polygons[i].intersects(merged_polysilicon_polygon):
-                    intersection_polygons = sorted_diffusion_polygons[i].intersection(merged_polysilicon_polygon)
+            polysilicon_list = []
+            for poly in linked_list:
+                if poly[0] == "polysilicon":
+                    polysilicon_list.append(poly)
+                polysilicon_list = sorted(polysilicon_list, key=lambda polygon: min(polygon[1].exterior.xy[0]))
+            for merged_polysilicon in polysilicon_list:
+                if sorted_diffusion_polygons[i].intersects(merged_polysilicon[1]):
+                    intersection_polygons = sorted_diffusion_polygons[i].intersection(merged_polysilicon[1])
 
                     # init var to handle error
                     if hasattr(intersection_polygons, "geoms"):
                         for index, intersection_polygon in enumerate(intersection_polygons.geoms):
                             x, y = intersection_polygon.exterior.xy
                             ploysilicon_key = "poly_" + str(intersection_counter)
+                            final_shape[key][ploysilicon_key] = {}
                             unique_coordinates = list(set(zip(x, y)))
-                            final_shape[key][ploysilicon_key] = unique_coordinates
+                            final_shape[key][ploysilicon_key]["position"] = unique_coordinates
+                            if merged_polysilicon[2].text in self.inputs:
+                                final_shape[key][ploysilicon_key]["state"] = self.inputs[merged_polysilicon[2].text]
+                                final_shape[key][ploysilicon_key]["type"] = "input"
                             intersection_counter += 1
                     else:
                         x, y = intersection_polygons.exterior.xy
                         ploysilicon_key = "poly_" + str(intersection_counter)
+                        final_shape[key][ploysilicon_key] = {}
                         unique_coordinates = list(set(zip(x, y)))
-                        final_shape[key][ploysilicon_key] = unique_coordinates
+                        final_shape[key][ploysilicon_key]["position"] = unique_coordinates
+                        if merged_polysilicon[2].text in self.inputs:
+                            final_shape[key][ploysilicon_key]["state"] = self.inputs[merged_polysilicon[2].text]
+                            final_shape[key][ploysilicon_key]["type"] = "input"
                         intersection_counter += 1
 
             diff_coordinates_x, diff_coordinates_y = sorted_diffusion_polygons[i].exterior.xy
@@ -358,19 +362,23 @@ class GdsDrawing:
 
             poly_key_list = list(final_shape[key].keys())
 
+            # to extract diffusion parts
             for j in range(len(poly_key_list) + 1):
                 diffusion_key = "diff_" + str(j)
+                final_shape[key][diffusion_key] = {}
                 if j == 0:
-                    poly_left, poly_right = find_extreme_points(final_shape[key][poly_key_list[j]])
+                    poly_left, poly_right = find_extreme_points(final_shape[key][poly_key_list[j]]["position"])
                     combined_points = extreme_left_diff + poly_left
                 elif j == len(poly_key_list):
-                    poly_left, poly_right = find_extreme_points(final_shape[key][poly_key_list[j - 1]])
+                    poly_left, poly_right = find_extreme_points(final_shape[key][poly_key_list[j - 1]]["position"])
                     combined_points = poly_right + extreme_right_diff
                 else:
-                    poly_left, poly_right = find_extreme_points(final_shape[key][poly_key_list[j]])
-                    poly_left_before, poly_right_before = find_extreme_points(
-                        final_shape[key][poly_key_list[j - 1]])
-                    combined_points = poly_right_before + poly_left
+                    # try to understand why points are sorted in the inverse way (right for left, and left fort right)
+                    poly_left, _ = find_extreme_points(final_shape[key][poly_key_list[j]]["position"])
+                    _, poly_right_before = find_extreme_points(final_shape[key][poly_key_list[j - 1]]["position"])
+                    combined_points = poly_left + poly_right_before
+
+                # to handle non square polygones shapes
 
                 unique_y_values = set(point[1] for point in combined_points)
                 num_unique_y = len(unique_y_values)
@@ -396,17 +404,90 @@ class GdsDrawing:
 
                     combined_points = combined_points + filtered_points
 
-                final_shape[key][diffusion_key] = combined_points
+                final_shape[key][diffusion_key]["position"] = combined_points
 
         sorted_dict = sort_dict_alternating_keys(final_shape)
+
+        for element_key in sorted_dict:
+            for part_key in sorted_dict[element_key]:
+                position = sorted_dict[element_key][part_key]["position"]
+                part_poly = Polygon(position)
+                for connection in merged_connection_polygons:
+                    for linked in linked_list:
+                        if linked[0] == "metal" and part_poly.intersects(connection) and connection.intersects(
+                                linked[1]) and part_poly.intersects(linked[1]):
+                            label = linked[2]
+                            if label.text.lower() == "vdd".lower():
+                                sorted_dict[element_key][part_key]["state"] = 1
+                                sorted_dict[element_key][part_key]["type"] = "power"
+                            elif label.text.lower() == "vss".lower():
+                                sorted_dict[element_key][part_key]["state"] = 0
+                                sorted_dict[element_key][part_key]["type"] = "ground"
+                            else:
+                                for inputs, output in self.truthtable:
+                                    if inputs == self.inputs:
+                                        output_value = output[label.text]
+                                        sorted_dict[element_key][part_key]["state"] = output_value
+                                        sorted_dict[element_key][part_key]["type"] = "output"
+
+        # TODO extract vdd and vss name from liberty file
+
+        for key, element in sorted_dict.items():
+
+            for counter, sub_dict in enumerate(element):
+                if element[sub_dict].get("state") is None:
+                    selected_part = element[sub_dict]
+                    left_index = counter
+                    right_index = counter
+                    continue_loop = True
+                    list_element = list(element.items())
+
+                    while continue_loop:
+                        continue_loop, left_index, right_index = self.check_neighbor_state(list_element, selected_part,
+                                                                                           left_index, right_index)
 
         with open('resources/data.json', 'w') as json_file:
             json.dump(sorted_dict, json_file, indent=4)
 
-        state = self.convertTruthtableToStates()
+        plotShape(sorted_dict, self.gate_type)
 
-        #plotShape(sorted_dict, state, self.gate_type)
+    def check_neighbor_state(self, element, selected_part, left_index, right_index):
 
-    def convertTruthtableToStates(self):
-        print(self.truthtable)
-        return [1, 0, 1, 0, 1, 0, 1]
+        new_left_index = None
+        new_right_index = None
+        left_state = False
+        right_state = False
+
+        if left_index:
+            if 0 <= left_index - 1 < len(element):
+                selected_left = element[left_index - 1]
+                left_state, new_left_index = self.check_part(selected_part, selected_left[1], left_index - 1)
+        if right_index:
+            if 0 <= right_index + 1 < len(element):
+                selected_right = element[right_index + 1]
+                right_state, new_right_index = self.check_part(selected_part, selected_right[1], right_index + 1)
+
+        return (left_state or right_state), new_left_index, new_right_index
+
+    def check_part(self, selected_part, selected_side, new_index):
+        if selected_side["type"] == "ground":
+            selected_part["state"] = 0
+            selected_part["type"] = "connector"
+            return False, None
+
+        elif selected_side["type"] == "power":
+            selected_part["state"] = 1
+            selected_part["type"] = "connector"
+            return False, None
+
+        elif selected_side["type"] == "output":
+            selected_part["type"] = "connector"
+            selected_part["state"] = selected_side["state"]
+            return True, new_index
+
+        else:
+            if selected_side["state"] == 0:
+                return False, None
+
+            else:
+                return True, new_index

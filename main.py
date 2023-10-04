@@ -152,7 +152,7 @@ if __name__ == "__main__":
                  'XOR2_X1',
                  'XOR2_X2']
 
-        prefix = 'NAND2_X1'
+        prefix = 'NAND2_X2'
 
         #filtered_cells = [cell for cell in cells if cell.startswith(prefix)]
         filtered_cells=[prefix]
