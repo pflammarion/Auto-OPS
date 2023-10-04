@@ -169,6 +169,7 @@ class GdsDrawing:
         truthtable (dict): The truthtable is a list containing the information the output based on the input for a gate.
         connection_layer (int): The number affiliated to the layer of the conections.
         label_layer(int): The number affiliated to the layer of labels.
+        voltage(list): Contains the voltage names and types.
 
     Attributes:
         gds (str): The GDS file path or name.
@@ -179,17 +180,18 @@ class GdsDrawing:
         truthtable (dict): The truthtable is a list containing the information the output based on the input for a gate.
         connection_layer (int): The number affiliated to the layer of the conections.
         label_layer(int): The number affiliated to the layer of labels.
+        voltage(list): Contains the voltage names and types.
 
     Example:
         To create a GdsDrawing instance:
 
-        >>> drawing = GdsDrawing("example.gds", "INV_X1", 1, 9, 10, 11, [10, 20], [({'A': True}, {'ZN': False}), ({'A': False}, {'ZN': True})])
+        >>> drawing = GdsDrawing("example.gds", "INV_X1", 1, 9, 10, 11, [10, 20], [({'A': True}, {'ZN': False}), ({'A': False}, {'ZN': True})], [{'name': 'VDD', 'type': 'primary_power'}, {'name': 'VSS', 'type': 'primary_ground'}])
 
     This class draw over a GDS input the optical state of each gate depending on the position and gates states.
     """
 
     def __init__(self, gds, gate_type, diffusion_layer, polysilicon_layer, connection_layer, label_layer, positions,
-                 truthtable):
+                 truthtable, voltage):
         self.gds = gds
         self.gate_type = gate_type
         self.diffusion_layer = diffusion_layer
@@ -203,6 +205,15 @@ class GdsDrawing:
             "A1": 0,
             "A2": 1
         }
+
+        self.ground_pin_name = None
+        self.power_pin_name = None
+
+        for volt in voltage:
+            if "ground" in volt["type"]:
+                self.ground_pin_name = volt["name"]
+            elif "power" in volt["type"]:
+                self.power_pin_name = volt["name"]
 
         self.main()
 
@@ -417,10 +428,10 @@ class GdsDrawing:
                         if linked[0] == "metal" and part_poly.intersects(connection) and connection.intersects(
                                 linked[1]) and part_poly.intersects(linked[1]):
                             label = linked[2]
-                            if label.text.lower() == "vdd".lower():
+                            if label.text.lower() == self.power_pin_name.lower():
                                 sorted_dict[element_key][part_key]["state"] = 1
                                 sorted_dict[element_key][part_key]["type"] = "power"
-                            elif label.text.lower() == "vss".lower():
+                            elif label.text.lower() == self.ground_pin_name.lower():
                                 sorted_dict[element_key][part_key]["state"] = 0
                                 sorted_dict[element_key][part_key]["type"] = "ground"
                             else:
@@ -430,7 +441,6 @@ class GdsDrawing:
                                         sorted_dict[element_key][part_key]["state"] = output_value
                                         sorted_dict[element_key][part_key]["type"] = "output"
 
-        # TODO extract vdd and vss name from liberty file
 
         for key, element in sorted_dict.items():
 

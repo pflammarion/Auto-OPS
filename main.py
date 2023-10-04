@@ -159,7 +159,6 @@ if __name__ == "__main__":
 
         for cell in filtered_cells:
             lib_reader = LibReader(cell, "Platforms/PDK45nm/NangateOpenCellLibrary_typical.lib")
-            truth_table = lib_reader.extract_truth_table()
-            print(truth_table)
-            GdsDrawing("resources/stdcells.gds", cell, 1, 9, 10, 11, [0, 0], truth_table)
+            truth_table, voltage = lib_reader.extract_truth_table()
+            GdsDrawing("resources/stdcells.gds", cell, 1, 9, 10, 11, [0, 0], truth_table, voltage)
 

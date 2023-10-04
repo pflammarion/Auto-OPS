@@ -48,6 +48,15 @@ class LibReader:
         # Find the cell (gate) with the specified name
         cell = select_cell(library, self.gate_name)
 
+        voltage = []
+
+        for pg_pin in cell.get_groups('pg_pin'):
+            data = {
+                'name': pg_pin['voltage_name'],
+                'type': pg_pin['pg_type']
+            }
+            voltage.append(data)
+
         for pin_group in cell.get_groups('pin'):
             pin_name = pin_group.args[0]
             print(pin_name)
@@ -56,7 +65,7 @@ class LibReader:
                 print("\n")
                 print(pin_group['function'])
                 str_function = str(pin_group['function'])
-                return self.calculateOutputFunction(str_function, pin_name)
+                return self.calculateOutputFunction(str_function, pin_name), voltage
             else:
                 print("input")
 
