@@ -291,10 +291,20 @@ class GdsDrawing:
                     linked_list.append(["metal", metal, label])
                     check_label_list.remove(label)
 
+        # find vdd and vss
+
+        for metal in merged_label_polygons:
+            _, metal_y = metal.exterior.xy
+            for y in metal_y:
+                for label in check_label_list:
+                    _, point_y = label.position
+                    if y == point_y:
+                        linked_list.append(["metal", metal, label])
+                        print(label)
+                        check_label_list.remove(label)
+
+
         for poly in linked_list:
-            print("This ploy:")
-            print(poly[1])
-            print(" is linked to input " + poly[2].text)
             x, y = poly[1].exterior.xy
             plt.plot(x, y)
             x, y = poly[2].position
