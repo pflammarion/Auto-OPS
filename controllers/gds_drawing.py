@@ -1,3 +1,5 @@
+import sys
+
 import gdspy
 import matplotlib.pyplot as plt
 import numpy as np
@@ -202,8 +204,9 @@ class GdsDrawing:
         self.label_layer = label_layer
         self.label_list = []
         self.inputs = {
-            "A1": 0,
-            "A2": 1
+            "A": 0,
+            "B1": 1,
+            "B2": 1
         }
 
         self.ground_pin_name = None
@@ -297,33 +300,54 @@ class GdsDrawing:
                                 connection) and polysilicon.intersects(metal) and metal.contains(label_position):
                             linked_list.append(['polysilicon', polysilicon, label])
                             check_label_list.remove(label)
+                            merged_label_polygons.remove(metal)
 
         # first loop to check if a metal is an output
-        for metal in merged_label_polygons:
-            for label in check_label_list:
+
+        # fix those for loops to get all vss and vdd
+        for label in check_label_list:
+            for metal in merged_label_polygons:
                 label_position = Point(label.position.tolist())
+
                 if metal.contains(label_position):
                     linked_list.append(["metal", metal, label])
-                    check_label_list.remove(label)
+                    merged_label_polygons.remove(metal)
+                    break
 
-        # find vdd and vss
-
-        for metal in merged_label_polygons:
-            _, metal_y = metal.exterior.xy
-            for y in metal_y:
-                for label in check_label_list:
+                # try to find vss and vcc from the label position
+        for label in check_label_list:
+            for metal in merged_label_polygons:
                     _, point_y = label.position
-                    if y == point_y:
-                        linked_list.append(["metal", metal, label])
-                        check_label_list.remove(label)
+                    _, metal_y = metal.exterior.xy
+                    set_metal_y = set(metal_y)
+                    for y in set_metal_y:
+                        if y == point_y:
+                            linked_list.append(["metal", metal, label])
+                            merged_label_polygons.remove(metal)
+                            print(label)
+                            break
+
+        # for other metals
+        metal_wire_index = 0
+        for connection in merged_connection_polygons:
+            for diffusion in merged_diffusion_polygons:
+                for metal in merged_label_polygons:
+                    if metal.intersects(connection) and connection.intersects(diffusion) and diffusion.intersects(metal):
+                        # metals which is to connect 2 parts without imposed value
+                        linked_list.append(["metal_wire", metal, metal_wire_index])
+                        metal_wire_index += 1
+                        merged_label_polygons.remove(metal)
+
 
         for poly in linked_list:
+
             x, y = poly[1].exterior.xy
             plt.plot(x, y)
 
-            x, y = poly[2].position
-            plt.scatter(x, y)
-            plt.annotate(poly[2].text, (x, y))
+            if poly[0] != "metal_wire":
+                x, y = poly[2].position
+                plt.scatter(x, y)
+                plt.annotate(poly[2].text, (x, y))
 
         plt.title("in and out")
         plt.show()
@@ -419,12 +443,18 @@ class GdsDrawing:
 
         sorted_dict = sort_dict_alternating_keys(final_shape)
 
+        # TODO find a way to handle metals without pin
+        # setup list to link metal wires
+        metal_wire_linked_keys = {}
+
         for element_key in sorted_dict:
             for part_key in sorted_dict[element_key]:
+                found_pair = False
                 position = sorted_dict[element_key][part_key]["position"]
                 part_poly = Polygon(position)
                 for connection in merged_connection_polygons:
                     for linked in linked_list:
+                        # setup ground, power and output
                         if linked[0] == "metal" and part_poly.intersects(connection) and connection.intersects(
                                 linked[1]) and part_poly.intersects(linked[1]):
                             label = linked[2]
@@ -441,9 +471,24 @@ class GdsDrawing:
                                         sorted_dict[element_key][part_key]["state"] = output_value
                                         sorted_dict[element_key][part_key]["type"] = "output"
 
+                        # setup metal_wire
+                        if linked[0] == "metal_wire" and part_poly.intersects(connection) and connection.intersects(linked[1]) and part_poly.intersects(linked[1]):
+                            sorted_dict[element_key][part_key]["type"] = "metal_wire_" + str(linked[2])
+                            for pair in metal_wire_linked_keys:
+                                wire_list = metal_wire_linked_keys.get(pair)
+                                if pair == linked[2] and [element_key, part_key] not in wire_list:
+                                    wire_list.append([element_key, part_key])
+                                    found_pair = True
+                                    break
 
-        for key, element in sorted_dict.items():
+                            if found_pair is False:
+                                metal_wire_linked_keys[linked[2]] = [[element_key, part_key]]
 
+        print(metal_wire_linked_keys)
+
+
+
+        for element_key, element in sorted_dict.items():
             for counter, sub_dict in enumerate(element):
                 if element[sub_dict].get("state") is None:
                     selected_part = element[sub_dict]
@@ -453,7 +498,7 @@ class GdsDrawing:
                     list_element = list(element.items())
 
                     while continue_loop:
-                        continue_loop, left_index, right_index = self.check_neighbor_state(list_element, selected_part,
+                        continue_loop, left_index, right_index = self.check_neighbor_state(sorted_dict, list_element, metal_wire_linked_keys, sub_dict, selected_part,
                                                                                            left_index, right_index)
 
         with open('resources/data.json', 'w') as json_file:
@@ -461,7 +506,7 @@ class GdsDrawing:
 
         plotShape(sorted_dict, self.gate_type)
 
-    def check_neighbor_state(self, element, selected_part, left_index, right_index):
+    def check_neighbor_state(self, sorted_dict, element, metal_wire_linked_keys, selected_key, selected_part, left_index, right_index):
 
         new_left_index = None
         new_right_index = None
@@ -471,33 +516,80 @@ class GdsDrawing:
         if left_index:
             if 0 <= left_index - 1 < len(element):
                 selected_left = element[left_index - 1]
-                left_state, new_left_index = self.check_part(selected_part, selected_left[1], left_index - 1)
+                left_state, new_left_index = self.check_part(sorted_dict, metal_wire_linked_keys, selected_key, selected_part, selected_left[1], left_index - 1)
         if right_index:
             if 0 <= right_index + 1 < len(element):
                 selected_right = element[right_index + 1]
-                right_state, new_right_index = self.check_part(selected_part, selected_right[1], right_index + 1)
+                right_state, new_right_index = self.check_part(sorted_dict, metal_wire_linked_keys, selected_key, selected_part, selected_right[1], right_index + 1)
 
         return (left_state or right_state), new_left_index, new_right_index
 
-    def check_part(self, selected_part, selected_side, new_index):
-        if selected_side["type"] == "ground":
-            selected_part["state"] = 0
-            selected_part["type"] = "connector"
-            return False, None
+    def check_part(self, sorted_dict, metal_wire_linked_keys, selected_key, selected_part, selected_side, new_index):
+        if selected_side.get("type"):
+            if selected_side["type"] == "ground":
+                if selected_part.get("type") is None:
+                    selected_part["type"] = "connector"
+                    selected_part["state"] = 0
+                elif "metal_wire" in selected_part["type"]:
+                    for pair_index in metal_wire_linked_keys:
+                        for pair in metal_wire_linked_keys.get(pair_index):
+                            if selected_key in pair:
+                                for founded_pair in metal_wire_linked_keys.get(pair_index):
+                                    sorted_dict[founded_pair[0]][founded_pair[1]]["state"] = 0
 
-        elif selected_side["type"] == "power":
-            selected_part["state"] = 1
-            selected_part["type"] = "connector"
-            return False, None
 
-        elif selected_side["type"] == "output":
-            selected_part["type"] = "connector"
-            selected_part["state"] = selected_side["state"]
-            return True, new_index
+                    # find twin and apply 0
+                return False, None
 
-        else:
-            if selected_side["state"] == 0:
+            elif selected_side["type"] == "power":
+                selected_part["state"] = 1
+                if selected_part.get("type") is None:
+                    selected_part["type"] = "connector"
+                elif "metal_wire" in selected_part["type"]:
+                    for pair_index in metal_wire_linked_keys:
+                        for pair in metal_wire_linked_keys.get(pair_index):
+                            if selected_key in pair:
+                                for founded_pair in metal_wire_linked_keys.get(pair_index):
+                                    sorted_dict[founded_pair[0]][founded_pair[1]]["state"] = 1
+                                    print(selected_key)
+                return False, None
+
+            elif selected_side["type"] == "output":
+                if selected_part.get("type") is None:
+                    selected_part["type"] = "connector"
+                    selected_part["state"] = selected_side["state"]
+                elif "metal_wire" in selected_part["type"]:
+                    for pair_index in metal_wire_linked_keys:
+                        for pair in metal_wire_linked_keys.get(pair_index):
+                            if selected_key in pair:
+                                for founded_pair in metal_wire_linked_keys.get(pair_index):
+                                    if sorted_dict[founded_pair[0]][founded_pair[1]].get("state"):
+                                        selected_part["state"] = selected_side["state"]
+
+                return True, new_index
+
+            elif "metal_wire" in selected_side["type"] and selected_side.get("state"):
+                # find twin and if both has stats then definitive state for part
+                # TODO not covered
+                print("\n")
+                print("!!!!!Warning metal wire can be false!!!!!")
+                print(selected_part)
+                print(selected_side)
+                print("--------------------")
+
+                if selected_part.get("type") is None:
+                    selected_part["type"] = "connector"
+                selected_part["state"] = selected_side["state"]
+
                 return False, None
 
             else:
-                return True, new_index
+                # is like a switch open then we can stop here
+                if "state" in selected_side and selected_side["state"] == 0:
+                    return False, None
+
+                else:
+                    return True, new_index
+        else:
+            return False, None
+
