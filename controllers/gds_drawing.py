@@ -577,7 +577,6 @@ class GdsDrawing:
                             if selected_key in pair:
                                 for founded_pair in metal_wire_linked_keys.get(pair_index):
                                     sorted_dict[founded_pair[0]][founded_pair[1]]["state"] = 1
-                                    print(selected_key)
                 return False, None
 
             elif selected_side["type"] == "output":
@@ -589,8 +588,8 @@ class GdsDrawing:
                         for pair in metal_wire_linked_keys.get(pair_index):
                             if selected_key in pair:
                                 for founded_pair in metal_wire_linked_keys.get(pair_index):
-                                    if sorted_dict[founded_pair[0]][founded_pair[1]].get("state"):
-                                        selected_part["state"] = selected_side["state"]
+                                    if not(sorted_dict[founded_pair[0]][founded_pair[1]].get("state")):
+                                        sorted_dict[founded_pair[0]][founded_pair[1]]["state"] = selected_side["state"]
 
                 return True, new_index
 
