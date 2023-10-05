@@ -97,8 +97,14 @@ def plotShape(data, title):
             # TODO remove resorting points already sorted
 
             state = 0
-            if part.get("state"):
+            if "state" in part:
                 state = part["state"]
+                # TODO find automatic vdd and vss
+                if key == "element_0":
+                    if bool(state):
+                        state = 0
+                    else:
+                        state = 1
 
             if len(coordinates) > 4:
                 sorted_points_list = separate_to_rectangles(coordinates)
@@ -126,6 +132,7 @@ def plotShape(data, title):
     plt.title(title)
 
     plt.show()
+
 
 def sortPointsInDict(data):
     for key, sub_dict in data.items():
@@ -221,9 +228,8 @@ class GdsDrawing:
         self.label_layer = label_layer
         self.label_list = []
         self.inputs = {
-            "A": 0,
-            "B1": 0,
-            "B2": 1
+            "A1": 0,
+            "A2": 1,
         }
 
         self.ground_pin_name = None
@@ -289,9 +295,9 @@ class GdsDrawing:
             x, y = merged_polygon.exterior.xy
             plt.plot(x, y)
 
-        for merged_polygon in sorted_diffusion_polygons:
-            x, y = merged_polygon.exterior.xy
-            plt.plot(x, y)
+        # for merged_polygon in sorted_diffusion_polygons:
+        #    x, y = merged_polygon.exterior.xy
+        #    plt.plot(x, y)
 
         for merged_polysilicon_polygon in sorted_polysilicon_polygons:
             x, y = merged_polysilicon_polygon.exterior.xy
@@ -322,7 +328,7 @@ class GdsDrawing:
             label_position = Point(label.position.tolist())
             for diffusion in merged_diffusion_polygons:
                 for metal in merged_label_polygons:
-                    if metal.contains(label_position) and not(diffusion.intersects(metal)):
+                    if metal.contains(label_position) and not (diffusion.intersects(metal)):
                         merged_label_polygons.remove(metal)
 
         # first loop to check if a metal is an output
@@ -491,7 +497,7 @@ class GdsDrawing:
                                 for inputs, output in self.truthtable:
                                     if inputs == self.inputs:
                                         output_value = output[label.text]
-                                        sorted_dict[element_key][part_key]["state"] = output_value
+                                        sorted_dict[element_key][part_key]["state"] = int(output_value)
                                         sorted_dict[element_key][part_key]["type"] = "output"
 
                         # setup metal_wire
@@ -520,7 +526,8 @@ class GdsDrawing:
                     list_element = list(element.items())
 
                     while continue_loop:
-                        continue_loop, left_index, right_index = self.check_neighbor_state(sorted_dict, list_element,
+                        continue_loop, left_index, right_index = self.check_neighbor_state(sorted_dict, element_key,
+                                                                                           list_element,
                                                                                            metal_wire_linked_keys,
                                                                                            sub_dict, selected_part,
                                                                                            left_index, right_index)
@@ -530,7 +537,8 @@ class GdsDrawing:
 
         plotShape(sorted_dict, self.gate_type)
 
-    def check_neighbor_state(self, sorted_dict, element, metal_wire_linked_keys, selected_key, selected_part,
+    def check_neighbor_state(self, sorted_dict, element_key, element, metal_wire_linked_keys, selected_key,
+                             selected_part,
                              left_index, right_index):
 
         new_left_index = None
@@ -541,17 +549,20 @@ class GdsDrawing:
         if left_index:
             if 0 <= left_index - 1 < len(element):
                 selected_left = element[left_index - 1]
-                left_state, new_left_index = self.check_part(sorted_dict, metal_wire_linked_keys, selected_key,
+                left_state, new_left_index = self.check_part(sorted_dict, element_key, metal_wire_linked_keys,
+                                                             selected_key,
                                                              selected_part, selected_left[1], left_index - 1)
         if right_index:
             if 0 <= right_index + 1 < len(element):
                 selected_right = element[right_index + 1]
-                right_state, new_right_index = self.check_part(sorted_dict, metal_wire_linked_keys, selected_key,
+                right_state, new_right_index = self.check_part(sorted_dict, element_key, metal_wire_linked_keys,
+                                                               selected_key,
                                                                selected_part, selected_right[1], right_index + 1)
 
         return (left_state or right_state), new_left_index, new_right_index
 
-    def check_part(self, sorted_dict, metal_wire_linked_keys, selected_key, selected_part, selected_side, new_index):
+    def check_part(self, sorted_dict, element_key, metal_wire_linked_keys, selected_key, selected_part, selected_side,
+                   new_index):
         if selected_side.get("type"):
             if selected_side["type"] == "ground":
                 if selected_part.get("type") is None:
@@ -588,7 +599,7 @@ class GdsDrawing:
                         for pair in metal_wire_linked_keys.get(pair_index):
                             if selected_key in pair:
                                 for founded_pair in metal_wire_linked_keys.get(pair_index):
-                                    if not(sorted_dict[founded_pair[0]][founded_pair[1]].get("state")):
+                                    if not (sorted_dict[founded_pair[0]][founded_pair[1]].get("state")):
                                         sorted_dict[founded_pair[0]][founded_pair[1]]["state"] = selected_side["state"]
 
                 return True, new_index
@@ -604,15 +615,17 @@ class GdsDrawing:
 
                 if selected_part.get("type") is None:
                     selected_part["type"] = "connector"
-                selected_part["state"] = selected_side["state"]
+                    selected_part["state"] = selected_side["state"]
 
                 return False, None
 
             else:
                 # is like a switch open then we can stop here
-                if "state" in selected_side and selected_side["state"] == 0:
+                # TODO extract the element based on the fact they are connected to vdd or vss
+                if "state" in selected_side and selected_side["state"] == 0 and element_key == "element1":
                     return False, None
-
+                elif "state" in selected_side and selected_side["state"] == 1 and element_key == "element0":
+                    return False, None
                 else:
                     return True, new_index
         else:
