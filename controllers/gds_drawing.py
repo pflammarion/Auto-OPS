@@ -94,6 +94,7 @@ def plotShape(data, title):
         for sub_key, part in sub_dict.items():
 
             coordinates = part["position"]
+            # TODO remove resorting points already sorted
 
             state = 0
             if part.get("state"):
@@ -125,6 +126,22 @@ def plotShape(data, title):
     plt.title(title)
 
     plt.show()
+
+def sortPointsInDict(data):
+    for key, sub_dict in data.items():
+        # Iterate through the sub-dictionary items ('diff_1', 'diff_2', 'poly')
+        for sub_key, part in sub_dict.items():
+
+            coordinates = part["position"]
+
+            if len(coordinates) > 4:
+                original_list = separate_to_rectangles(coordinates)
+            else:
+                original_list = sortPointsClockwise(coordinates)
+
+            part["position"] = [[x, y] for sublist in original_list for x, y in sublist]
+
+    return data
 
 
 def find_extreme_points(points):
@@ -205,7 +222,7 @@ class GdsDrawing:
         self.label_list = []
         self.inputs = {
             "A": 0,
-            "B1": 1,
+            "B1": 0,
             "B2": 1
         }
 
@@ -272,9 +289,9 @@ class GdsDrawing:
             x, y = merged_polygon.exterior.xy
             plt.plot(x, y)
 
-        # for merged_polygon in sorted_diffusion_polygons:
-        #    x, y = merged_polygon.exterior.xy
-        #   plt.plot(x, y)
+        for merged_polygon in sorted_diffusion_polygons:
+            x, y = merged_polygon.exterior.xy
+            plt.plot(x, y)
 
         for merged_polysilicon_polygon in sorted_polysilicon_polygons:
             x, y = merged_polysilicon_polygon.exterior.xy
@@ -299,8 +316,14 @@ class GdsDrawing:
                         if polysilicon.intersects(connection) and metal.intersects(
                                 connection) and polysilicon.intersects(metal) and metal.contains(label_position):
                             linked_list.append(['polysilicon', polysilicon, label])
-                            check_label_list.remove(label)
-                            merged_label_polygons.remove(metal)
+
+        # remove metal connected to polysilicon
+        for label in check_label_list:
+            label_position = Point(label.position.tolist())
+            for diffusion in merged_diffusion_polygons:
+                for metal in merged_label_polygons:
+                    if metal.contains(label_position) and not(diffusion.intersects(metal)):
+                        merged_label_polygons.remove(metal)
 
         # first loop to check if a metal is an output
 
@@ -314,30 +337,29 @@ class GdsDrawing:
                     merged_label_polygons.remove(metal)
                     break
 
-                # try to find vss and vcc from the label position
+        # try to find vss and vcc from the label position
         for label in check_label_list:
             for metal in merged_label_polygons:
-                    _, point_y = label.position
-                    _, metal_y = metal.exterior.xy
-                    set_metal_y = set(metal_y)
-                    for y in set_metal_y:
-                        if y == point_y:
-                            linked_list.append(["metal", metal, label])
-                            merged_label_polygons.remove(metal)
-                            print(label)
-                            break
+                _, point_y = label.position
+                _, metal_y = metal.exterior.xy
+                set_metal_y = set(metal_y)
+                for y in set_metal_y:
+                    if y == point_y:
+                        linked_list.append(["metal", metal, label])
+                        merged_label_polygons.remove(metal)
+                        break
 
         # for other metals
         metal_wire_index = 0
         for connection in merged_connection_polygons:
             for diffusion in merged_diffusion_polygons:
                 for metal in merged_label_polygons:
-                    if metal.intersects(connection) and connection.intersects(diffusion) and diffusion.intersects(metal):
+                    if metal.intersects(connection) and connection.intersects(diffusion) and diffusion.intersects(
+                            metal):
                         # metals which is to connect 2 parts without imposed value
                         linked_list.append(["metal_wire", metal, metal_wire_index])
                         metal_wire_index += 1
                         merged_label_polygons.remove(metal)
-
 
         for poly in linked_list:
 
@@ -442,8 +464,8 @@ class GdsDrawing:
                 final_shape[key][diffusion_key]["position"] = combined_points
 
         sorted_dict = sort_dict_alternating_keys(final_shape)
+        sorted_dict = sortPointsInDict(sorted_dict)
 
-        # TODO find a way to handle metals without pin
         # setup list to link metal wires
         metal_wire_linked_keys = {}
 
@@ -455,6 +477,7 @@ class GdsDrawing:
                 for connection in merged_connection_polygons:
                     for linked in linked_list:
                         # setup ground, power and output
+
                         if linked[0] == "metal" and part_poly.intersects(connection) and connection.intersects(
                                 linked[1]) and part_poly.intersects(linked[1]):
                             label = linked[2]
@@ -472,7 +495,8 @@ class GdsDrawing:
                                         sorted_dict[element_key][part_key]["type"] = "output"
 
                         # setup metal_wire
-                        if linked[0] == "metal_wire" and part_poly.intersects(connection) and connection.intersects(linked[1]) and part_poly.intersects(linked[1]):
+                        if linked[0] == "metal_wire" and part_poly.intersects(connection) and connection.intersects(
+                                linked[1]) and part_poly.intersects(linked[1]):
                             sorted_dict[element_key][part_key]["type"] = "metal_wire_" + str(linked[2])
                             for pair in metal_wire_linked_keys:
                                 wire_list = metal_wire_linked_keys.get(pair)
@@ -486,8 +510,6 @@ class GdsDrawing:
 
         print(metal_wire_linked_keys)
 
-
-
         for element_key, element in sorted_dict.items():
             for counter, sub_dict in enumerate(element):
                 if element[sub_dict].get("state") is None:
@@ -498,7 +520,9 @@ class GdsDrawing:
                     list_element = list(element.items())
 
                     while continue_loop:
-                        continue_loop, left_index, right_index = self.check_neighbor_state(sorted_dict, list_element, metal_wire_linked_keys, sub_dict, selected_part,
+                        continue_loop, left_index, right_index = self.check_neighbor_state(sorted_dict, list_element,
+                                                                                           metal_wire_linked_keys,
+                                                                                           sub_dict, selected_part,
                                                                                            left_index, right_index)
 
         with open('resources/data.json', 'w') as json_file:
@@ -506,7 +530,8 @@ class GdsDrawing:
 
         plotShape(sorted_dict, self.gate_type)
 
-    def check_neighbor_state(self, sorted_dict, element, metal_wire_linked_keys, selected_key, selected_part, left_index, right_index):
+    def check_neighbor_state(self, sorted_dict, element, metal_wire_linked_keys, selected_key, selected_part,
+                             left_index, right_index):
 
         new_left_index = None
         new_right_index = None
@@ -516,11 +541,13 @@ class GdsDrawing:
         if left_index:
             if 0 <= left_index - 1 < len(element):
                 selected_left = element[left_index - 1]
-                left_state, new_left_index = self.check_part(sorted_dict, metal_wire_linked_keys, selected_key, selected_part, selected_left[1], left_index - 1)
+                left_state, new_left_index = self.check_part(sorted_dict, metal_wire_linked_keys, selected_key,
+                                                             selected_part, selected_left[1], left_index - 1)
         if right_index:
             if 0 <= right_index + 1 < len(element):
                 selected_right = element[right_index + 1]
-                right_state, new_right_index = self.check_part(sorted_dict, metal_wire_linked_keys, selected_key, selected_part, selected_right[1], right_index + 1)
+                right_state, new_right_index = self.check_part(sorted_dict, metal_wire_linked_keys, selected_key,
+                                                               selected_part, selected_right[1], right_index + 1)
 
         return (left_state or right_state), new_left_index, new_right_index
 
@@ -536,7 +563,6 @@ class GdsDrawing:
                             if selected_key in pair:
                                 for founded_pair in metal_wire_linked_keys.get(pair_index):
                                     sorted_dict[founded_pair[0]][founded_pair[1]]["state"] = 0
-
 
                     # find twin and apply 0
                 return False, None
@@ -592,4 +618,3 @@ class GdsDrawing:
                     return True, new_index
         else:
             return False, None
-
