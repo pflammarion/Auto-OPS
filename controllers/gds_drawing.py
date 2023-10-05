@@ -196,6 +196,7 @@ class GdsDrawing:
         connection_layer (int): The number affiliated to the layer of the conections.
         label_layer(int): The number affiliated to the layer of labels.
         voltage(list): Contains the voltage names and types.
+        draw_inputs(dict): contains the inputs values.
 
     Attributes:
         gds (str): The GDS file path or name.
@@ -206,18 +207,19 @@ class GdsDrawing:
         truthtable (dict): The truthtable is a list containing the information the output based on the input for a gate.
         connection_layer (int): The number affiliated to the layer of the conections.
         label_layer(int): The number affiliated to the layer of labels.
-        voltage(list): Contains the voltage names and types.
+        ground_pin_name(list): Contains the voltage names and types.
+        inputs(dict): contains the inputs values.
 
     Example:
         To create a GdsDrawing instance:
 
-        >>> drawing = GdsDrawing("example.gds", "INV_X1", 1, 9, 10, 11, [10, 20], [({'A': True}, {'ZN': False}), ({'A': False}, {'ZN': True})], [{'name': 'VDD', 'type': 'primary_power'}, {'name': 'VSS', 'type': 'primary_ground'}])
+        >>> drawing = GdsDrawing("example.gds", "INV_X1", 1, 9, 10, 11, [10, 20], [({'A': True}, {'ZN': False}), ({'A': False}, {'ZN': True})], [{'name': 'VDD', 'type': 'primary_power'}, {'name': 'VSS', 'type': 'primary_ground'}], {'A1': 1, 'A2': 1})
 
     This class draw over a GDS input the optical state of each gate depending on the position and gates states.
     """
 
     def __init__(self, gds, gate_type, diffusion_layer, polysilicon_layer, connection_layer, label_layer, positions,
-                 truthtable, voltage):
+                 truthtable, voltage, draw_inputs):
         self.gds = gds
         self.gate_type = gate_type
         self.diffusion_layer = diffusion_layer
@@ -227,10 +229,7 @@ class GdsDrawing:
         self.connection_layer = connection_layer
         self.label_layer = label_layer
         self.label_list = []
-        self.inputs = {
-            "A1": 0,
-            "A2": 1,
-        }
+        self.inputs = draw_inputs
 
         self.ground_pin_name = None
         self.power_pin_name = None
@@ -513,9 +512,6 @@ class GdsDrawing:
 
                             if found_pair is False:
                                 metal_wire_linked_keys[linked[2]] = [[element_key, part_key]]
-
-        print(metal_wire_linked_keys)
-
         for element_key, element in sorted_dict.items():
             for counter, sub_dict in enumerate(element):
                 if element[sub_dict].get("state") is None:

@@ -152,13 +152,19 @@ if __name__ == "__main__":
                  'XOR2_X1',
                  'XOR2_X2']
 
-        prefix = 'AOI21_X2'
+        prefix = 'NAND2_X1'
 
         #filtered_cells = [cell for cell in cells if cell.startswith(prefix)]
         filtered_cells=[prefix]
 
         for cell in filtered_cells:
             lib_reader = LibReader(cell, "Platforms/PDK45nm/NangateOpenCellLibrary_typical.lib")
-            truth_table, voltage = lib_reader.extract_truth_table()
-            GdsDrawing("resources/stdcells.gds", cell, 1, 9, 10, 11, [0, 0], truth_table, voltage)
+            truth_table, voltage, input_names = lib_reader.extract_truth_table()
+            draw_inputs = {}
+            for inp in input_names:
+                value = input(f"Enter a value for {inp}: ")
+                draw_inputs[inp] = int(value)
+
+            print(draw_inputs)
+            GdsDrawing("resources/stdcells.gds", cell, 1, 9, 10, 11, [0, 0], truth_table, voltage, draw_inputs)
 

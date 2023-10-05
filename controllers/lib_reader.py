@@ -57,19 +57,17 @@ class LibReader:
             }
             voltage.append(data)
 
+        input_names = []
         for pin_group in cell.get_groups('pin'):
             pin_name = pin_group.args[0]
-            print(pin_name)
             if pin_group['function']:
-                print("output")
-                print("\n")
                 print(pin_group['function'])
                 str_function = str(pin_group['function'])
-                return self.calculateOutputFunction(str_function, pin_name), voltage
+                return self.calculateOutputFunction(str_function, pin_name), voltage, input_names
             else:
-                print("input")
+                input_names.append(pin_name)
 
-            print("\n")
+
 
     def calculateOutputFunction(self, function, pin_name):
         # Use regular expression to find input symbols with letters and numbers
