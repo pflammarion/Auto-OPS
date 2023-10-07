@@ -165,8 +165,8 @@ def sort_dict_alternating_keys(input_dict):
     sorted_dict = {}
     for key, value in input_dict.items():
         # Extract the keys starting with "diff_" and "poly_"
-        diff_keys = [k for k in value if k.startswith("diff_")]
-        poly_keys = [k for k in value if k.startswith("poly_")]
+        diff_keys = [k for k in value if k.startswith("diff")]
+        poly_keys = [k for k in value if k.startswith("poly")]
 
         # Sort the keys in alternating order
         sorted_keys = []
@@ -366,12 +366,22 @@ class GdsDrawing:
                         metal_wire_index += 1
                         merged_label_polygons.remove(metal)
 
+
+        # find polysilicon_wire
+        for linked in linked_list:
+            if linked[0] == "metal_wire":
+                for connection in merged_connection_polygons:
+                    for polysilicon in merged_polysilicon_polygons:
+                        if linked[1].intersects(connection) and linked[1].intersects(polysilicon) and connection.intersects(polysilicon):
+                            linked_list.append(["polysilicon_wire", polysilicon, linked[2]])
+
+
         for poly in linked_list:
 
             x, y = poly[1].exterior.xy
             plt.plot(x, y)
 
-            if poly[0] != "metal_wire":
+            if poly[0] != "metal_wire" and poly[0] != "polysilicon_wire":
                 x, y = poly[2].position
                 plt.scatter(x, y)
                 plt.annotate(poly[2].text, (x, y))
@@ -379,7 +389,9 @@ class GdsDrawing:
         plt.title("in and out")
         plt.show()
 
+
         ## old code
+        metal_wire_linked_keys = {}
 
         for i in range(len(sorted_diffusion_polygons)):
             key = "element_" + str(i)
@@ -388,34 +400,62 @@ class GdsDrawing:
 
             polysilicon_list = []
             for poly in linked_list:
-                if poly[0] == "polysilicon":
+                if poly[0] == "polysilicon" or poly[0] == "polysilicon_wire":
                     polysilicon_list.append(poly)
                 polysilicon_list = sorted(polysilicon_list, key=lambda polygon: min(polygon[1].exterior.xy[0]))
             for merged_polysilicon in polysilicon_list:
+                found_pair = False
                 if sorted_diffusion_polygons[i].intersects(merged_polysilicon[1]):
                     intersection_polygons = sorted_diffusion_polygons[i].intersection(merged_polysilicon[1])
 
                     # init var to handle error
+                    # TODO do somthing for this horrible code part
                     if hasattr(intersection_polygons, "geoms"):
                         for index, intersection_polygon in enumerate(intersection_polygons.geoms):
                             x, y = intersection_polygon.exterior.xy
-                            ploysilicon_key = "poly_" + str(intersection_counter)
+                            ploysilicon_key = merged_polysilicon[0] + "_" + str(intersection_counter)
                             final_shape[key][ploysilicon_key] = {}
                             unique_coordinates = list(set(zip(x, y)))
                             final_shape[key][ploysilicon_key]["position"] = unique_coordinates
-                            if merged_polysilicon[2].text in self.inputs:
-                                final_shape[key][ploysilicon_key]["state"] = self.inputs[merged_polysilicon[2].text]
-                                final_shape[key][ploysilicon_key]["type"] = "input"
+                            if "polysilicon_wire" not in merged_polysilicon[0]:
+                                if merged_polysilicon[2].text in self.inputs:
+                                    final_shape[key][ploysilicon_key]["state"] = self.inputs[merged_polysilicon[2].text]
+                                    final_shape[key][ploysilicon_key]["type"] = "input"
+                            else:
+                                final_shape[key][ploysilicon_key]["type"] = merged_polysilicon[0] + "_" + str(merged_polysilicon[2])
+                                for pair_index in metal_wire_linked_keys:
+                                    wire_list = metal_wire_linked_keys.get(pair_index)
+                                    if pair_index == merged_polysilicon[2] and [key, ploysilicon_key] not in wire_list:
+                                        wire_list.append([key, ploysilicon_key])
+                                        found_pair = True
+                                        break
+
+                                if found_pair is False:
+                                    metal_wire_linked_keys[merged_polysilicon[2]] = [[key, ploysilicon_key]]
+
                             intersection_counter += 1
                     else:
                         x, y = intersection_polygons.exterior.xy
-                        ploysilicon_key = "poly_" + str(intersection_counter)
+                        ploysilicon_key = merged_polysilicon[0] + "_" + str(intersection_counter)
                         final_shape[key][ploysilicon_key] = {}
                         unique_coordinates = list(set(zip(x, y)))
                         final_shape[key][ploysilicon_key]["position"] = unique_coordinates
-                        if merged_polysilicon[2].text in self.inputs:
-                            final_shape[key][ploysilicon_key]["state"] = self.inputs[merged_polysilicon[2].text]
-                            final_shape[key][ploysilicon_key]["type"] = "input"
+                        if "polysilicon_wire" not in merged_polysilicon[0]:
+                            if merged_polysilicon[2].text in self.inputs:
+                                final_shape[key][ploysilicon_key]["state"] = self.inputs[merged_polysilicon[2].text]
+                                final_shape[key][ploysilicon_key]["type"] = "input"
+                        else:
+                            final_shape[key][ploysilicon_key]["type"] = merged_polysilicon[0] + "_" + str(merged_polysilicon[2])
+                            for pair_index in metal_wire_linked_keys:
+                                wire_list = metal_wire_linked_keys.get(pair_index)
+                                if pair_index == merged_polysilicon[2] and [key, ploysilicon_key] not in wire_list:
+                                    wire_list.append([key, ploysilicon_key])
+                                    found_pair = True
+                                    break
+
+                            if found_pair is False:
+                                metal_wire_linked_keys[merged_polysilicon[2]] = [[key, ploysilicon_key]]
+
                         intersection_counter += 1
 
             diff_coordinates_x, diff_coordinates_y = sorted_diffusion_polygons[i].exterior.xy
@@ -471,9 +511,6 @@ class GdsDrawing:
         sorted_dict = sort_dict_alternating_keys(final_shape)
         sorted_dict = sortPointsInDict(sorted_dict)
 
-        # setup list to link metal wires
-        metal_wire_linked_keys = {}
-
         for element_key in sorted_dict:
             for part_key in sorted_dict[element_key]:
                 found_pair = False
@@ -499,19 +536,19 @@ class GdsDrawing:
                                         sorted_dict[element_key][part_key]["state"] = int(output_value)
                                         sorted_dict[element_key][part_key]["type"] = "output"
 
-                        # setup metal_wire
-                        if linked[0] == "metal_wire" and part_poly.intersects(connection) and connection.intersects(
-                                linked[1]) and part_poly.intersects(linked[1]):
-                            sorted_dict[element_key][part_key]["type"] = "metal_wire_" + str(linked[2])
-                            for pair in metal_wire_linked_keys:
-                                wire_list = metal_wire_linked_keys.get(pair)
-                                if pair == linked[2] and [element_key, part_key] not in wire_list:
+                        # setup wire even if it is metal, polysilicon or both
+                        elif linked[0] == "metal_wire" and part_poly.intersects(connection) and connection.intersects(linked[1]) and part_poly.intersects(linked[1]):
+                            sorted_dict[element_key][part_key]["type"] = linked[0] + "_" + str(linked[2])
+                            for pair_index in metal_wire_linked_keys:
+                                wire_list = metal_wire_linked_keys.get(pair_index)
+                                if pair_index == linked[2] and [element_key, part_key] not in wire_list:
                                     wire_list.append([element_key, part_key])
                                     found_pair = True
                                     break
 
                             if found_pair is False:
                                 metal_wire_linked_keys[linked[2]] = [[element_key, part_key]]
+
         for element_key, element in sorted_dict.items():
             for counter, sub_dict in enumerate(element):
                 if element[sub_dict].get("state") is None:
@@ -564,6 +601,8 @@ class GdsDrawing:
                 if selected_part.get("type") is None:
                     selected_part["type"] = "connector"
                     selected_part["state"] = 0
+
+                # TODO or "polysilicon_wire"
                 elif "metal_wire" in selected_part["type"]:
                     for pair_index in metal_wire_linked_keys:
                         for pair in metal_wire_linked_keys.get(pair_index):
@@ -578,7 +617,7 @@ class GdsDrawing:
                 selected_part["state"] = 1
                 if selected_part.get("type") is None:
                     selected_part["type"] = "connector"
-                elif "metal_wire" in selected_part["type"]:
+                elif "wire_" in selected_part["type"]:
                     for pair_index in metal_wire_linked_keys:
                         for pair in metal_wire_linked_keys.get(pair_index):
                             if selected_key in pair:
@@ -590,7 +629,8 @@ class GdsDrawing:
                 if selected_part.get("type") is None:
                     selected_part["type"] = "connector"
                     selected_part["state"] = selected_side["state"]
-                elif "metal_wire" in selected_part["type"]:
+
+                elif "wire_" in selected_part["type"]:
                     for pair_index in metal_wire_linked_keys:
                         for pair in metal_wire_linked_keys.get(pair_index):
                             if selected_key in pair:
@@ -600,7 +640,7 @@ class GdsDrawing:
 
                 return True, new_index
 
-            elif "metal_wire" in selected_side["type"] and selected_side.get("state"):
+            elif "metal_wire_" in selected_side["type"] and selected_side.get("state"):
                 # find twin and if both has stats then definitive state for part
                 # TODO not covered
                 print("\n")
