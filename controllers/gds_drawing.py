@@ -96,6 +96,7 @@ def plotShape(data, title):
             coordinates = part["position"]
             # TODO remove resorting points already sorted
 
+            # default no reflexion
             state = 0
             if "state" in part:
                 state = part["state"]
@@ -549,6 +550,16 @@ class GdsDrawing:
                             if found_pair is False:
                                 metal_wire_linked_keys[linked[2]] = [[element_key, part_key]]
 
+        # do it two times bcs of unknown poly states of wires
+        sorted_dict = self.find_unknown_state(sorted_dict, metal_wire_linked_keys)
+        sorted_dict = self.find_unknown_state(sorted_dict, metal_wire_linked_keys)
+
+        with open('resources/data.json', 'w') as json_file:
+            json.dump(sorted_dict, json_file, indent=4)
+
+        plotShape(sorted_dict, self.gate_type)
+
+    def find_unknown_state(self, sorted_dict, metal_wire_linked_keys):
         for element_key, element in sorted_dict.items():
             for counter, sub_dict in enumerate(element):
                 if element[sub_dict].get("state") is None and "polysilicon" not in sub_dict:
@@ -564,11 +575,7 @@ class GdsDrawing:
                                                                                            metal_wire_linked_keys,
                                                                                            sub_dict, selected_part,
                                                                                            left_index, right_index)
-
-        with open('resources/data.json', 'w') as json_file:
-            json.dump(sorted_dict, json_file, indent=4)
-
-        plotShape(sorted_dict, self.gate_type)
+        return sorted_dict
 
     def check_neighbor_state(self, sorted_dict, element_key, element, metal_wire_linked_keys, selected_key,
                              selected_part,
@@ -579,13 +586,13 @@ class GdsDrawing:
         left_state = False
         right_state = False
 
-        if left_index:
+        if left_index is not None:
             if 0 <= left_index - 1 < len(element):
                 selected_left = element[left_index - 1]
                 left_state, new_left_index = self.check_part(sorted_dict, element_key, metal_wire_linked_keys,
                                                              selected_key,
                                                              selected_part, selected_left[1], left_index - 1)
-        if right_index:
+        if right_index is not None:
             if 0 <= right_index + 1 < len(element):
                 selected_right = element[right_index + 1]
                 right_state, new_right_index = self.check_part(sorted_dict, element_key, metal_wire_linked_keys,
@@ -640,7 +647,7 @@ class GdsDrawing:
 
                 return True, new_index
 
-            elif "metal_wire_" in selected_side["type"] and selected_side.get("state"):
+            elif "metal_wire_" in selected_side["type"] and "state" in selected_side:
                 # find twin and if both has stats then definitive state for part
                 # TODO not covered
                 print("\n")
@@ -660,10 +667,10 @@ class GdsDrawing:
                 # is like a switch open then we can stop here
                 # TODO extract the element based on the fact they are connected to vdd or vss
                 # in this case we stop here the loop bcs power don't pass through state 0 in nmos
-                if "state" in selected_side and selected_side["state"] == 0 and element_key == "element_1":
+                if "state" in selected_side and selected_side["state"] == 0 and element_key == "element_1" and ("polysilicon_wire" in selected_side["type"] or "input" in selected_side["type"]):
                     return False, None
                 # in this case we stop here the loop bcs power don't pass through state 1 in pmos
-                elif "state" in selected_side and selected_side["state"] == 1 and element_key == "element_0":
+                elif "state" in selected_side and selected_side["state"] == 1 and element_key == "element_0" and ("polysilicon_wire" in selected_side["type"] or "input" in selected_side["type"]):
                     return False, None
                 else:
                     return True, new_index
