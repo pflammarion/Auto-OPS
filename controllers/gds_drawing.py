@@ -656,11 +656,14 @@ class GdsDrawing:
                 return False, None
 
             else:
+                # TODO extract the state if connector between 2 high state poly
                 # is like a switch open then we can stop here
                 # TODO extract the element based on the fact they are connected to vdd or vss
-                if "state" in selected_side and selected_side["state"] == 0 and element_key == "element1":
+                # in this case we stop here the loop bcs power don't pass through state 0 in nmos
+                if "state" in selected_side and selected_side["state"] == 0 and element_key == "element_1":
                     return False, None
-                elif "state" in selected_side and selected_side["state"] == 1 and element_key == "element0":
+                # in this case we stop here the loop bcs power don't pass through state 1 in pmos
+                elif "state" in selected_side and selected_side["state"] == 1 and element_key == "element_0":
                     return False, None
                 else:
                     return True, new_index
