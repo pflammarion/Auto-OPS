@@ -551,7 +551,7 @@ class GdsDrawing:
 
         for element_key, element in sorted_dict.items():
             for counter, sub_dict in enumerate(element):
-                if element[sub_dict].get("state") is None:
+                if element[sub_dict].get("state") is None and "polysilicon" not in sub_dict:
                     selected_part = element[sub_dict]
                     left_index = counter
                     right_index = counter
@@ -617,7 +617,7 @@ class GdsDrawing:
                 selected_part["state"] = 1
                 if selected_part.get("type") is None:
                     selected_part["type"] = "connector"
-                elif "wire_" in selected_part["type"]:
+                elif "metal_wire_" in selected_part["type"]:
                     for pair_index in metal_wire_linked_keys:
                         for pair in metal_wire_linked_keys.get(pair_index):
                             if selected_key in pair:
@@ -630,7 +630,7 @@ class GdsDrawing:
                     selected_part["type"] = "connector"
                     selected_part["state"] = selected_side["state"]
 
-                elif "wire_" in selected_part["type"]:
+                elif "metal_wire_" in selected_part["type"]:
                     for pair_index in metal_wire_linked_keys:
                         for pair in metal_wire_linked_keys.get(pair_index):
                             if selected_key in pair:
