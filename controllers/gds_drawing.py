@@ -9,6 +9,16 @@ from shapely.geometry import Polygon, MultiPolygon, Point
 from shapely.ops import unary_union
 
 
+def sorting_key_element_list(item):
+    label = item[0]
+    parts = label.split('_')
+    if parts[0] == 'pmos':
+        return 0, int(parts[1])
+    elif parts[0] == 'nmos':
+        return 1, int(parts[1])
+    else:
+        return 2, 0
+
 def mergePolygons(polygons):
     polygons = [Polygon(p) for p in polygons]
 
@@ -81,12 +91,19 @@ def separate_to_rectangles(coordinates):
     return [left_rectangle, right_rectangle]
 
 
-def plotShape(data, title):
+def plotShape(data, title, diff):
     fig, ax = plt.subplots()
 
     point_number = 1
     counter = 0
     color_list = ['black', 'white']
+    legend_labels = []
+
+    for d in diff:
+        x, y = d[1].exterior.xy
+        plt.plot(x, y)
+        legend_labels.append(d[0])
+
 
     # Iterate through the sub-dictionaries ('top' and 'bottom')
     for key, sub_dict in data.items():
@@ -100,8 +117,7 @@ def plotShape(data, title):
             state = 0
             if "state" in part:
                 state = part["state"]
-                # TODO find automatic vdd and vss
-                if key == "element_0":
+                if "pmos" in key:
                     if bool(state):
                         state = 0
                     else:
@@ -131,6 +147,7 @@ def plotShape(data, title):
     ax.set_ylabel('Y-coordinate')
     # ax.legend()
     plt.title(title)
+    plt.legend(legend_labels)
 
     plt.show()
 
@@ -322,17 +339,10 @@ class GdsDrawing:
                         if polysilicon.intersects(connection) and metal.intersects(
                                 connection) and polysilicon.intersects(metal) and metal.contains(label_position):
                             linked_list.append(['polysilicon', polysilicon, label])
+                            merged_label_polygons.remove(metal)
 
-        # remove metal connected to polysilicon
-        for label in check_label_list:
-            label_position = Point(label.position.tolist())
-            for diffusion in merged_diffusion_polygons:
-                for metal in merged_label_polygons:
-                    if metal.contains(label_position) and not (diffusion.intersects(metal)):
-                        merged_label_polygons.remove(metal)
 
         # first loop to check if a metal is an output
-
         # fix those for loops to get all vss and vdd
         for label in check_label_list:
             for metal in merged_label_polygons:
@@ -344,6 +354,10 @@ class GdsDrawing:
                     break
 
         # try to find vss and vcc from the label position
+        temp_diffusion_poly = []
+        nmos_counter = 0
+        pmos_counter = 0
+
         for label in check_label_list:
             for metal in merged_label_polygons:
                 _, point_y = label.position
@@ -352,8 +366,54 @@ class GdsDrawing:
                 for y in set_metal_y:
                     if y == point_y:
                         linked_list.append(["metal", metal, label])
+
+                        # TODO find a way to do not duplicate this code
+                        # change the name of element to vss or vdd linked
+                        if label.text.lower() == self.power_pin_name.lower():
+                            for connection in merged_connection_polygons:
+                                for diff in sorted_diffusion_polygons:
+                                    if metal.intersects(connection) and connection.intersects(diff) and diff.intersects(metal):
+                                        new_key = "pmos_" + str(pmos_counter)
+                                        temp_diffusion_poly.append([new_key, diff])
+                                        sorted_diffusion_polygons.remove(diff)
+                                        pmos_counter += 1
+                                        break
+
+                        elif label.text.lower() == self.ground_pin_name.lower():
+                            for connection in merged_connection_polygons:
+                                for diff in sorted_diffusion_polygons:
+                                    if metal.intersects(connection) and connection.intersects(diff) and diff.intersects(metal):
+                                        new_key = "nmos_" + str(nmos_counter)
+                                        temp_diffusion_poly.append([new_key, diff])
+                                        sorted_diffusion_polygons.remove(diff)
+                                        nmos_counter += 1
+                                        break
+
                         merged_label_polygons.remove(metal)
                         break
+
+        # for undefined pmos or nom try to find their y pos to determine if they are in n or p mos part
+
+        for diff in temp_diffusion_poly:
+            for unknown_diff in sorted_diffusion_polygons:
+                if set(unknown_diff.exterior.xy[1]).intersection(set(diff[1].exterior.xy[1])):
+                    if "nmos" in diff[0]:
+                        new_key = "nmos_" + str(nmos_counter)
+                        temp_diffusion_poly.append([new_key, unknown_diff])
+                        sorted_diffusion_polygons.remove(unknown_diff)
+                        nmos_counter += 1
+                        break
+
+                    elif "pmos" in diff[0]:
+                        new_key = "nmos_" + str(pmos_counter)
+                        temp_diffusion_poly.append([new_key, unknown_diff])
+                        sorted_diffusion_polygons.remove(unknown_diff)
+                        pmos_counter += 1
+                        break
+
+        # sort the temps diff from pmos_0, pmos_1... to nmos_0, nmos_1..
+        sorted_temp_diffusion_poly = sorted(temp_diffusion_poly, key=sorting_key_element_list)
+
 
         # for other metals
         metal_wire_index = 0
@@ -394,8 +454,8 @@ class GdsDrawing:
         ## old code
         metal_wire_linked_keys = {}
 
-        for i in range(len(sorted_diffusion_polygons)):
-            key = "element_" + str(i)
+        for i in range(len(sorted_temp_diffusion_poly)):
+            key = sorted_temp_diffusion_poly[i][0]
             final_shape[key] = {}
             intersection_counter = 0
 
@@ -406,8 +466,8 @@ class GdsDrawing:
                 polysilicon_list = sorted(polysilicon_list, key=lambda polygon: min(polygon[1].exterior.xy[0]))
             for merged_polysilicon in polysilicon_list:
                 found_pair = False
-                if sorted_diffusion_polygons[i].intersects(merged_polysilicon[1]):
-                    intersection_polygons = sorted_diffusion_polygons[i].intersection(merged_polysilicon[1])
+                if sorted_temp_diffusion_poly[i][1].intersects(merged_polysilicon[1]):
+                    intersection_polygons = sorted_temp_diffusion_poly[i][1].intersection(merged_polysilicon[1])
 
                     # init var to handle error
                     # TODO do somthing for this horrible code part
@@ -459,7 +519,7 @@ class GdsDrawing:
 
                         intersection_counter += 1
 
-            diff_coordinates_x, diff_coordinates_y = sorted_diffusion_polygons[i].exterior.xy
+            diff_coordinates_x, diff_coordinates_y = sorted_temp_diffusion_poly[i][1].exterior.xy
             diff_coordinates_list = list(set(zip(diff_coordinates_x, diff_coordinates_y)))
             extreme_left_diff, extreme_right_diff = find_extreme_points(diff_coordinates_list)
 
@@ -557,7 +617,7 @@ class GdsDrawing:
         with open('resources/data.json', 'w') as json_file:
             json.dump(sorted_dict, json_file, indent=4)
 
-        plotShape(sorted_dict, self.gate_type)
+        plotShape(sorted_dict, self.gate_type, sorted_temp_diffusion_poly)
 
     def find_unknown_state(self, sorted_dict, metal_wire_linked_keys):
         for element_key, element in sorted_dict.items():
@@ -665,13 +725,15 @@ class GdsDrawing:
             else:
                 # TODO extract the state if connector between 2 high state poly
                 # is like a switch open then we can stop here
-                # TODO extract the element based on the fact they are connected to vdd or vss
-                # in this case we stop here the loop bcs power don't pass through state 0 in nmos
-                if "state" in selected_side and selected_side["state"] == 0 and element_key == "element_1" and ("polysilicon_wire" in selected_side["type"] or "input" in selected_side["type"]):
+
+                if "state" in selected_side \
+                        and ("polysilicon_wire" in selected_side["type"] or "input" in selected_side["type"]) \
+                        and (
+                            (selected_side["state"] == 1 and "pmos" in element_key)
+                            or (selected_side["state"] == 0 and "nmos" in element_key)):
+                    # in this case we stop here the loop bcs power don't pass through state 0 in nmos or 1 in pmos
                     return False, None
-                # in this case we stop here the loop bcs power don't pass through state 1 in pmos
-                elif "state" in selected_side and selected_side["state"] == 1 and element_key == "element_0" and ("polysilicon_wire" in selected_side["type"] or "input" in selected_side["type"]):
-                    return False, None
+
                 else:
                     return True, new_index
         else:
