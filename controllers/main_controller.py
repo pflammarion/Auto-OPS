@@ -1,5 +1,7 @@
 import json
 import os
+import threading
+import time
 
 from PyQt6.QtWidgets import QFileDialog
 import cv2
@@ -51,24 +53,57 @@ class MainController:
         self.reload_view()
 
     def reload_view(self):
-        if self.app_state != 4 and self.imported_image is False:
-            lam, G1, G2, Gap = self.parameters_init(self.Kn_value, self.Kp_value, self.voltage_value, self.beta_value,
-                                                    self.Pl_value)
+        if self.app_state != 4 and not self.imported_image:
+            lam, G1, G2, Gap = self.parameters_init(self.Kn_value, self.Kp_value, self.voltage_value, self.beta_value, self.Pl_value)
             self.image_matrix = self.draw_layout(lam, G1, G2, Gap)
 
         if self.app_state == 1:
-            self.print_psf()
+            threading.Thread(target=self.print_psf_wrapper).start()
 
         elif self.app_state == 2:
-            self.print_rcv_image()
+            threading.Thread(target=self.print_rcv_image_wrapper).start()
 
         elif self.app_state == 3:
-            self.print_EOFM_image()
+            threading.Thread(target=self.print_EOFM_image_wrapper).start()
 
         elif self.app_state == 4:
-            self.plot_rcv_calc()
+            threading.Thread(target=self.plot_rcv_calc_wrapper).start()
+
         else:
-            self.print_original_image()
+            threading.Thread(target=self.print_original_image_wrapper).start()
+
+    def print_psf_wrapper(self):
+        start = time.time()
+        self.print_psf()
+        end = time.time()
+        print(f"Execution time for print_psf: {end - start:.2f} seconds")
+
+    def print_rcv_image_wrapper(self):
+        start = time.time()
+        self.print_rcv_image()
+        end = time.time()
+        print(f"Execution time for print_rcv_image: {end - start:.2f} seconds")
+
+    def print_EOFM_image_wrapper(self):
+        start = time.time()
+        self.print_EOFM_image()
+        end = time.time()
+        print(f"Execution time for print_EOFM_image: {end - start:.2f} seconds")
+
+    def plot_rcv_calc_wrapper(self):
+        start = time.time()
+        self.plot_rcv_calc()
+        end = time.time()
+        print(f"Execution time for plot_rcv_calc: {end - start:.2f} seconds")
+
+    def print_original_image_wrapper(self):
+        start = time.time()
+        self.print_original_image()
+        end = time.time()
+        print(f"Execution time for print_original_image: {end - start:.2f} seconds")
+
+
+
 
     def set_state(self, state):
         self.app_state = int(state)
@@ -462,4 +497,4 @@ class MainController:
         if dialog.exec():
             self.selected_columns = dialog.get_selected_columns()
 
-            self.plot_rcv_calc()
+            threading.Thread(target=self.plot_rcv_calc_wrapper).start()
