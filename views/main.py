@@ -102,6 +102,7 @@ class MainView(QMainWindow):
 
         optional_layout = layout.itemAtPosition(2, 0).widget().layout()
         info_layout = layout.itemAtPosition(0, 1).widget().layout()
+        self.clear_figures()
 
         # hide and show the voltage button for csv mode
         self.info_button_column_voltage.hide()
@@ -279,7 +280,6 @@ class MainView(QMainWindow):
         return selector_widget
 
     def display_image(self, image_matrix, title="", lps=False):
-        self.main_figure.clear()
 
         ax = self.main_figure.add_subplot(111)
         if lps:
@@ -294,8 +294,11 @@ class MainView(QMainWindow):
 
         self.main_canvas.draw()
 
-    def display_second_image(self, image_matrix, title=""):
+    def clear_figures(self):
+        self.main_figure.clear()
         self.second_figure.clear()
+
+    def display_second_image(self, image_matrix, title=""):
         ax = self.second_figure.add_subplot(111)
         ax.imshow(image_matrix, cmap='gist_gray')
         ax.set_title(str(title))
@@ -337,8 +340,6 @@ class MainView(QMainWindow):
         self.footer_label.setText(text)
 
     def plot_dataframe(self, df, selected_columns):
-        self.main_figure.clear()
-
         time = df[selected_columns[0]]
         voltage = df[selected_columns[1]]
         rcv = df['RCV']
