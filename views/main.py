@@ -44,6 +44,8 @@ class MainView(QMainWindow):
         self.second_figure = None
         self.second_canvas = None
 
+        self.footer_label = QLabel()
+
         self.main_window = QMainWindow()
         self.init_ui()
 
@@ -81,6 +83,11 @@ class MainView(QMainWindow):
 
         plot_container_widget = self.init_plot_widget()
 
+        footer_widget = QWidget()
+        footer_layout = QGridLayout(footer_widget)
+        footer_layout.addWidget(self.footer_label, 0, 0)
+        footer_layout.setAlignment(Qt.AlignmentFlag.AlignRight)
+
         # Add all to the window layout
 
         layout.addWidget(button_widget, 0, 0)
@@ -89,6 +96,7 @@ class MainView(QMainWindow):
         layout.addWidget(nav_bar, 1, 1)
         layout.addWidget(optional_widget, 2, 0)
         layout.addWidget(plot_container_widget, 2, 1)
+        layout.addWidget(footer_widget, 3, 1)
 
     def set_mode(self, layout, mode=0):
 
@@ -324,6 +332,9 @@ class MainView(QMainWindow):
 
     def get_input_confocal(self):
         return self.selector_input_confocal.isChecked()
+
+    def set_footer_label(self, text):
+        self.footer_label.setText(text)
 
     def plot_dataframe(self, df, selected_columns):
         self.main_figure.clear()
