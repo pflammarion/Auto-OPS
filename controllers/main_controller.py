@@ -73,37 +73,39 @@ class MainController:
             threading.Thread(target=self.print_original_image_wrapper).start()
 
     def print_psf_wrapper(self):
+        self.view.set_footer_label("... Loading ...")
         start = time.time()
         self.print_psf()
         end = time.time()
-        print(f"Execution time for print_psf: {end - start:.2f} seconds")
+        self.view.set_footer_label(f"Execution time for print_psf: {end - start:.2f} seconds")
 
     def print_rcv_image_wrapper(self):
+        self.view.set_footer_label("... Loading ...")
         start = time.time()
         self.print_rcv_image()
         end = time.time()
-        print(f"Execution time for print_rcv_image: {end - start:.2f} seconds")
+        self.view.set_footer_label(f"Execution time for print_rcv_image: {end - start:.2f} seconds")
 
     def print_EOFM_image_wrapper(self):
+        self.view.set_footer_label("... Loading ...")
         start = time.time()
         self.print_EOFM_image()
         end = time.time()
-        print(f"Execution time for print_EOFM_image: {end - start:.2f} seconds")
+        self.view.set_footer_label(f"Execution time for print_EOFM_image: {end - start:.2f} seconds")
 
     def plot_rcv_calc_wrapper(self):
+        self.view.set_footer_label("... Loading ...")
         start = time.time()
         self.plot_rcv_calc()
         end = time.time()
-        print(f"Execution time for plot_rcv_calc: {end - start:.2f} seconds")
+        self.view.set_footer_label(f"Execution time for plot_rcv_calc: {end - start:.2f} seconds")
 
     def print_original_image_wrapper(self):
+        self.view.set_footer_label("... Loading ...")
         start = time.time()
         self.print_original_image()
         end = time.time()
-        print(f"Execution time for print_original_image: {end - start:.2f} seconds")
-
-
-
+        self.view.set_footer_label(f"Execution time for print_original_image: {end - start:.2f} seconds")
 
     def set_state(self, state):
         self.app_state = int(state)
