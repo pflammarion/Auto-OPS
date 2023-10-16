@@ -77,7 +77,7 @@ class MainController:
             self.print_EOFM_image()
 
         elif self.app_state == 4:
-            self.print_rcv_image()
+            self.plot_rcv_calc()
 
         else:
             self.print_original_image()

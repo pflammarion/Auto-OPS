@@ -134,7 +134,8 @@ class MainView(QMainWindow):
 
     def set_mode(self, central_layout, mode=0):
 
-        left_layout = central_layout.itemAtPosition(0, 0).widget().layout()
+        left_widget = central_layout.itemAtPosition(0, 0).widget()
+        left_layout = left_widget.layout()
         optional_layout = left_layout.itemAtPosition(1, 0).widget().layout()
 
         right_layout = central_layout.itemAtPosition(0, 2).widget().layout()
@@ -142,6 +143,7 @@ class MainView(QMainWindow):
         voltage_layout = info_layout.itemAtPosition(4, 0).layout()
 
         self.clear_figures()
+        left_widget.setMaximumWidth(200)
 
         # hide and show the voltage button for csv mode
         self.info_button_column_voltage.hide()
@@ -176,6 +178,7 @@ class MainView(QMainWindow):
             self.optional_canvas.show()
             voltage_layout.addWidget(self.info_button_column_voltage, 0, 1)
             self.info_button_column_voltage.show()
+            left_widget.setMaximumWidth(400)
 
     def init_nav_bar(self, optional_layout) -> QWidget:
         nav_bar_widget = QWidget()
@@ -236,7 +239,7 @@ class MainView(QMainWindow):
         optional_layout.addWidget(self.optional_canvas, 2, 0)
         self.optional_canvas.hide()
 
-        optional_layout.itemAtPosition(2, 0).widget().setMaximumHeight(200)
+        optional_layout.itemAtPosition(2, 0).widget().setMaximumHeight(400)
 
         return optional_layout
 
@@ -345,6 +348,7 @@ class MainView(QMainWindow):
 
         layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         layout.setSpacing(20)
+        widget.setMaximumWidth(200)
 
         return widget
 
@@ -363,19 +367,29 @@ class MainView(QMainWindow):
         selector_button = QPushButton("Submit values", self)
         selector_button.clicked.connect(self.controller.update_rcv_position)
 
-        selector_layout = QGridLayout(selector_widget)
-        selector_layout.addWidget(selector_label_x, 0, 0)
-        selector_layout.addWidget(self.selector_input_x, 0, 1)
-        selector_layout.addWidget(selector_label_y, 1, 0)
-        selector_layout.addWidget(self.selector_input_y, 1, 1)
-        selector_layout.addWidget(selector_button, 2, 1)
+        selector_layout = QVBoxLayout(selector_widget)
+        line1_layout = QHBoxLayout()
+        line2_layout = QHBoxLayout()
+
+        line1_layout.addWidget(selector_label_x)
+        line1_layout.addWidget(self.selector_input_x)
+
+        line2_layout.addWidget(selector_label_y)
+        line2_layout.addWidget(self.selector_input_y)
+
+        selector_layout.addLayout(line1_layout)
+        selector_layout.addLayout(line2_layout)
+        selector_layout.addWidget(selector_button)
 
         selector_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         selector_layout.setSpacing(20)
 
+        selector_widget.setMaximumWidth(200)
+
         return selector_widget
 
     def display_image(self, image_matrix, title="", lps=False):
+        self.clear_figures()
         ax = self.main_figure.add_subplot(111)
 
         if lps:
@@ -448,6 +462,7 @@ class MainView(QMainWindow):
         self.footer_label.setText(text)
 
     def plot_dataframe(self, df, selected_columns):
+        self.clear_figures()
         time = df[selected_columns[0]]
         voltage = df[selected_columns[1]]
         rcv = df['RCV']
