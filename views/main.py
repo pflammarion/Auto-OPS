@@ -44,6 +44,8 @@ class MainView(QMainWindow):
         self.second_figure = None
         self.second_canvas = None
 
+        self.footer_label = QLabel()
+
         self.main_window = QMainWindow()
         self.init_ui()
 
@@ -81,6 +83,11 @@ class MainView(QMainWindow):
 
         plot_container_widget = self.init_plot_widget()
 
+        footer_widget = QWidget()
+        footer_layout = QGridLayout(footer_widget)
+        footer_layout.addWidget(self.footer_label, 0, 0)
+        footer_layout.setAlignment(Qt.AlignmentFlag.AlignRight)
+
         # Add all to the window layout
 
         layout.addWidget(button_widget, 0, 0)
@@ -89,11 +96,13 @@ class MainView(QMainWindow):
         layout.addWidget(nav_bar, 1, 1)
         layout.addWidget(optional_widget, 2, 0)
         layout.addWidget(plot_container_widget, 2, 1)
+        layout.addWidget(footer_widget, 3, 1)
 
     def set_mode(self, layout, mode=0):
 
         optional_layout = layout.itemAtPosition(2, 0).widget().layout()
         info_layout = layout.itemAtPosition(0, 1).widget().layout()
+        self.clear_figures()
 
         # hide and show the voltage button for csv mode
         self.info_button_column_voltage.hide()
@@ -271,7 +280,6 @@ class MainView(QMainWindow):
         return selector_widget
 
     def display_image(self, image_matrix, title="", lps=False):
-        self.main_figure.clear()
 
         ax = self.main_figure.add_subplot(111)
         if lps:
@@ -286,8 +294,11 @@ class MainView(QMainWindow):
 
         self.main_canvas.draw()
 
-    def display_second_image(self, image_matrix, title=""):
+    def clear_figures(self):
+        self.main_figure.clear()
         self.second_figure.clear()
+
+    def display_second_image(self, image_matrix, title=""):
         ax = self.second_figure.add_subplot(111)
         ax.imshow(image_matrix, cmap='gist_gray')
         ax.set_title(str(title))
@@ -325,9 +336,10 @@ class MainView(QMainWindow):
     def get_input_confocal(self):
         return self.selector_input_confocal.isChecked()
 
-    def plot_dataframe(self, df, selected_columns):
-        self.main_figure.clear()
+    def set_footer_label(self, text):
+        self.footer_label.setText(text)
 
+    def plot_dataframe(self, df, selected_columns):
         time = df[selected_columns[0]]
         voltage = df[selected_columns[1]]
         rcv = df['RCV']

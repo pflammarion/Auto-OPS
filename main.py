@@ -7,7 +7,7 @@ from controllers.lib_reader import LibReader
 from controllers.main_controller import MainController
 
 if __name__ == "__main__":
-    program = 2
+    program = 1
     if program == 1:
         app = QApplication(sys.argv)
         controller = MainController()
