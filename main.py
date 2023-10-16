@@ -1,6 +1,8 @@
 import sys
 
+from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QApplication
+from PyQt6.QtCore import Qt
 
 from controllers.gds_drawing import GdsDrawing
 from controllers.lib_reader import LibReader
@@ -10,6 +12,8 @@ if __name__ == "__main__":
     program = 1
     if program == 1:
         app = QApplication(sys.argv)
+        app.setApplicationName("CMOS-INV-GUI")
+        app.setWindowIcon(QIcon('./resources/logo.png'))
         controller = MainController()
         view = controller.get_view()
         view.show()
