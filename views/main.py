@@ -1,7 +1,7 @@
 import numpy as np
-from PyQt6.QtGui import QAction, QIcon, QPixmap
+from PyQt6.QtGui import QAction, QPixmap, QIcon
 from PyQt6.QtWidgets import QMainWindow, QWidget, QGridLayout, QLabel, QPushButton, QVBoxLayout, QLineEdit, QCheckBox, \
-    QHBoxLayout, QAbstractButton
+    QHBoxLayout
 from PyQt6.QtCore import Qt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
@@ -59,6 +59,8 @@ class MainView(QMainWindow):
         font.setItalic(True)
         self.footer_label.setFont(font)
 
+        self.buttons = []
+
         self.main_window = QMainWindow()
         self.init_ui()
 
@@ -67,6 +69,7 @@ class MainView(QMainWindow):
         self.setWindowTitle("CMOS-INV-GUI")
         self.setGeometry(0, 0, 1000, 800)
         self.showFullScreen()
+        self.setStyleSheet(open("resources/styles.css").read())
 
         main_widget = QWidget()
         self.setCentralWidget(main_widget)
@@ -104,8 +107,8 @@ class MainView(QMainWindow):
 
         # Creating the navigation bar widget
         nav_bar = self.init_nav_bar(central_layout)
-        nav_bar.setMaximumHeight(50)
-        nav_bar.setMinimumHeight(50)
+        nav_bar.setMaximumHeight(60)
+        nav_bar.setMinimumHeight(60)
 
         # Optional widget
 
@@ -193,25 +196,51 @@ class MainView(QMainWindow):
         nav_bar_widget = QWidget()
         nav_bar_container_layout = QHBoxLayout(nav_bar_widget)
 
-        main_button0 = QPushButton("Laser point spread", self)
+        laser_pixmap = QPixmap('resources/logo/LPS_logo.png')
+
+        main_button0 = QPushButton(QIcon(laser_pixmap), "  Laser point spread", self)
+
         main_button0.setCursor(Qt.CursorShape.PointingHandCursor)
+        main_button0.clicked.connect(lambda: self.set_selected(main_button0))
+
         main_button0.clicked.connect(lambda: self.controller.set_state(1))
         main_button0.clicked.connect(lambda: self.set_mode(central_layout, 0))
-        main_button1 = QPushButton("Show original output", self)
+
+        layout_pixmap = QPixmap('resources/logo/Layout_logo.png')
+
+        main_button1 = QPushButton(QIcon(layout_pixmap), "  Show original output", self)
+
         main_button1.setCursor(Qt.CursorShape.PointingHandCursor)
+        main_button1.clicked.connect(lambda: self.set_selected(main_button1))
+
         main_button1.clicked.connect(lambda: self.controller.set_state(0))
         main_button1.clicked.connect(lambda: self.set_mode(central_layout, 0))
-        main_button2 = QPushButton("Calc RCV", self)
+
+        RCV_pixmap = QPixmap('resources/logo/RCV_logo.png')
+
+        main_button2 = QPushButton(QIcon(RCV_pixmap), "  Calc RCV", self)
+
         main_button2.setCursor(Qt.CursorShape.PointingHandCursor)
+        main_button2.clicked.connect(lambda: self.set_selected(main_button2))
+
         main_button2.clicked.connect(lambda: self.set_mode(central_layout, 1))
         main_button2.clicked.connect(lambda: self.controller.set_state(2))
-        main_button3 = QPushButton("EOFM", self)
+
+        EOFM_pixmap = QPixmap('resources/logo/EOFM_logo.png')
+
+        main_button3 = QPushButton(QIcon(EOFM_pixmap), "  EOFM", self)
         main_button3.setCursor(Qt.CursorShape.PointingHandCursor)
+        main_button3.clicked.connect(lambda: self.set_selected(main_button3))
+
         main_button3.clicked.connect(lambda: self.set_mode(central_layout, 2))
         main_button3.clicked.connect(lambda: self.controller.set_state(3))
 
-        main_button4 = QPushButton("Import CSV data", self)
+        CSV_pixmap = QPixmap('resources/logo/CSV_logo.png')
+
+        main_button4 = QPushButton(QIcon(CSV_pixmap), "  Import CSV data", self)
         main_button4.setCursor(Qt.CursorShape.PointingHandCursor)
+        main_button4.clicked.connect(lambda: self.set_selected(main_button4))
+
         main_button4.clicked.connect(lambda: self.set_mode(central_layout, 3))
         main_button4.clicked.connect(lambda: self.controller.upload_csv())
 
@@ -220,6 +249,17 @@ class MainView(QMainWindow):
         nav_bar_container_layout.addWidget(main_button2)
         nav_bar_container_layout.addWidget(main_button3)
         nav_bar_container_layout.addWidget(main_button4)
+
+        self.buttons.append(main_button0)
+        self.buttons.append(main_button1)
+        self.buttons.append(main_button2)
+        self.buttons.append(main_button3)
+        self.buttons.append(main_button4)
+
+        for btn in self.buttons:
+            btn.setObjectName("nav-bar-btn")
+
+        self.set_selected(main_button1)
 
         return nav_bar_widget
 
@@ -418,6 +458,14 @@ class MainView(QMainWindow):
         selector_widget.setMaximumWidth(200)
 
         return selector_widget
+
+    def set_selected(self, selected_button):
+        for button in self.buttons:
+            if button is not selected_button:
+                button.setStyleSheet("")
+            else:
+                button.setStyleSheet("background-color: lightgoldenrodyellow")
+
 
     def display_image(self, image_matrix, title="", lps=False):
         self.clear_figures()
