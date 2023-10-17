@@ -18,3 +18,7 @@ QPushButton{
 QPushButton:hover {
     background-color: lightgoldenrodyellow;
 }
+
+#footer {
+    font-style: italic;
+}

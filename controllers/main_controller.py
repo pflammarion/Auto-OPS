@@ -38,7 +38,7 @@ class MainController:
         self.NA_value = 0.75
         self.is_confocal = True
 
-        self.data = self.load_settings_from_json()
+        self.data = self.load_settings_from_json("config/config.json")
 
         self.dataframe = None
         self.selected_columns = None
@@ -50,6 +50,8 @@ class MainController:
         self.app_state = 0
 
         self.view = MainView(self)
+
+        self.view.set_technologie_label("Technologie: " + str(self.technology_value) + " nm")
 
         self._running = True
 
@@ -97,12 +99,14 @@ class MainController:
         self.app_state = int(state)
         self.reload_view()
 
-    def load_settings_from_json(self):
-        json_file_path = "config/config.json"
+    def load_settings_from_json(self, json_file_path):
         if os.path.exists(json_file_path):
             try:
                 with open(json_file_path, "r") as json_file:
                     data = json.load(json_file)
+
+                if "technology" in data:
+                    self.technology_value = data["technology"]
 
                 if "laser_config" in data:
                     self.lam_value = data["laser_config"]["lamda"]
@@ -128,6 +132,7 @@ class MainController:
 
     def save_settings_to_json(self):
         json_data = {
+            "technology": self.technology_value,
             "laser_config": {
                 "lamda": self.lam_value,
                 "NA": self.NA_value,
@@ -136,7 +141,6 @@ class MainController:
                 "y_position": self.y_position
             },
             "gate_config": {
-                "technology": self.technology_value,
                 "Kn": self.Kn_value,
                 "Kp": self.Kp_value,
                 "beta": self.beta_value,
@@ -188,7 +192,7 @@ class MainController:
                 gray_image = cv2.cvtColor(cropped_resized_image, cv2.COLOR_BGR2GRAY)
                 self.image_matrix = gray_image
 
-                self.view.display_image(self.image_matrix)
+                self.view.display_image(self.image_matrix, "PNG image")
                 self.imported_image = True
                 print("Image loaded as a matrix")
 
@@ -201,11 +205,29 @@ class MainController:
             selected_files = file_dialog.selectedFiles()
             if selected_files:
                 file_path = selected_files[0]
-                with open(file_path, "r") as json_file:
-                    data = json.load(json_file)
+                self.data = self.load_settings_from_json(file_path)
+                # TODO handle error
+                self.reload_view()
+                self.update_view_input()
 
-                self.technology_value = int(data["technology"])
-                print("Tech value is now : ", self.technology_value)
+                self.view.popup_window("JSON Import Successful", "JSON settings imported successfully")
+
+    def update_view_input(self):
+        self.view.set_technologie_label("Technologie: " + str(self.technology_value) + " nm")
+
+        self.view.set_input_Kn(str(self.Kn_value))
+        self.view.set_input_Kp(str(self.Kp_value))
+        self.view.set_input_beta(str(self.beta_value))
+        self.view.set_input_Pl(str(self.Pl_value))
+        self.view.set_input_voltage(str(self.voltage_value))
+        self.view.set_input_pourcentage(str(self.noise_pourcentage))
+
+        self.view.set_input_x(str(self.x_position))
+        self.view.set_input_y(str(self.y_position))
+
+        self.view.set_input_lam(str(self.lam_value))
+        self.view.set_input_NA(str(self.NA_value))
+        self.view.set_input_confocal(self.is_confocal)
 
     def upload_csv(self):
         file_dialog = QFileDialog()
@@ -410,7 +432,12 @@ class MainController:
 
     def print_original_image(self):
         self.dataframe = None
-        self.view.display_image(self.image_matrix)
+        if self.imported_image:
+            title = "PNG image"
+        else:
+            title = "Generated image"
+
+        self.view.display_image(self.image_matrix, title)
 
     def print_rcv_image(self):
         self.dataframe = None
