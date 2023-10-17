@@ -405,7 +405,7 @@ class GdsDrawing:
                         break
 
                     elif "pmos" in diff[0]:
-                        new_key = "nmos_" + str(pmos_counter)
+                        new_key = "pmos_" + str(pmos_counter)
                         temp_diffusion_poly.append([new_key, unknown_diff])
                         sorted_diffusion_polygons.remove(unknown_diff)
                         pmos_counter += 1
