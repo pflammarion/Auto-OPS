@@ -513,6 +513,7 @@ class MainView(QMainWindow):
         ax.set_xlabel("x")
         ax.set_ylabel('y')
 
+        self.preview_canvas.draw()
         self.controller.stop_thread()
 
     def display_second_image(self, image_matrix, export, title=""):
