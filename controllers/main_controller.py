@@ -25,6 +25,7 @@ class MainController:
         self.beta_value = 1
         self.Pl_value = 10E7
         self.voltage_value = 1.2
+        self.noise_pourcentage = 5
 
         self.max_voltage_high_gate_state = float('-inf')
         self.high_gate_state_layout = None
