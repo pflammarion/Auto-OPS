@@ -55,6 +55,8 @@ class MainController:
 
         self._running = True
 
+        self.is_plot_export = False
+
         self.reload_view()
 
     def stop_thread(self):
@@ -157,6 +159,22 @@ class MainController:
 
         self.view.popup_window("Export Successful", "Settings exported successfully in 'export' folder!")
 
+    def export_plots(self):
+        start = time.time()
+
+        self.is_plot_export = True
+        state = self.app_state
+        for i in range(0, 4):
+            self.app_state = i
+            self.reload_view_wrapper()
+        self.is_plot_export = False
+        self.app_state = state
+        self.reload_view_wrapper()
+        self.view.popup_window("Export Successful", "Plots exported successfully in 'export/plots' folder!")
+
+        end = time.time()
+        self.view.set_footer_label(f"Execution time for SVG export: {end - start:.2f} seconds")
+
     def upload_image(self):
         file_dialog = QFileDialog()
         file_dialog.setFileMode(QFileDialog.FileMode.ExistingFiles)
@@ -192,7 +210,7 @@ class MainController:
                 gray_image = cv2.cvtColor(cropped_resized_image, cv2.COLOR_BGR2GRAY)
                 self.image_matrix = gray_image
 
-                self.view.display_image(self.image_matrix, "PNG image")
+                self.view.display_image(self.image_matrix, self.is_plot_export, "PNG image")
                 self.imported_image = True
                 print("Image loaded as a matrix")
 
@@ -437,7 +455,7 @@ class MainController:
         else:
             title = "Generated image"
 
-        self.view.display_image(self.image_matrix, title)
+        self.view.display_image(self.image_matrix, self.is_plot_export, title)
 
     def print_rcv_image(self):
         self.dataframe = None
@@ -447,7 +465,7 @@ class MainController:
 
         result = cv2.addWeighted(points, 1, mask, 0.5, 0)
 
-        self.view.display_image(result, self.main_label_value)
+        self.view.display_image(result, self.is_plot_export, self.main_label_value)
 
     def calc_and_plot_EOFM(self):
         lam = self.lam_value
@@ -466,9 +484,9 @@ class MainController:
         L = self.calc_and_plot_EOFM()
         R = fftconvolve(self.image_matrix, L, mode='same')
 
-        self.view.display_image(R, self.main_label_value)
+        self.view.display_image(R, self.is_plot_export, "EOFM - " + self.main_label_value)
         inverted_image = np.abs(R)
-        self.view.display_second_image(inverted_image, "Absolute EOFM")
+        self.view.display_second_image(inverted_image, self.is_plot_export, "Absolute EOFM - " + self.main_label_value)
 
     def update_settings(self):
         lam_input = self.view.get_input_lam()
@@ -501,7 +519,7 @@ class MainController:
         FOV = 2000
         self.main_label_value = "FWHM = %.02f, is_confocal = %s" % (FWHM, is_confocal)
         L = self.psf_2d(FOV, lam, NA, FWHM // 2 if is_confocal else np.inf)
-        self.view.display_image(L, self.main_label_value, lps=True)
+        self.view.display_image(L, self.is_plot_export, "LPS - " + self.main_label_value, True)
 
     def get_view(self):
         return self.view

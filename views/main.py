@@ -1,3 +1,6 @@
+import re
+import time
+
 import numpy as np
 from PyQt6.QtGui import QAction, QPixmap, QIcon
 from PyQt6.QtWidgets import QMainWindow, QWidget, QGridLayout, QLabel, QPushButton, QVBoxLayout, QLineEdit, QCheckBox, \
@@ -286,8 +289,8 @@ class MainView(QMainWindow):
         export_json_config.triggered.connect(self.controller.save_settings_to_json)
         window_menu.addAction(export_json_config)
 
-        export_results = QAction('Export results', self)
-        export_results.triggered.connect(self.on_export)
+        export_results = QAction('Export SVG plots', self)
+        export_results.triggered.connect(self.controller.export_plots)
         window_menu.addAction(export_results)
 
     def init_preview_layout(self) -> QWidget:
@@ -345,7 +348,6 @@ class MainView(QMainWindow):
         line6.addWidget(label_noise_pourcentage, 0, 0)
         line6.addWidget(self.noise_pourcentage, 0, 1)
         line6_widget.hide()
-
 
         # Adding the lines to the main layout
         input_layout.addLayout(line1, 0, 0)
@@ -471,7 +473,7 @@ class MainView(QMainWindow):
             else:
                 button.setStyleSheet("background-color: lightgoldenrodyellow")
 
-    def display_image(self, image_matrix, title="", lps=False):
+    def display_image(self, image_matrix, export, title="", lps=False):
         if len(self.main_figure.axes) > 0:
             self.main_figure.clear()
 
@@ -486,8 +488,14 @@ class MainView(QMainWindow):
         ax.set_title(str(title))
         ax.set_xlabel("x")
         ax.set_ylabel('y')
+        if not export:
+            self.main_canvas.draw()
+        else:
+            if title == "":
+                title = str(time)
+            title = re.sub(r'[^a-zA-Z0-9]', '_', title)
+            self.main_figure.savefig('export/plots/' + title + '.svg', format='svg')
 
-        self.main_canvas.draw()
         self.controller.stop_thread()
 
     def clear_figures(self):
@@ -504,10 +512,10 @@ class MainView(QMainWindow):
         ax.set_title(str(title))
         ax.set_xlabel("x")
         ax.set_ylabel('y')
-        self.preview_canvas.draw()
+
         self.controller.stop_thread()
 
-    def display_second_image(self, image_matrix, title=""):
+    def display_second_image(self, image_matrix, export, title=""):
         if len(self.second_figure.axes) > 0:
             self.second_figure.clear()
 
@@ -516,7 +524,14 @@ class MainView(QMainWindow):
         ax.set_title(str(title))
         ax.set_xlabel("x")
         ax.set_ylabel('y')
-        self.second_canvas.draw()
+        if not export:
+            self.second_canvas.draw()
+        else:
+            if title == "":
+                title = str(time)
+            title = re.sub(r'[^a-zA-Z0-9]', '_', title)
+            self.second_figure.savefig('export/plots/' + title + '.svg', format='svg')
+
         self.controller.stop_thread()
 
     def get_input_Kn(self):
