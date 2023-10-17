@@ -25,6 +25,7 @@ class MainController:
         self.beta_value = 1
         self.Pl_value = 10E7
         self.voltage_value = 1.2
+        self.noise_pourcentage = 5
 
         self.max_voltage_high_gate_state = float('-inf')
         self.high_gate_state_layout = None
@@ -50,48 +51,40 @@ class MainController:
 
         self.view = MainView(self)
 
+        self._running = True
+
         self.reload_view()
 
+    def stop_thread(self):
+        self._running = False
+
     def reload_view(self):
+        threading.Thread(target=self.reload_view_wrapper).start()
+
+    def reload_view_wrapper(self):
+        self.view.set_footer_label("... Loading ...")
+        start = time.time()
         if self.app_state != 4 and not self.imported_image:
             lam, G1, G2, Gap = self.parameters_init(self.Kn_value, self.Kp_value, self.voltage_value, self.beta_value, self.Pl_value)
             self.image_matrix = self.draw_layout(lam, G1, G2, Gap)
 
         if self.app_state == 1:
-            threading.Thread(target=self.print_psf_wrapper).start()
+            self.print_psf()
 
         elif self.app_state == 2:
-            threading.Thread(target=self.print_rcv_image_wrapper).start()
+            self.print_rcv_image()
 
         elif self.app_state == 3:
-            threading.Thread(target=self.print_EOFM_image_wrapper).start()
+            self.print_EOFM_image()
 
         elif self.app_state == 4:
-            threading.Thread(target=self.plot_rcv_calc_wrapper).start()
+            self.plot_rcv_calc()
 
         else:
-            threading.Thread(target=self.print_original_image_wrapper).start()
+            self.print_original_image()
 
-    def print_psf_wrapper(self):
-        self.view.set_footer_label("... Loading ...")
-        start = time.time()
-        self.print_psf()
         end = time.time()
-        self.view.set_footer_label(f"Execution time for print_psf: {end - start:.2f} seconds")
-
-    def print_rcv_image_wrapper(self):
-        self.view.set_footer_label("... Loading ...")
-        start = time.time()
-        self.print_rcv_image()
-        end = time.time()
-        self.view.set_footer_label(f"Execution time for print_rcv_image: {end - start:.2f} seconds")
-
-    def print_EOFM_image_wrapper(self):
-        self.view.set_footer_label("... Loading ...")
-        start = time.time()
-        self.print_EOFM_image()
-        end = time.time()
-        self.view.set_footer_label(f"Execution time for print_EOFM_image: {end - start:.2f} seconds")
+        self.view.set_footer_label(f"Execution time: {end - start:.2f} seconds")
 
     def plot_rcv_calc_wrapper(self):
         self.view.set_footer_label("... Loading ...")
@@ -99,13 +92,6 @@ class MainController:
         self.plot_rcv_calc()
         end = time.time()
         self.view.set_footer_label(f"Execution time for plot_rcv_calc: {end - start:.2f} seconds")
-
-    def print_original_image_wrapper(self):
-        self.view.set_footer_label("... Loading ...")
-        start = time.time()
-        self.print_original_image()
-        end = time.time()
-        self.view.set_footer_label(f"Execution time for print_original_image: {end - start:.2f} seconds")
 
     def set_state(self, state):
         self.app_state = int(state)
@@ -383,8 +369,6 @@ class MainController:
         else:
             self.y_position = self.data["y_position"]
 
-
-
         if self.imported_image is False:
             self.update_settings()
 
@@ -485,7 +469,7 @@ class MainController:
         if self.high_gate_state_layout is not None:
             points = np.where(self.high_gate_state_layout != 0, 1, 0)
             result = cv2.addWeighted(points, 1, mask, 0.5, 0)
-            self.view.display_second_image(result)
+            self.view.display_optional_image(result)
 
         self.view.plot_dataframe(self.dataframe, selected_columns)
 

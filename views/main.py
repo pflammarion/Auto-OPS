@@ -1,5 +1,7 @@
 import numpy as np
-from PyQt6.QtWidgets import QMainWindow, QWidget, QGridLayout, QLabel, QPushButton, QVBoxLayout, QLineEdit, QCheckBox
+from PyQt6.QtGui import QAction, QPixmap, QIcon
+from PyQt6.QtWidgets import QMainWindow, QWidget, QGridLayout, QLabel, QPushButton, QVBoxLayout, QLineEdit, QCheckBox, \
+    QHBoxLayout
 from PyQt6.QtCore import Qt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
@@ -15,6 +17,7 @@ class MainView(QMainWindow):
         self.info_input_beta = QLineEdit(self)
         self.info_input_Pl = QLineEdit(self)
         self.info_input_voltage = QLineEdit(self)
+        self.noise_pourcentage = QLineEdit(self)
 
         # fill infos from controller
         self.info_input_Kn.setText(str(self.controller.Kn_value))
@@ -28,7 +31,11 @@ class MainView(QMainWindow):
         self.info_input_voltage.setText(str(self.controller.voltage_value))
         self.info_input_voltage.setPlaceholderText(str(self.controller.voltage_value))
 
+        self.noise_pourcentage.setText(str(self.controller.noise_pourcentage))
+        self.noise_pourcentage.setPlaceholderText(str(self.controller.noise_pourcentage))
+
         self.info_button_column_voltage = QPushButton("Voltage columns")
+        self.info_button_column_voltage.setCursor(Qt.CursorShape.PointingHandCursor)
         self.info_button_column_voltage.clicked.connect(self.controller.volage_column_dialog)
 
         self.selector_input_x = None
@@ -44,7 +51,15 @@ class MainView(QMainWindow):
         self.second_figure = None
         self.second_canvas = None
 
+        self.preview_figure = None
+        self.preview_canvas = None
+
         self.footer_label = QLabel()
+        font = self.footer_label.font()
+        font.setItalic(True)
+        self.footer_label.setFont(font)
+
+        self.buttons = []
 
         self.main_window = QMainWindow()
         self.init_ui()
@@ -53,15 +68,34 @@ class MainView(QMainWindow):
 
         self.setWindowTitle("CMOS-INV-GUI")
         self.setGeometry(0, 0, 1000, 800)
+        self.showFullScreen()
+        self.setStyleSheet(open("resources/styles.css").read())
+
+        main_widget = QWidget()
+        self.setCentralWidget(main_widget)
+
+        layout = QGridLayout(main_widget)
+        #main_widget.setStyleSheet("border : 1px solid black")
 
         central_widget = QWidget()
-        self.setCentralWidget(central_widget)
+        central_layout = QGridLayout(central_widget)
 
-        layout = QGridLayout(central_widget)
+        left_widget = QWidget()
+        left_layout = QGridLayout(left_widget)
+        left_widget.setMaximumWidth(200)
+        left_widget.setMinimumWidth(200)
+        left_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
-        # Creating the add widget
+        main_central_widget = QWidget()
+        main_central_layout = QGridLayout(main_central_widget)
 
-        button_widget = self.init_button_widget(layout)
+        right_widget = QWidget()
+        right_widget_layout = QGridLayout(right_widget)
+        right_widget.setMaximumWidth(200)
+        right_widget.setMinimumWidth(200)
+
+        # Creating the menu bar
+        self.init_menu_bar()
 
         # Creating the info widget
 
@@ -72,12 +106,14 @@ class MainView(QMainWindow):
         laser_widget = self.init_laser_widget()
 
         # Creating the navigation bar widget
-        nav_bar = self.init_nav_bar(layout)
+        nav_bar = self.init_nav_bar(central_layout)
+        nav_bar.setMaximumHeight(60)
+        nav_bar.setMinimumHeight(60)
 
         # Optional widget
 
-        optional_widget = QWidget()
-        self.init_optional_layout(optional_widget)
+        preview_widget = self.init_preview_layout()
+        preview_widget.setMaximumHeight(400)
 
         # Creating the plot widget
 
@@ -87,33 +123,49 @@ class MainView(QMainWindow):
         footer_layout = QGridLayout(footer_widget)
         footer_layout.addWidget(self.footer_label, 0, 0)
         footer_layout.setAlignment(Qt.AlignmentFlag.AlignRight)
+        footer_widget.setMaximumHeight(50)
+        footer_widget.setMinimumHeight(50)
 
         # Add all to the window layout
 
-        layout.addWidget(button_widget, 0, 0)
-        layout.addWidget(info_widget, 0, 1)
-        layout.addWidget(laser_widget, 1, 0)
-        layout.addWidget(nav_bar, 1, 1)
-        layout.addWidget(optional_widget, 2, 0)
-        layout.addWidget(plot_container_widget, 2, 1)
-        layout.addWidget(footer_widget, 3, 1)
+        left_layout.addWidget(laser_widget, 0, 0)
+        left_layout.addWidget(preview_widget, 2, 0)
+        right_widget_layout.addWidget(info_widget, 0, 0)
+        main_central_layout.addWidget(plot_container_widget, 0, 0)
 
-    def set_mode(self, layout, mode=0):
+        central_layout.addWidget(left_widget, 0, 0)
+        central_layout.addWidget(main_central_widget, 0, 1)
+        central_layout.addWidget(right_widget, 0, 2)
 
-        optional_layout = layout.itemAtPosition(2, 0).widget().layout()
-        info_layout = layout.itemAtPosition(0, 1).widget().layout()
+        layout.addWidget(nav_bar, 0, 0)
+        layout.addWidget(central_widget, 2, 0)
+        layout.addWidget(footer_widget, 3, 0)
+
+    def set_mode(self, central_layout, mode=0):
+
+        left_widget = central_layout.itemAtPosition(0, 0).widget()
+        left_layout = left_widget.layout()
+
+        right_layout = central_layout.itemAtPosition(0, 2).widget().layout()
+        info_layout = right_layout.itemAtPosition(0, 0).widget().layout()
+        voltage_widget = info_layout.itemAtPosition(4, 0).widget()
+        noise_pourcentage_widget = info_layout.itemAtPosition(6, 0).widget()
+
         self.clear_figures()
+        left_widget.setMaximumWidth(200)
 
         # hide and show the voltage button for csv mode
         self.info_button_column_voltage.hide()
-        info_layout.addWidget(self.info_input_voltage, 4, 1)
-        self.info_input_voltage.show()
+        voltage_widget.show()
 
+
+        self.preview_canvas.hide()
         self.second_canvas.hide()
+        noise_pourcentage_widget.hide()
 
         # Clear the layout if there's already a widget at position (0, 0)
-        if optional_layout.itemAtPosition(0, 0) is not None:
-            item = optional_layout.itemAtPosition(0, 0)
+        if left_layout.itemAtPosition(1, 0) is not None:
+            item = left_layout.itemAtPosition(1, 0)
             widget_to_remove = item.widget()
             if widget_to_remove:
                 widget_to_remove.setParent(None)
@@ -121,97 +173,188 @@ class MainView(QMainWindow):
         # RCV mode
         if mode == 1:
             widget = self.init_rcv_widget()
-            optional_layout.addWidget(widget, 0, 0)
+            left_layout.addWidget(widget, 1, 0)
 
         # EOFM mode
         elif mode == 2:
             self.second_canvas.show()
-            info_layout.addWidget(self.info_input_voltage, 4, 1)
 
         # CSV mode
         elif mode == 3:
-            self.info_input_voltage.hide()
             widget = self.init_rcv_widget()
-            optional_layout.addWidget(widget, 0, 0)
-            self.second_canvas.show()
-            info_layout.addWidget(self.info_button_column_voltage, 4, 1)
+            left_layout.addWidget(widget, 1, 0)
+            self.preview_canvas.show()
+
+            voltage_widget.hide()
             self.info_button_column_voltage.show()
+            noise_pourcentage_widget.show()
 
-    def init_nav_bar(self, optional_layout) -> QWidget:
+            left_widget.setMaximumWidth(400)
+            left_layout.itemAtPosition(2, 0).widget().setMinimumWidth(400)
+
+    def init_nav_bar(self, central_layout) -> QWidget:
         nav_bar_widget = QWidget()
-        nav_bar_container_layout = QGridLayout(nav_bar_widget)
+        nav_bar_container_layout = QHBoxLayout(nav_bar_widget)
 
-        main_button0 = QPushButton("Laser point spread", self)
+        laser_pixmap = QPixmap('resources/logo/LPS_logo.png')
+
+        main_button0 = QPushButton(QIcon(laser_pixmap), "  Laser point spread", self)
+
+        main_button0.setCursor(Qt.CursorShape.PointingHandCursor)
+        main_button0.clicked.connect(lambda: self.set_selected(main_button0))
+
         main_button0.clicked.connect(lambda: self.controller.set_state(1))
-        main_button0.clicked.connect(lambda: self.set_mode(optional_layout, 0))
-        main_button1 = QPushButton("Show original output", self)
+        main_button0.clicked.connect(lambda: self.set_mode(central_layout, 0))
+
+        layout_pixmap = QPixmap('resources/logo/Layout_logo.png')
+
+        main_button1 = QPushButton(QIcon(layout_pixmap), "  Show original output", self)
+
+        main_button1.setCursor(Qt.CursorShape.PointingHandCursor)
+        main_button1.clicked.connect(lambda: self.set_selected(main_button1))
+
         main_button1.clicked.connect(lambda: self.controller.set_state(0))
-        main_button1.clicked.connect(lambda: self.set_mode(optional_layout, 0))
-        main_button2 = QPushButton("Calc RCV", self)
-        main_button2.clicked.connect(lambda: self.set_mode(optional_layout, 1))
+        main_button1.clicked.connect(lambda: self.set_mode(central_layout, 0))
+
+        RCV_pixmap = QPixmap('resources/logo/RCV_logo.png')
+
+        main_button2 = QPushButton(QIcon(RCV_pixmap), "  Calc RCV", self)
+
+        main_button2.setCursor(Qt.CursorShape.PointingHandCursor)
+        main_button2.clicked.connect(lambda: self.set_selected(main_button2))
+
+        main_button2.clicked.connect(lambda: self.set_mode(central_layout, 1))
         main_button2.clicked.connect(lambda: self.controller.set_state(2))
-        main_button3 = QPushButton("EOFM", self)
-        main_button3.clicked.connect(lambda: self.set_mode(optional_layout, 2))
+
+        EOFM_pixmap = QPixmap('resources/logo/EOFM_logo.png')
+
+        main_button3 = QPushButton(QIcon(EOFM_pixmap), "  EOFM", self)
+        main_button3.setCursor(Qt.CursorShape.PointingHandCursor)
+        main_button3.clicked.connect(lambda: self.set_selected(main_button3))
+
+        main_button3.clicked.connect(lambda: self.set_mode(central_layout, 2))
         main_button3.clicked.connect(lambda: self.controller.set_state(3))
 
-        nav_bar_container_layout.addWidget(main_button0, 0, 0)
-        nav_bar_container_layout.addWidget(main_button1, 0, 1)
-        nav_bar_container_layout.addWidget(main_button2, 0, 2)
-        nav_bar_container_layout.addWidget(main_button3, 0, 3)
+        CSV_pixmap = QPixmap('resources/logo/CSV_logo.png')
+
+        main_button4 = QPushButton(QIcon(CSV_pixmap), "  Import CSV data", self)
+        main_button4.setCursor(Qt.CursorShape.PointingHandCursor)
+        main_button4.clicked.connect(lambda: self.set_selected(main_button4))
+
+        main_button4.clicked.connect(lambda: self.set_mode(central_layout, 3))
+        main_button4.clicked.connect(lambda: self.controller.upload_csv())
+
+        nav_bar_container_layout.addWidget(main_button0)
+        nav_bar_container_layout.addWidget(main_button1)
+        nav_bar_container_layout.addWidget(main_button2)
+        nav_bar_container_layout.addWidget(main_button3)
+        nav_bar_container_layout.addWidget(main_button4)
+
+        self.buttons.append(main_button0)
+        self.buttons.append(main_button1)
+        self.buttons.append(main_button2)
+        self.buttons.append(main_button3)
+        self.buttons.append(main_button4)
+
+        for btn in self.buttons:
+            btn.setObjectName("nav-bar-btn")
+
+        self.set_selected(main_button1)
 
         return nav_bar_widget
 
-    def init_button_widget(self, optional_layout) -> QWidget:
-        button_widget = QWidget()
-        button_add_png = QPushButton("Add png file", self)
-        button_add_png.clicked.connect(self.controller.upload_image)
-        button_add_json = QPushButton("Add JSON config", self)
-        button_add_json.clicked.connect(self.controller.upload_json)
-        button_add_csv = QPushButton("Add csv file", self)
-        button_add_csv.clicked.connect(self.controller.upload_csv)
-        button_add_csv.clicked.connect(lambda: self.set_mode(optional_layout, 3))
+    def init_menu_bar(self):
+        menubar = self.menuBar()
+        window_menu = menubar.addMenu('Import / Export')
 
-        button_layout = QVBoxLayout(button_widget)
-        button_layout.addWidget(button_add_png)
-        button_layout.addWidget(button_add_json)
-        button_layout.addWidget(button_add_csv)
+        import_png_file = QAction('Import PNG file', self)
+        import_png_file.triggered.connect(self.controller.upload_image)
+        window_menu.addAction(import_png_file)
 
-        return button_widget
+        import_json_config = QAction('Import JSON config', self)
+        import_json_config.triggered.connect(self.controller.upload_json)
+        window_menu.addAction(import_json_config)
 
-    def init_optional_layout(self, optional_widget) -> QGridLayout:
-        optional_layout = QGridLayout(optional_widget)
+        window_menu.addSeparator()
 
-        self.second_figure = Figure()
-        self.second_canvas = FigureCanvas(self.second_figure)
-        optional_layout.addWidget(self.second_canvas, 1, 0)
-        self.second_canvas.hide()
+        export_json_config = QAction('Export JSON config', self)
+        export_json_config.triggered.connect(self.on_export)
+        window_menu.addAction(export_json_config)
 
-        return optional_layout
+        export_results = QAction('Export results', self)
+        export_results.triggered.connect(self.on_export)
+        window_menu.addAction(export_results)
+
+    def init_preview_layout(self) -> QWidget:
+
+        self.preview_figure = Figure()
+        self.preview_canvas = FigureCanvas(self.preview_figure)
+        self.preview_canvas.hide()
+
+        return self.preview_canvas
 
     def init_physic_info_widget(self) -> QWidget:
         info_widget = QWidget()
-        info_label = QLabel("Physics info:", self)
-        info_label_Kn = QLabel("Kn", self)
-        info_label_Kp = QLabel("Kp", self)
-        info_label_beta = QLabel("Beta", self)
-        info_label_Pl = QLabel("P_L", self)
-        info_label_voltage = QLabel("Voltage", self)
+        info_label_Kn = QLabel("Kn:", self)
+        info_label_Kp = QLabel("Kp:", self)
+        info_label_beta = QLabel("Beta:", self)
+        info_label_Pl = QLabel("P_L:", self)
+        info_label_voltage = QLabel("Voltage:", self)
+        label_noise_pourcentage = QLabel("Noise (%):", self)
         info_button = QPushButton("Submit values", self)
+        info_button.setCursor(Qt.CursorShape.PointingHandCursor)
         info_button.clicked.connect(self.controller.update_physics_values)
 
+        # Creating layouts
         input_layout = QGridLayout(info_widget)
-        input_layout.addWidget(info_label, 0, 0)
-        input_layout.addWidget(info_label_Kn, 1, 0)
-        input_layout.addWidget(self.info_input_Kn, 2, 0)
-        input_layout.addWidget(info_label_beta, 1, 1)
-        input_layout.addWidget(self.info_input_beta, 2, 1)
-        input_layout.addWidget(info_label_Pl, 1, 2)
-        input_layout.addWidget(self.info_input_Pl, 2, 2)
-        input_layout.addWidget(info_label_Kp, 3, 0)
-        input_layout.addWidget(self.info_input_Kp, 4, 0)
-        input_layout.addWidget(info_label_voltage, 3, 1)
-        input_layout.addWidget(self.info_input_voltage, 4, 1)
-        input_layout.addWidget(info_button, 4, 2)
+
+        # Creating QHBoxLayouts for each line
+        line1 = QHBoxLayout()
+        line1.addWidget(info_label_Kn)
+        line1.addWidget(self.info_input_Kn)
+
+        line2 = QHBoxLayout()
+        line2.addWidget(info_label_Kp)
+        line2.addWidget(self.info_input_Kp)
+
+        line3 = QHBoxLayout()
+        line3.addWidget(info_label_beta)
+        line3.addWidget(self.info_input_beta)
+
+        line4 = QHBoxLayout()
+        line4.addWidget(info_label_Pl)
+        line4.addWidget(self.info_input_Pl)
+
+        line5_widget = QWidget()
+        line5 = QGridLayout(line5_widget)
+        line5.setContentsMargins(0, 0, 0, 0)
+        line5.addWidget(info_label_voltage, 0, 0)
+        line5.addWidget(self.info_input_voltage, 0, 1)
+
+        line5_btn = self.info_button_column_voltage
+        line5_btn.hide()
+
+        line6_widget = QWidget()
+        line6 = QGridLayout(line6_widget)
+        line6.setContentsMargins(0, 0, 0, 0)
+        line6.addWidget(label_noise_pourcentage, 0, 0)
+        line6.addWidget(self.noise_pourcentage, 0, 1)
+        line6_widget.hide()
+
+
+        # Adding the lines to the main layout
+        input_layout.addLayout(line1, 0, 0)
+        input_layout.addLayout(line2, 1, 0)
+        input_layout.addLayout(line3, 2, 0)
+        input_layout.addLayout(line4, 3, 0)
+        input_layout.addWidget(line5_widget, 4, 0)
+        input_layout.addWidget(line5_btn, 5, 0)
+
+        input_layout.addWidget(line6_widget, 6, 0)
+        input_layout.addWidget(info_button, 7, 0)
+
+        input_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        input_layout.setSpacing(20)
 
         return info_widget
 
@@ -222,36 +365,60 @@ class MainView(QMainWindow):
 
         self.main_figure = Figure()
         self.main_canvas = FigureCanvas(self.main_figure)
-        plot_layout.addWidget(self.main_canvas)
+        plot_layout.addWidget(self.main_canvas, 0, 0)
+
+        self.second_figure = Figure()
+        self.second_canvas = FigureCanvas(self.second_figure)
+        plot_layout.addWidget(self.second_canvas, 0, 1)
+        self.second_canvas.hide()
 
         return plot_container_widget
 
     def init_laser_widget(self) -> QWidget:
         widget = QWidget()
-        layout = QGridLayout(widget)
+        layout = QVBoxLayout(widget)
+
         self.selector_input_lam = QLineEdit(self)
         self.selector_input_lam.setText(str(self.controller.lam_value))
         self.selector_input_lam.setPlaceholderText(str(self.controller.lam_value))
-        label_lam = QLabel("Lambda")
+        label_lam = QLabel("Lambda:")
+
         self.selector_input_NA = QLineEdit(self)
         self.selector_input_NA.setText(str(self.controller.NA_value))
         self.selector_input_NA.setPlaceholderText(str(self.controller.NA_value))
-        label_NA = QLabel("NA")
+        label_NA = QLabel("NA:")
+
         self.selector_input_confocal = QCheckBox()
+        self.selector_input_confocal.setCursor(Qt.CursorShape.PointingHandCursor)
         self.selector_input_confocal.setChecked(bool(self.controller.is_confocal))
         label_confocal = QLabel("Confocal")
 
-        widget_confocal = QWidget()
-        layout_confocal = QGridLayout(widget_confocal)
-        layout_confocal.addWidget(label_confocal, 0, 0)
-        layout_confocal.addWidget(self.selector_input_confocal, 0, 1)
+        info_button = QPushButton("Submit values", self)
+        info_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        info_button.clicked.connect(self.controller.update_physics_values)
 
-        layout.addWidget(label_lam, 0, 0)
-        layout.addWidget(self.selector_input_lam, 1, 0)
-        layout.addWidget(label_NA, 0, 1)
-        layout.addWidget(self.selector_input_NA, 1, 1)
-        layout.addWidget(widget_confocal, 2, 0)
+        layout_confocal = QHBoxLayout()
+        layout_lam = QHBoxLayout()
+        layout_NA = QHBoxLayout()
+
+        layout_confocal.addWidget(label_confocal)
+        layout_confocal.addWidget(self.selector_input_confocal)
+
+        layout_lam.addWidget(label_lam)
+        layout_lam.addWidget(self.selector_input_lam)
+
+        layout_NA.addWidget(label_NA)
+        layout_NA.addWidget(self.selector_input_NA)
+
+        layout.addLayout(layout_lam)
+        layout.addLayout(layout_NA)
+        layout.addLayout(layout_confocal)
+
+        layout.addWidget(info_button)
+
         layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        layout.setSpacing(20)
+        widget.setMaximumWidth(200)
 
         return widget
 
@@ -268,20 +435,42 @@ class MainView(QMainWindow):
         self.selector_input_y.setPlaceholderText(str(self.controller.y_position))
 
         selector_button = QPushButton("Submit values", self)
+        selector_button.setCursor(Qt.CursorShape.PointingHandCursor)
         selector_button.clicked.connect(self.controller.update_rcv_position)
 
-        selector_layout = QGridLayout(selector_widget)
-        selector_layout.addWidget(selector_label_x, 0, 0)
-        selector_layout.addWidget(self.selector_input_x, 0, 1)
-        selector_layout.addWidget(selector_label_y, 1, 0)
-        selector_layout.addWidget(self.selector_input_y, 1, 1)
-        selector_layout.addWidget(selector_button, 2, 1)
+        selector_layout = QVBoxLayout(selector_widget)
+        line1_layout = QHBoxLayout()
+        line2_layout = QHBoxLayout()
+
+        line1_layout.addWidget(selector_label_x)
+        line1_layout.addWidget(self.selector_input_x)
+
+        line2_layout.addWidget(selector_label_y)
+        line2_layout.addWidget(self.selector_input_y)
+
+        selector_layout.addLayout(line1_layout)
+        selector_layout.addLayout(line2_layout)
+        selector_layout.addWidget(selector_button)
+
+        selector_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        selector_layout.setSpacing(20)
+
+        selector_widget.setMaximumWidth(200)
 
         return selector_widget
 
-    def display_image(self, image_matrix, title="", lps=False):
+    def set_selected(self, selected_button):
+        for button in self.buttons:
+            if button is not selected_button:
+                button.setStyleSheet("")
+            else:
+                button.setStyleSheet("background-color: lightgoldenrodyellow")
 
+
+    def display_image(self, image_matrix, title="", lps=False):
+        self.clear_figures()
         ax = self.main_figure.add_subplot(111)
+
         if lps:
             im = ax.imshow(image_matrix)
             self.main_figure.colorbar(im)
@@ -293,10 +482,21 @@ class MainView(QMainWindow):
         ax.set_ylabel('y')
 
         self.main_canvas.draw()
+        self.controller.stop_thread()
 
     def clear_figures(self):
         self.main_figure.clear()
+        self.preview_figure.clear()
         self.second_figure.clear()
+
+    def display_optional_image(self, image_matrix, title=""):
+        ax = self.preview_figure.add_subplot(111)
+        ax.imshow(image_matrix, cmap='gist_gray')
+        ax.set_title(str(title))
+        ax.set_xlabel("x")
+        ax.set_ylabel('y')
+        self.preview_canvas.draw()
+        self.controller.stop_thread()
 
     def display_second_image(self, image_matrix, title=""):
         ax = self.second_figure.add_subplot(111)
@@ -305,6 +505,7 @@ class MainView(QMainWindow):
         ax.set_xlabel("x")
         ax.set_ylabel('y')
         self.second_canvas.draw()
+        self.controller.stop_thread()
 
     def get_input_Kn(self):
         return self.info_input_Kn.text()
@@ -340,10 +541,11 @@ class MainView(QMainWindow):
         self.footer_label.setText(text)
 
     def plot_dataframe(self, df, selected_columns):
+        self.clear_figures()
         time = df[selected_columns[0]]
         voltage = df[selected_columns[1]]
         rcv = df['RCV']
-        percentage = 0.05
+        percentage = float(self.noise_pourcentage.text()) / 100
         noisy_rcv = rcv + np.random.normal(0, rcv.std(), time.size) * percentage
 
         ax1 = self.main_figure.add_subplot(211)
@@ -369,4 +571,11 @@ class MainView(QMainWindow):
         ax2.set_xlim(time.min(), time.max())
 
         self.main_canvas.draw()
+        self.controller.stop_thread()
+
+    def on_import(self):
+        print('Import action triggered')
+
+    def on_export(self):
+        print('Export action triggered')
 
