@@ -614,7 +614,7 @@ class GdsDrawing:
         sorted_dict = self.find_unknown_state(sorted_dict, metal_wire_linked_keys)
         sorted_dict = self.find_unknown_state(sorted_dict, metal_wire_linked_keys)
 
-        with open('resources/data.json', 'w') as json_file:
+        with open('export/data.json', 'w') as json_file:
             json.dump(sorted_dict, json_file, indent=4)
 
         plotShape(sorted_dict, self.gate_type, sorted_temp_diffusion_poly)

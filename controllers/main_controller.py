@@ -38,7 +38,7 @@ class MainController:
         self.NA_value = 0.75
         self.is_confocal = True
 
-        self.data = self.load_settings_from_json()
+        self.data = self.load_settings_from_json("config/config.json")
 
         self.dataframe = None
         self.selected_columns = None
@@ -51,7 +51,11 @@ class MainController:
 
         self.view = MainView(self)
 
+        self.view.set_technologie_label("Technologie: " + str(self.technology_value) + " nm")
+
         self._running = True
+
+        self.is_plot_export = False
 
         self.reload_view()
 
@@ -97,26 +101,29 @@ class MainController:
         self.app_state = int(state)
         self.reload_view()
 
-    def load_settings_from_json(self):
-        json_file_path = "config.json"
+    def load_settings_from_json(self, json_file_path):
         if os.path.exists(json_file_path):
             try:
                 with open(json_file_path, "r") as json_file:
                     data = json.load(json_file)
 
-                self.technology_value = data["technology"]
-                self.Kn_value = data["Kn"]
-                self.Kp_value = data["Kp"]
-                self.beta_value = data["beta"]
-                self.Pl_value = data["Pl"]
-                self.voltage_value = data["voltage"]
+                if "technology" in data:
+                    self.technology_value = data["technology"]
 
-                self.x_position = data["x_position"]
-                self.y_position = data["y_position"]
-
-                self.lam_value = data["lam"]
-                self.NA_value = data["NA"]
-                self.is_confocal = data["is_confocal"]
+                if "laser_config" in data:
+                    self.lam_value = data["laser_config"]["lamda"]
+                    self.NA_value = data["laser_config"]["NA"]
+                    self.is_confocal = data["laser_config"]["is_confocal"]
+                    self.x_position = data["laser_config"]["x_position"]
+                    self.y_position = data["laser_config"]["y_position"]
+                if "gate_config" in data:
+                    self.technology_value = data["gate_config"]["technology"]
+                    self.Kn_value = data["gate_config"]["Kn"]
+                    self.Kp_value = data["gate_config"]["Kp"]
+                    self.beta_value = data["gate_config"]["beta"]
+                    self.Pl_value = data["gate_config"]["Pl"]
+                    self.voltage_value = data["gate_config"]["voltage"]
+                    self.noise_pourcentage = data["gate_config"]["noise_pourcentage"]
 
                 return data
 
@@ -124,6 +131,49 @@ class MainController:
                 print(f"Error loading JSON data: {e}")
         else:
             print(f"JSON file '{json_file_path}' does not exist.")
+
+    def save_settings_to_json(self):
+        json_data = {
+            "technology": self.technology_value,
+            "laser_config": {
+                "lamda": self.lam_value,
+                "NA": self.NA_value,
+                "is_confocal": self.is_confocal,
+                "x_position": self.x_position,
+                "y_position": self.y_position
+            },
+            "gate_config": {
+                "Kn": self.Kn_value,
+                "Kp": self.Kp_value,
+                "beta": self.beta_value,
+                "Pl": self.Pl_value,
+                "voltage": self.voltage_value,
+                "noise_pourcentage": self.noise_pourcentage
+            }
+        }
+
+        json_file_path = "export/config.json"
+
+        with open(json_file_path, "w") as json_file:
+            json.dump(json_data, json_file, indent=4)
+
+        self.view.popup_window("Export Successful", "Settings exported successfully in 'export' folder!")
+
+    def export_plots(self):
+        start = time.time()
+
+        self.is_plot_export = True
+        state = self.app_state
+        for i in range(0, 4):
+            self.app_state = i
+            self.reload_view_wrapper()
+        self.is_plot_export = False
+        self.app_state = state
+        self.reload_view_wrapper()
+        self.view.popup_window("Export Successful", "Plots exported successfully in 'export/plots' folder!")
+
+        end = time.time()
+        self.view.set_footer_label(f"Execution time for SVG export: {end - start:.2f} seconds")
 
     def upload_image(self):
         file_dialog = QFileDialog()
@@ -160,7 +210,7 @@ class MainController:
                 gray_image = cv2.cvtColor(cropped_resized_image, cv2.COLOR_BGR2GRAY)
                 self.image_matrix = gray_image
 
-                self.view.display_image(self.image_matrix)
+                self.view.display_image(self.image_matrix, self.is_plot_export, "PNG image")
                 self.imported_image = True
                 print("Image loaded as a matrix")
 
@@ -173,11 +223,29 @@ class MainController:
             selected_files = file_dialog.selectedFiles()
             if selected_files:
                 file_path = selected_files[0]
-                with open(file_path, "r") as json_file:
-                    data = json.load(json_file)
+                self.data = self.load_settings_from_json(file_path)
+                # TODO handle error
+                self.reload_view()
+                self.update_view_input()
 
-                self.technology_value = int(data["technology"])
-                print("Tech value is now : ", self.technology_value)
+                self.view.popup_window("JSON Import Successful", "JSON settings imported successfully")
+
+    def update_view_input(self):
+        self.view.set_technologie_label("Technologie: " + str(self.technology_value) + " nm")
+
+        self.view.set_input_Kn(str(self.Kn_value))
+        self.view.set_input_Kp(str(self.Kp_value))
+        self.view.set_input_beta(str(self.beta_value))
+        self.view.set_input_Pl(str(self.Pl_value))
+        self.view.set_input_voltage(str(self.voltage_value))
+        self.view.set_input_pourcentage(str(self.noise_pourcentage))
+
+        self.view.set_input_x(str(self.x_position))
+        self.view.set_input_y(str(self.y_position))
+
+        self.view.set_input_lam(str(self.lam_value))
+        self.view.set_input_NA(str(self.NA_value))
+        self.view.set_input_confocal(self.is_confocal)
 
     def upload_csv(self):
         file_dialog = QFileDialog()
@@ -302,32 +370,38 @@ class MainController:
         beta_input = self.view.get_input_beta()
         Pl_input = self.view.get_input_Pl()
         voltage_input = self.view.get_input_voltage()
+        pourcentage_input = self.view.get_input_pourcentage()
 
         # Check if the inputs are not null (not None) and not empty before converting to floats
         if Kn_input is not None and Kn_input != "":
             self.Kn_value = float(Kn_input)
         else:
-            self.Kn_value = self.data["Kn"]
+            self.Kn_value = self.data["gate_config"]["Kn"]
 
         if Kp_input is not None and Kp_input != "":
             self.Kp_value = float(Kp_input)
         else:
-            self.Kp_value = self.data["Kp"]
+            self.Kp_value = self.data["gate_config"]["Kp"]
 
         if beta_input is not None and beta_input != "":
             self.beta_value = float(beta_input)
         else:
-            self.beta_value = self.data["beta"]
+            self.beta_value = self.data["gate_config"]["beta"]
 
         if Pl_input is not None and Pl_input != "":
             self.Pl_value = float(Pl_input)
         else:
-            self.Pl_value = self.data["Pl"]
+            self.Pl_value = self.data["gate_config"]["Pl"]
 
         if voltage_input is not None and voltage_input != "":
             self.voltage_value = float(voltage_input)
         else:
-            self.voltage_value = self.data["voltage"]
+            self.voltage_value = self.data["gate_config"]["voltage"]
+
+        if pourcentage_input is not None and pourcentage_input != "":
+            self.noise_pourcentage = int(pourcentage_input)
+        else:
+            self.noise_pourcentage = self.data["gate_config"]["noise_pourcentage"]
 
         self.reload_view()
 
@@ -362,12 +436,12 @@ class MainController:
         if x_input is not None and x_input != "":
             self.x_position = int(x_input)
         else:
-            self.x_position = self.data["x_position"]
+            self.x_position = self.data["laser_config"]["x_position"]
 
         if y_input is not None and y_input != "":
             self.y_position = int(y_input)
         else:
-            self.y_position = self.data["y_position"]
+            self.y_position = self.data["laser_config"]["y_position"]
 
         if self.imported_image is False:
             self.update_settings()
@@ -376,7 +450,12 @@ class MainController:
 
     def print_original_image(self):
         self.dataframe = None
-        self.view.display_image(self.image_matrix)
+        if self.imported_image:
+            title = "PNG image"
+        else:
+            title = "Generated image"
+
+        self.view.display_image(self.image_matrix, self.is_plot_export, title)
 
     def print_rcv_image(self):
         self.dataframe = None
@@ -386,7 +465,7 @@ class MainController:
 
         result = cv2.addWeighted(points, 1, mask, 0.5, 0)
 
-        self.view.display_image(result, self.main_label_value)
+        self.view.display_image(result, self.is_plot_export, self.main_label_value)
 
     def calc_and_plot_EOFM(self):
         lam = self.lam_value
@@ -405,9 +484,9 @@ class MainController:
         L = self.calc_and_plot_EOFM()
         R = fftconvolve(self.image_matrix, L, mode='same')
 
-        self.view.display_image(R, self.main_label_value)
+        self.view.display_image(R, self.is_plot_export, "EOFM - " + self.main_label_value)
         inverted_image = np.abs(R)
-        self.view.display_second_image(inverted_image, "Absolute EOFM")
+        self.view.display_second_image(inverted_image, self.is_plot_export, "Absolute EOFM - " + self.main_label_value)
 
     def update_settings(self):
         lam_input = self.view.get_input_lam()
@@ -417,17 +496,17 @@ class MainController:
         if lam_input is not None and lam_input != "":
             self.lam_value = float(lam_input)
         else:
-            self.lam_value = self.data["lam"]
+            self.lam_value = self.data["laser_config"]["lam"]
 
         if NA_input is not None and NA_input != "":
             self.NA_value = float(NA_input)
         else:
-            self.NA_value = self.data["NA"]
+            self.NA_value = self.data["laser_config"]["NA"]
 
         if confocal_input is not None and confocal_input != "":
             self.is_confocal = bool(confocal_input)
         else:
-            self.is_confocal = self.data["is_confocal"]
+            self.is_confocal = self.data["laser_config"]["is_confocal"]
 
     def print_psf(self):
         self.dataframe = None
@@ -440,7 +519,7 @@ class MainController:
         FOV = 2000
         self.main_label_value = "FWHM = %.02f, is_confocal = %s" % (FWHM, is_confocal)
         L = self.psf_2d(FOV, lam, NA, FWHM // 2 if is_confocal else np.inf)
-        self.view.display_image(L, self.main_label_value, lps=True)
+        self.view.display_image(L, self.is_plot_export, "LPS - " + self.main_label_value, True)
 
     def get_view(self):
         return self.view

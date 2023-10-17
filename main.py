@@ -13,7 +13,7 @@ if __name__ == "__main__":
     if program == 1:
         app = QApplication(sys.argv)
         app.setApplicationName("CMOS-INV-GUI")
-        app.setWindowIcon(QIcon('./resources/logo.png'))
+        app.setWindowIcon(QIcon('resources/app_logo.png'))
         controller = MainController()
         view = controller.get_view()
         view.show()
@@ -170,5 +170,5 @@ if __name__ == "__main__":
                 draw_inputs[inp] = int(value)
 
             print(draw_inputs)
-            GdsDrawing("resources/stdcells.gds", cell, 1, 9, 10, 11, [0, 0], truth_table, voltage, draw_inputs)
+            GdsDrawing("Platforms/PDK45nm/stdcells.gds", cell, 1, 9, 10, 11, [0, 0], truth_table, voltage, draw_inputs)
 

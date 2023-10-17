@@ -9,6 +9,7 @@ QPushButton{
     background-color: #f0f0f0;
     color: black;
     max-width: 200px;
+    min-width: 40px;
     min-height: 25px;
     border: unset;
     border-radius: 6px;
@@ -16,4 +17,8 @@ QPushButton{
 
 QPushButton:hover {
     background-color: lightgoldenrodyellow;
+}
+
+#footer {
+    font-style: italic;
 }

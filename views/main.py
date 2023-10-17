@@ -1,7 +1,10 @@
+import re
+import time
+
 import numpy as np
 from PyQt6.QtGui import QAction, QPixmap, QIcon
 from PyQt6.QtWidgets import QMainWindow, QWidget, QGridLayout, QLabel, QPushButton, QVBoxLayout, QLineEdit, QCheckBox, \
-    QHBoxLayout
+    QHBoxLayout, QMessageBox
 from PyQt6.QtCore import Qt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
@@ -55,9 +58,12 @@ class MainView(QMainWindow):
         self.preview_canvas = None
 
         self.footer_label = QLabel()
-        font = self.footer_label.font()
-        font.setItalic(True)
-        self.footer_label.setFont(font)
+        self.footer_label.setObjectName("footer")
+        self.footer_label.setAlignment(Qt.AlignmentFlag.AlignRight)
+
+        self.technologie_label = QLabel()
+        self.technologie_label.setObjectName("footer")
+        self.technologie_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
 
         self.buttons = []
 
@@ -121,8 +127,8 @@ class MainView(QMainWindow):
 
         footer_widget = QWidget()
         footer_layout = QGridLayout(footer_widget)
-        footer_layout.addWidget(self.footer_label, 0, 0)
-        footer_layout.setAlignment(Qt.AlignmentFlag.AlignRight)
+        footer_layout.addWidget(self.footer_label, 0, 1)
+        footer_layout.addWidget(self.technologie_label, 0, 0)
         footer_widget.setMaximumHeight(50)
         footer_widget.setMinimumHeight(50)
 
@@ -151,8 +157,9 @@ class MainView(QMainWindow):
         voltage_widget = info_layout.itemAtPosition(4, 0).widget()
         noise_pourcentage_widget = info_layout.itemAtPosition(6, 0).widget()
 
-        self.clear_figures()
         left_widget.setMaximumWidth(200)
+
+        self.clear_figures()
 
         # hide and show the voltage button for csv mode
         self.info_button_column_voltage.hide()
@@ -198,13 +205,14 @@ class MainView(QMainWindow):
 
         laser_pixmap = QPixmap('resources/logo/LPS_logo.png')
 
+        # Add spaces between icon and name to have a margin (not found another way)
         main_button0 = QPushButton(QIcon(laser_pixmap), "  Laser point spread", self)
 
         main_button0.setCursor(Qt.CursorShape.PointingHandCursor)
         main_button0.clicked.connect(lambda: self.set_selected(main_button0))
 
-        main_button0.clicked.connect(lambda: self.controller.set_state(1))
         main_button0.clicked.connect(lambda: self.set_mode(central_layout, 0))
+        main_button0.clicked.connect(lambda: self.controller.set_state(1))
 
         layout_pixmap = QPixmap('resources/logo/Layout_logo.png')
 
@@ -213,8 +221,8 @@ class MainView(QMainWindow):
         main_button1.setCursor(Qt.CursorShape.PointingHandCursor)
         main_button1.clicked.connect(lambda: self.set_selected(main_button1))
 
-        main_button1.clicked.connect(lambda: self.controller.set_state(0))
         main_button1.clicked.connect(lambda: self.set_mode(central_layout, 0))
+        main_button1.clicked.connect(lambda: self.controller.set_state(0))
 
         RCV_pixmap = QPixmap('resources/logo/RCV_logo.png')
 
@@ -278,11 +286,11 @@ class MainView(QMainWindow):
         window_menu.addSeparator()
 
         export_json_config = QAction('Export JSON config', self)
-        export_json_config.triggered.connect(self.on_export)
+        export_json_config.triggered.connect(self.controller.save_settings_to_json)
         window_menu.addAction(export_json_config)
 
-        export_results = QAction('Export results', self)
-        export_results.triggered.connect(self.on_export)
+        export_results = QAction('Export SVG plots', self)
+        export_results.triggered.connect(self.controller.export_plots)
         window_menu.addAction(export_results)
 
     def init_preview_layout(self) -> QWidget:
@@ -340,7 +348,6 @@ class MainView(QMainWindow):
         line6.addWidget(label_noise_pourcentage, 0, 0)
         line6.addWidget(self.noise_pourcentage, 0, 1)
         line6_widget.hide()
-
 
         # Adding the lines to the main layout
         input_layout.addLayout(line1, 0, 0)
@@ -466,9 +473,10 @@ class MainView(QMainWindow):
             else:
                 button.setStyleSheet("background-color: lightgoldenrodyellow")
 
+    def display_image(self, image_matrix, export, title="", lps=False):
+        if len(self.main_figure.axes) > 0:
+            self.main_figure.clear()
 
-    def display_image(self, image_matrix, title="", lps=False):
-        self.clear_figures()
         ax = self.main_figure.add_subplot(111)
 
         if lps:
@@ -480,8 +488,14 @@ class MainView(QMainWindow):
         ax.set_title(str(title))
         ax.set_xlabel("x")
         ax.set_ylabel('y')
+        if not export:
+            self.main_canvas.draw()
+        else:
+            if title == "":
+                title = str(time)
+            title = re.sub(r'[^a-zA-Z0-9]', '_', title)
+            self.main_figure.savefig('export/plots/' + title + '.svg', format='svg')
 
-        self.main_canvas.draw()
         self.controller.stop_thread()
 
     def clear_figures(self):
@@ -490,58 +504,119 @@ class MainView(QMainWindow):
         self.second_figure.clear()
 
     def display_optional_image(self, image_matrix, title=""):
+        if len(self.preview_figure.axes) > 0:
+            self.preview_figure.clear()
+
         ax = self.preview_figure.add_subplot(111)
         ax.imshow(image_matrix, cmap='gist_gray')
         ax.set_title(str(title))
         ax.set_xlabel("x")
         ax.set_ylabel('y')
+
         self.preview_canvas.draw()
         self.controller.stop_thread()
 
-    def display_second_image(self, image_matrix, title=""):
+    def display_second_image(self, image_matrix, export, title=""):
+        if len(self.second_figure.axes) > 0:
+            self.second_figure.clear()
+
         ax = self.second_figure.add_subplot(111)
         ax.imshow(image_matrix, cmap='gist_gray')
         ax.set_title(str(title))
         ax.set_xlabel("x")
         ax.set_ylabel('y')
-        self.second_canvas.draw()
+        if not export:
+            self.second_canvas.draw()
+        else:
+            if title == "":
+                title = str(time)
+            title = re.sub(r'[^a-zA-Z0-9]', '_', title)
+            self.second_figure.savefig('export/plots/' + title + '.svg', format='svg')
+
         self.controller.stop_thread()
 
     def get_input_Kn(self):
         return self.info_input_Kn.text()
 
+    def set_input_Kn(self, value):
+        self.info_input_Kn.setText(value)
+
     def get_input_Kp(self):
         return self.info_input_Kp.text()
+
+    def set_input_Kp(self, value):
+        self.info_input_Kp.setText(value)
 
     def get_input_beta(self):
         return self.info_input_beta.text()
 
+    def set_input_beta(self, value):
+        self.info_input_beta.setText(value)
+
     def get_input_Pl(self):
         return self.info_input_Pl.text()
+
+    def set_input_Pl(self, value):
+        self.info_input_Pl.setText(value)
 
     def get_input_voltage(self):
         return self.info_input_voltage.text()
 
+    def set_input_voltage(self, value):
+        if self.info_input_voltage is not None:
+            self.info_input_voltage.setText(value)
+
+    def get_input_pourcentage(self):
+        return self.noise_pourcentage.text()
+
+    def set_input_pourcentage(self, value):
+        if self.noise_pourcentage is not None:
+            self.noise_pourcentage.setText(value)
+
     def get_input_x(self):
         return self.selector_input_x.text()
+
+    def set_input_x(self, value):
+        if self.selector_input_x is not None:
+            self.selector_input_x.setText(value)
 
     def get_input_y(self):
         return self.selector_input_y.text()
 
+    def set_input_y(self, value):
+        if self.selector_input_y is not None:
+            self.selector_input_y.setText(value)
+
     def get_input_lam(self):
         return self.selector_input_lam.text()
+
+    def set_input_lam(self, value):
+        self.selector_input_lam.setText(value)
 
     def get_input_NA(self):
         return self.selector_input_NA.text()
 
+    def set_input_NA(self, value):
+        self.selector_input_NA.setText(value)
+
     def get_input_confocal(self):
         return self.selector_input_confocal.isChecked()
+
+    def set_input_confocal(self, value):
+        self.selector_input_confocal.setChecked(value)
+
+    def set_technologie_label(self, text):
+        self.technologie_label.setText(text)
 
     def set_footer_label(self, text):
         self.footer_label.setText(text)
 
+    def popup_window(self, title, text):
+        QMessageBox.about(self, title, text)
+
     def plot_dataframe(self, df, selected_columns):
-        self.clear_figures()
+        if len(self.main_figure.axes) > 0:
+            self.main_figure.clear()
         time = df[selected_columns[0]]
         voltage = df[selected_columns[1]]
         rcv = df['RCV']
