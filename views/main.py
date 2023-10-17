@@ -1,7 +1,7 @@
 import numpy as np
 from PyQt6.QtGui import QAction, QPixmap, QIcon
 from PyQt6.QtWidgets import QMainWindow, QWidget, QGridLayout, QLabel, QPushButton, QVBoxLayout, QLineEdit, QCheckBox, \
-    QHBoxLayout
+    QHBoxLayout, QMessageBox
 from PyQt6.QtCore import Qt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
@@ -198,6 +198,7 @@ class MainView(QMainWindow):
 
         laser_pixmap = QPixmap('resources/logo/LPS_logo.png')
 
+        # Add spaces between icon and name to have a margin (not found another way)
         main_button0 = QPushButton(QIcon(laser_pixmap), "  Laser point spread", self)
 
         main_button0.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -278,7 +279,7 @@ class MainView(QMainWindow):
         window_menu.addSeparator()
 
         export_json_config = QAction('Export JSON config', self)
-        export_json_config.triggered.connect(self.on_export)
+        export_json_config.triggered.connect(self.controller.save_settings_to_json)
         window_menu.addAction(export_json_config)
 
         export_results = QAction('Export results', self)
@@ -534,11 +535,17 @@ class MainView(QMainWindow):
     def get_input_NA(self):
         return self.selector_input_NA.text()
 
+    def get_input_pourcentage(self):
+        return self.noise_pourcentage.text()
+
     def get_input_confocal(self):
         return self.selector_input_confocal.isChecked()
 
     def set_footer_label(self, text):
         self.footer_label.setText(text)
+
+    def popup_window(self, title, text):
+        QMessageBox.about(self, title, text)
 
     def plot_dataframe(self, df, selected_columns):
         self.clear_figures()
