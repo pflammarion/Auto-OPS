@@ -105,7 +105,11 @@ def separate_to_rectangles(coordinates):
     return [left_rectangle, right_rectangle]
 
 
-def plotShape(data, title, diff):
+def plotShape(data, title="", diff=None):
+
+    if diff is None:
+        diff = []
+
     fig, ax = plt.subplots()
 
     point_number = 1

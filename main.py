@@ -1,16 +1,18 @@
 import itertools
+import json
+import os
 import sys
 
 from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QApplication
 from PyQt6.QtCore import Qt
 
-from controllers.gds_drawing import GdsDrawing
+from controllers.gds_drawing import GdsDrawing, plotShape
 from controllers.lib_reader import LibReader
 from controllers.main_controller import MainController
 
 if __name__ == "__main__":
-    program = 2
+    program = 3
     if program == 1:
         app = QApplication(sys.argv)
         app.setApplicationName("CMOS-INV-GUI")
@@ -181,3 +183,19 @@ if __name__ == "__main__":
                 print("An error occurred for gate " + str(cell) + " please try again")
                 print("-----------------------------------------------------------")
                 print("\n\n\n\n")
+
+    elif program == 3:
+
+        prefix = 'NAND2_X1'
+        directory = "test/output_samples/"
+
+        filtered_json = [cell for cell in os.listdir(directory) if cell.startswith(prefix)]
+
+        for json_name in filtered_json:
+            with open(os.path.join(directory, json_name), "r") as json_file:
+                data = json.load(json_file)
+                plotShape(data, str(json_name))
+
+
+
+
