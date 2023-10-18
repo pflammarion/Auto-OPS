@@ -322,22 +322,28 @@ class GdsDrawing:
 
         plt.show()
 
-        final_shape = {}
 
-        ### new code
+        # End polygones extraction from gds
 
+        # Start sorting and filtering polygones to have only usefull information
+
+        # linked_list is used to know which polygones are state linked to each other
         linked_list = []
         check_label_list = self.label_list
         # first loop to check if a poly is an input
-        for polysilicon in merged_polysilicon_polygons:
-            for connection in merged_connection_polygons:
-                for metal in merged_label_polygons:
-                    for label in check_label_list:
-                        label_position = Point(label.position.tolist())
-                        if polysilicon.intersects(connection) and metal.intersects(
-                                connection) and polysilicon.intersects(metal) and metal.contains(label_position):
-                            linked_list.append(['polysilicon', polysilicon, label])
-                            merged_label_polygons.remove(metal)
+        is_metal_used = False
+        for label in check_label_list:
+            for metal in merged_label_polygons:
+                label_position = Point(label.position.tolist())
+                if metal.contains(label_position):
+                    for connection in merged_connection_polygons:
+                        if metal.intersects(connection):
+                            for polysilicon in merged_polysilicon_polygons:
+                                if polysilicon.intersects(connection) and polysilicon.intersects(metal):
+                                    linked_list.append(['polysilicon', polysilicon, label])
+                                    is_metal_used = True
+                    if is_metal_used:
+                        merged_label_polygons.remove(metal)
 
 
         # first loop to check if a metal is an output
@@ -451,17 +457,23 @@ class GdsDrawing:
 
         ## old code
         metal_wire_linked_keys = {}
+        temp_final_shape = {}
+        final_shape = {}
+
+        polysilicon_list = []
+        for poly in linked_list:
+            if poly[0] == "polysilicon" or poly[0] == "polysilicon_wire":
+                polysilicon_list.append(poly)
 
         for i in range(len(sorted_temp_diffusion_poly)):
             key = sorted_temp_diffusion_poly[i][0]
-            final_shape[key] = {}
+            temp_final_shape[key] = {}
             intersection_counter = 0
 
             polysilicon_list = []
             for poly in linked_list:
                 if poly[0] == "polysilicon" or poly[0] == "polysilicon_wire":
                     polysilicon_list.append(poly)
-                polysilicon_list = sorted(polysilicon_list, key=lambda polygon: min(polygon[1].exterior.xy[0]))
             for merged_polysilicon in polysilicon_list:
                 found_pair = False
                 if sorted_temp_diffusion_poly[i][1].intersects(merged_polysilicon[1]):
@@ -473,15 +485,15 @@ class GdsDrawing:
                         for index, intersection_polygon in enumerate(intersection_polygons.geoms):
                             x, y = intersection_polygon.exterior.xy
                             ploysilicon_key = merged_polysilicon[0] + "_" + str(intersection_counter)
-                            final_shape[key][ploysilicon_key] = {}
+                            temp_final_shape[key][ploysilicon_key] = {}
                             unique_coordinates = list(set(zip(x, y)))
-                            final_shape[key][ploysilicon_key]["position"] = unique_coordinates
+                            temp_final_shape[key][ploysilicon_key]["position"] = unique_coordinates
                             if "polysilicon_wire" not in merged_polysilicon[0]:
                                 if merged_polysilicon[2].text in self.inputs:
-                                    final_shape[key][ploysilicon_key]["state"] = self.inputs[merged_polysilicon[2].text]
-                                    final_shape[key][ploysilicon_key]["type"] = "input"
+                                    temp_final_shape[key][ploysilicon_key]["state"] = self.inputs[merged_polysilicon[2].text]
+                                    temp_final_shape[key][ploysilicon_key]["type"] = "input"
                             else:
-                                final_shape[key][ploysilicon_key]["type"] = merged_polysilicon[0] + "_" + str(merged_polysilicon[2])
+                                temp_final_shape[key][ploysilicon_key]["type"] = merged_polysilicon[0] + "_" + str(merged_polysilicon[2])
                                 for pair_index in metal_wire_linked_keys:
                                     wire_list = metal_wire_linked_keys.get(pair_index)
                                     if pair_index == merged_polysilicon[2] and [key, ploysilicon_key] not in wire_list:
@@ -496,15 +508,15 @@ class GdsDrawing:
                     else:
                         x, y = intersection_polygons.exterior.xy
                         ploysilicon_key = merged_polysilicon[0] + "_" + str(intersection_counter)
-                        final_shape[key][ploysilicon_key] = {}
+                        temp_final_shape[key][ploysilicon_key] = {}
                         unique_coordinates = list(set(zip(x, y)))
-                        final_shape[key][ploysilicon_key]["position"] = unique_coordinates
+                        temp_final_shape[key][ploysilicon_key]["position"] = unique_coordinates
                         if "polysilicon_wire" not in merged_polysilicon[0]:
                             if merged_polysilicon[2].text in self.inputs:
-                                final_shape[key][ploysilicon_key]["state"] = self.inputs[merged_polysilicon[2].text]
-                                final_shape[key][ploysilicon_key]["type"] = "input"
+                                temp_final_shape[key][ploysilicon_key]["state"] = self.inputs[merged_polysilicon[2].text]
+                                temp_final_shape[key][ploysilicon_key]["type"] = "input"
                         else:
-                            final_shape[key][ploysilicon_key]["type"] = merged_polysilicon[0] + "_" + str(merged_polysilicon[2])
+                            temp_final_shape[key][ploysilicon_key]["type"] = merged_polysilicon[0] + "_" + str(merged_polysilicon[2])
                             for pair_index in metal_wire_linked_keys:
                                 wire_list = metal_wire_linked_keys.get(pair_index)
                                 if pair_index == merged_polysilicon[2] and [key, ploysilicon_key] not in wire_list:
@@ -521,22 +533,28 @@ class GdsDrawing:
             diff_coordinates_list = list(set(zip(diff_coordinates_x, diff_coordinates_y)))
             extreme_left_diff, extreme_right_diff = find_extreme_points(diff_coordinates_list)
 
-            poly_key_list = list(final_shape[key].keys())
+            # To sort keys from left to right after overlap check on diffusion
+            sorted_keys_polysilicon = sorted(temp_final_shape[key], key=lambda polygon: min(temp_final_shape[key][polygon]["position"], key=lambda point: point[0]))
+
+            final_shape[key] = {}
+            for saved_polysilicon_key in sorted_keys_polysilicon:
+                final_shape[key][saved_polysilicon_key] = temp_final_shape[key][saved_polysilicon_key]
+
 
             # to extract diffusion parts
-            for j in range(len(poly_key_list) + 1):
+            for j in range(len(sorted_keys_polysilicon) + 1):
                 diffusion_key = "diff_" + str(j)
                 final_shape[key][diffusion_key] = {}
                 if j == 0:
-                    poly_left, poly_right = find_extreme_points(final_shape[key][poly_key_list[j]]["position"])
+                    poly_left, poly_right = find_extreme_points(final_shape[key][sorted_keys_polysilicon[j]]["position"])
                     combined_points = extreme_left_diff + poly_left
-                elif j == len(poly_key_list):
-                    poly_left, poly_right = find_extreme_points(final_shape[key][poly_key_list[j - 1]]["position"])
+                elif j == len(sorted_keys_polysilicon):
+                    poly_left, poly_right = find_extreme_points(final_shape[key][sorted_keys_polysilicon[j - 1]]["position"])
                     combined_points = poly_right + extreme_right_diff
                 else:
                     # try to understand why points are sorted in the inverse way (right for left, and left fort right)
-                    poly_left, _ = find_extreme_points(final_shape[key][poly_key_list[j]]["position"])
-                    _, poly_right_before = find_extreme_points(final_shape[key][poly_key_list[j - 1]]["position"])
+                    poly_left, _ = find_extreme_points(final_shape[key][sorted_keys_polysilicon[j]]["position"])
+                    _, poly_right_before = find_extreme_points(final_shape[key][sorted_keys_polysilicon[j - 1]]["position"])
                     combined_points = poly_left + poly_right_before
 
                 # to handle non square polygones shapes
