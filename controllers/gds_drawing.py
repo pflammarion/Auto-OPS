@@ -17,6 +17,22 @@ def sorting_key_element_list(item):
     else:
         return 2, 0
 
+
+def test_output(output, file_name):
+    with open("test/output_samples/" + file_name, "r") as json_file:
+        data = json.load(json_file)
+    if data == output:
+        print("-----------------------------------------------------------")
+        print("Results are the same than the test case")
+        print("-----------------------------------------------------------")
+    else:
+        print("\n\n\n\n")
+        print("-----------------------------------------------------------")
+        print("A different output is found for your gate please try again")
+        print("-----------------------------------------------------------")
+        print("\n\n\n\n")
+
+
 def mergePolygons(polygons):
     polygons = [Polygon(p) for p in polygons]
 
@@ -101,7 +117,6 @@ def plotShape(data, title, diff):
         x, y = d[1].exterior.xy
         plt.plot(x, y)
         legend_labels.append(d[0])
-
 
     # Iterate through the sub-dictionaries ('top' and 'bottom')
     for key, sub_dict in data.items():
@@ -322,7 +337,6 @@ class GdsDrawing:
 
         plt.show()
 
-
         # End polygones extraction from gds
 
         # Start sorting and filtering polygones to have only usefull information
@@ -344,7 +358,6 @@ class GdsDrawing:
                                     is_metal_used = True
                     if is_metal_used:
                         merged_label_polygons.remove(metal)
-
 
         # first loop to check if a metal is an output
         # fix those for loops to get all vss and vdd
@@ -418,7 +431,6 @@ class GdsDrawing:
         # sort the temps diff from pmos_0, pmos_1... to nmos_0, nmos_1..
         sorted_temp_diffusion_poly = sorted(temp_diffusion_poly, key=sorting_key_element_list)
 
-
         # for other metals
         metal_wire_index = 0
         for connection in merged_connection_polygons:
@@ -431,7 +443,6 @@ class GdsDrawing:
                         metal_wire_index += 1
                         merged_label_polygons.remove(metal)
 
-
         # find polysilicon_wire
         for linked in linked_list:
             if linked[0] == "metal_wire":
@@ -439,7 +450,6 @@ class GdsDrawing:
                     for polysilicon in merged_polysilicon_polygons:
                         if linked[1].intersects(connection) and linked[1].intersects(polysilicon) and connection.intersects(polysilicon):
                             linked_list.append(["polysilicon_wire", polysilicon, linked[2]])
-
 
         for poly in linked_list:
 
@@ -453,7 +463,6 @@ class GdsDrawing:
 
         plt.title("in and out")
         plt.show()
-
 
         ## old code
         metal_wire_linked_keys = {}
@@ -539,7 +548,6 @@ class GdsDrawing:
             final_shape[key] = {}
             for saved_polysilicon_key in sorted_keys_polysilicon:
                 final_shape[key][saved_polysilicon_key] = temp_final_shape[key][saved_polysilicon_key]
-
 
             # to extract diffusion parts
             for j in range(len(sorted_keys_polysilicon) + 1):
@@ -631,8 +639,17 @@ class GdsDrawing:
         sorted_dict = self.find_unknown_state(sorted_dict, metal_wire_linked_keys)
         sorted_dict = self.find_unknown_state(sorted_dict, metal_wire_linked_keys)
 
-        with open('export/data.json', 'w') as json_file:
+        string_list = [f"{key}_{value}" for key, value in sorted(self.inputs.items())]
+
+        # Join the string list elements with "_"
+        result_string = "_".join(string_list)
+        file_name = str(self.gate_type) + "__" + result_string + ".json"
+        path_name = "export/" + file_name
+
+        with open(path_name, 'w') as json_file:
             json.dump(sorted_dict, json_file, indent=4)
+
+        test_output(sorted_dict, file_name)
 
         plotShape(sorted_dict, self.gate_type, sorted_temp_diffusion_poly)
 

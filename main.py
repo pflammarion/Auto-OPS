@@ -1,3 +1,4 @@
+import itertools
 import sys
 
 from PyQt6.QtGui import QIcon
@@ -9,7 +10,7 @@ from controllers.lib_reader import LibReader
 from controllers.main_controller import MainController
 
 if __name__ == "__main__":
-    program = 1
+    program = 2
     if program == 1:
         app = QApplication(sys.argv)
         app.setApplicationName("CMOS-INV-GUI")
@@ -158,17 +159,25 @@ if __name__ == "__main__":
 
         prefix = 'NAND2_X1'
 
-        #filtered_cells = [cell for cell in cells if cell.startswith(prefix)]
-        filtered_cells=[prefix]
+        # filtered_cells = [cell for cell in cells if cell.startswith(prefix)]
+        filtered_cells = [prefix]
 
         for cell in filtered_cells:
-            lib_reader = LibReader(cell, "Platforms/PDK45nm/NangateOpenCellLibrary_typical.lib")
-            truth_table, voltage, input_names = lib_reader.extract_truth_table()
-            draw_inputs = {}
-            for inp in input_names:
-                value = input(f"Enter a value for {inp}: ")
-                draw_inputs[inp] = int(value)
+            try:
+                lib_reader = LibReader(cell, "Platforms/PDK45nm/NangateOpenCellLibrary_typical.lib")
+                truth_table, voltage, input_names = lib_reader.extract_truth_table()
+                draw_inputs = {}
+                for inp in input_names:
+                    value = input(f"Enter a value for {inp}: ")
+                    draw_inputs[inp] = int(value)
 
-            print(draw_inputs)
-            GdsDrawing("Platforms/PDK45nm/stdcells.gds", cell, 1, 9, 10, 11, [0, 0], truth_table, voltage, draw_inputs)
+                print(draw_inputs)
+                GdsDrawing("Platforms/PDK45nm/stdcells.gds", cell, 1, 9, 10, 11, [0, 0], truth_table, voltage,
+                           draw_inputs)
 
+            except:
+                print("\n\n\n\n")
+                print("-----------------------------------------------------------")
+                print("An error occurred for gate " + str(cell) + " please try again")
+                print("-----------------------------------------------------------")
+                print("\n\n\n\n")
