@@ -1,11 +1,9 @@
-import sys
-
 import gdspy
 import matplotlib.pyplot as plt
 import numpy as np
 import json
 
-from shapely.geometry import Polygon, MultiPolygon, Point
+from shapely.geometry import Polygon, Point
 from shapely.ops import unary_union
 
 
@@ -231,7 +229,7 @@ class GdsDrawing:
     Example:
         To create a GdsDrawing instance:
 
-        >>> drawing = GdsDrawing("example.gds", "INV_X1", 1, 9, 10, 11, [10, 20], [({'A': True}, {'ZN': False}), ({'A': False}, {'ZN': True})], [{'name': 'VDD', 'type': 'primary_power'}, {'name': 'VSS', 'type': 'primary_ground'}], {'A1': 1, 'A2': 1})
+        >>> drawing = GdsDrawing("example.gds", "INV_X1", 1, 9, 10, 11, [10, 20], {'ZN': [({'A': True}, {'ZN': False}), ({'A': False}, {'ZN': True})]}, [{'name': 'VDD', 'type': 'primary_power'}, {'name': 'VSS', 'type': 'primary_ground'}], {'A1': 1, 'A2': 1})
 
     This class draw over a GDS input the optical state of each gate depending on the position and gates states.
     """
@@ -591,11 +589,12 @@ class GdsDrawing:
                                 sorted_dict[element_key][part_key]["state"] = 0
                                 sorted_dict[element_key][part_key]["type"] = "ground"
                             else:
-                                for inputs, output in self.truthtable:
-                                    if inputs == self.inputs:
-                                        output_value = output[label.text]
-                                        sorted_dict[element_key][part_key]["state"] = int(output_value)
-                                        sorted_dict[element_key][part_key]["type"] = "output"
+                                for outputs in self.truthtable:
+                                    for inputs, output in self.truthtable[outputs]:
+                                        if (inputs == self.inputs) & (label.text in output):
+                                            output_value = output[label.text]
+                                            sorted_dict[element_key][part_key]["state"] = int(output_value)
+                                            sorted_dict[element_key][part_key]["type"] = "output"
 
                         # setup wire even if it is metal, polysilicon or both
                         elif linked[0] == "metal_wire" and part_poly.intersects(connection) and connection.intersects(linked[1]) and part_poly.intersects(linked[1]):

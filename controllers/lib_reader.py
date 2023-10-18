@@ -58,14 +58,21 @@ class LibReader:
             voltage.append(data)
 
         input_names = []
+        output_function = {}
         for pin_group in cell.get_groups('pin'):
             pin_name = pin_group.args[0]
             if pin_group['function']:
                 print(pin_group['function'])
                 str_function = str(pin_group['function'])
-                return self.calculateOutputFunction(str_function, pin_name), voltage, input_names
+                output_function[pin_name] = str_function
             else:
                 input_names.append(pin_name)
+
+        output_truth_table = {}
+        for output_key in output_function:
+            output_truth_table[output_key] = self.calculateOutputFunction(output_function[output_key], output_key)
+
+        return output_truth_table, voltage, input_names
 
 
 
