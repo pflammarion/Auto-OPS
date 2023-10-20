@@ -62,7 +62,6 @@ class LibReader:
         for pin_group in cell.get_groups('pin'):
             pin_name = pin_group.args[0]
             if pin_group['function']:
-                print(pin_group['function'])
                 str_function = str(pin_group['function'])
                 output_function[pin_name] = str_function
             else:
@@ -92,8 +91,9 @@ class LibReader:
             for symbol, value in input_values.items():
                 eval_expression = eval_expression.replace(symbol, str(value))
 
+
             # Replace not logical operator for Python's operators
-            eval_expression = eval_expression.replace("!", "not ")
+            eval_expression = eval_expression.replace("!", "not ").replace("&", "and")
 
             # Evaluate the expression two time to convert it from a string to a result
             result = eval(eval(eval_expression))

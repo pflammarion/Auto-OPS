@@ -17,6 +17,25 @@ def sorting_key_element_list(item):
     else:
         return 2, 0
 
+
+def test_output(output, file_name):
+    try:
+        with open("test/output_samples/" + file_name, "r") as json_file:
+            data = json.load(json_file)
+        if data == output:
+            print("Gate test passed " + file_name)
+        else:
+            print("\n\n\n\n")
+            print("-----------------------------------------------------------")
+            print("A different output is found for your gate please try again " + file_name)
+            print("-----------------------------------------------------------")
+            print("\n\n\n\n")
+    except FileNotFoundError:
+        print("-----------------------------------------------------------")
+        print(f"Test could not be applied. File {file_name} not found.")
+        print("-----------------------------------------------------------")
+
+
 def mergePolygons(polygons):
     polygons = [Polygon(p) for p in polygons]
 
@@ -89,7 +108,11 @@ def separate_to_rectangles(coordinates):
     return [left_rectangle, right_rectangle]
 
 
-def plotShape(data, title, diff):
+def plotShape(data, title="", diff=None):
+
+    if diff is None:
+        diff = []
+
     fig, ax = plt.subplots()
 
     point_number = 1
@@ -101,7 +124,6 @@ def plotShape(data, title, diff):
         x, y = d[1].exterior.xy
         plt.plot(x, y)
         legend_labels.append(d[0])
-
 
     # Iterate through the sub-dictionaries ('top' and 'bottom')
     for key, sub_dict in data.items():
@@ -236,6 +258,10 @@ class GdsDrawing:
 
     def __init__(self, gds, gate_type, diffusion_layer, polysilicon_layer, connection_layer, label_layer, positions,
                  truthtable, voltage, draw_inputs):
+
+        ##### For debug
+        self.is_debug = True
+
         self.gds = gds
         self.gate_type = gate_type
         self.diffusion_layer = diffusion_layer
@@ -297,31 +323,31 @@ class GdsDrawing:
         label_polygons = polygons.get((self.label_layer, 0), [])
         merged_label_polygons = mergePolygons(label_polygons)
 
-        for label in self.label_list:
-            x, y = label.position
-            plt.scatter(x, y)
-            plt.annotate(label.text, (x, y))
+        if self.is_debug is False:
 
-        for merged_polygon in merged_label_polygons:
-            x, y = merged_polygon.exterior.xy
-            plt.plot(x, y)
+            for label in self.label_list:
+                x, y = label.position
+                plt.scatter(x, y)
+                plt.annotate(label.text, (x, y))
 
-        for merged_polygon in merged_connection_polygons:
-            x, y = merged_polygon.exterior.xy
-            plt.plot(x, y)
+            for merged_polygon in merged_label_polygons:
+                x, y = merged_polygon.exterior.xy
+                plt.plot(x, y)
 
-        # for merged_polygon in sorted_diffusion_polygons:
-        #    x, y = merged_polygon.exterior.xy
-        #    plt.plot(x, y)
+            for merged_polygon in merged_connection_polygons:
+                x, y = merged_polygon.exterior.xy
+                plt.plot(x, y)
 
-        for merged_polysilicon_polygon in sorted_polysilicon_polygons:
-            x, y = merged_polysilicon_polygon.exterior.xy
-            plt.plot(x, y)
+            # for merged_polygon in sorted_diffusion_polygons:
+            #    x, y = merged_polygon.exterior.xy
+            #    plt.plot(x, y)
 
-        plt.title(self.gate_type)
+            for merged_polysilicon_polygon in sorted_polysilicon_polygons:
+                x, y = merged_polysilicon_polygon.exterior.xy
+                plt.plot(x, y)
 
-        plt.show()
-
+            plt.title(self.gate_type)
+            plt.show()
 
         # End polygones extraction from gds
 
@@ -344,7 +370,6 @@ class GdsDrawing:
                                     is_metal_used = True
                     if is_metal_used:
                         merged_label_polygons.remove(metal)
-
 
         # first loop to check if a metal is an output
         # fix those for loops to get all vss and vdd
@@ -418,7 +443,6 @@ class GdsDrawing:
         # sort the temps diff from pmos_0, pmos_1... to nmos_0, nmos_1..
         sorted_temp_diffusion_poly = sorted(temp_diffusion_poly, key=sorting_key_element_list)
 
-
         # for other metals
         metal_wire_index = 0
         for connection in merged_connection_polygons:
@@ -431,7 +455,6 @@ class GdsDrawing:
                         metal_wire_index += 1
                         merged_label_polygons.remove(metal)
 
-
         # find polysilicon_wire
         for linked in linked_list:
             if linked[0] == "metal_wire":
@@ -441,19 +464,17 @@ class GdsDrawing:
                             linked_list.append(["polysilicon_wire", polysilicon, linked[2]])
 
 
-        for poly in linked_list:
+        if self.is_debug is False:
+            for poly in linked_list:
+                x, y = poly[1].exterior.xy
+                plt.plot(x, y)
+                if poly[0] != "metal_wire" and poly[0] != "polysilicon_wire":
+                    x, y = poly[2].position
+                    plt.scatter(x, y)
+                    plt.annotate(poly[2].text, (x, y))
 
-            x, y = poly[1].exterior.xy
-            plt.plot(x, y)
-
-            if poly[0] != "metal_wire" and poly[0] != "polysilicon_wire":
-                x, y = poly[2].position
-                plt.scatter(x, y)
-                plt.annotate(poly[2].text, (x, y))
-
-        plt.title("in and out")
-        plt.show()
-
+            plt.title("in and out")
+            plt.show()
 
         ## old code
         metal_wire_linked_keys = {}
@@ -539,7 +560,6 @@ class GdsDrawing:
             final_shape[key] = {}
             for saved_polysilicon_key in sorted_keys_polysilicon:
                 final_shape[key][saved_polysilicon_key] = temp_final_shape[key][saved_polysilicon_key]
-
 
             # to extract diffusion parts
             for j in range(len(sorted_keys_polysilicon) + 1):
@@ -631,10 +651,21 @@ class GdsDrawing:
         sorted_dict = self.find_unknown_state(sorted_dict, metal_wire_linked_keys)
         sorted_dict = self.find_unknown_state(sorted_dict, metal_wire_linked_keys)
 
-        with open('export/data.json', 'w') as json_file:
-            json.dump(sorted_dict, json_file, indent=4)
+        string_list = [f"{key}_{value}" for key, value in sorted(self.inputs.items())]
 
-        plotShape(sorted_dict, self.gate_type, sorted_temp_diffusion_poly)
+        # Join the string list elements with "_"
+        result_string = "_".join(string_list)
+        file_name = str(self.gate_type) + "__" + result_string + ".json"
+        path_name = "export/" + file_name
+
+        if self.is_debug is False:
+            with open(path_name, 'w') as json_file:
+                json.dump(sorted_dict, json_file, indent=4)
+
+        test_output(sorted_dict, file_name)
+
+        if self.is_debug is False:
+            plotShape(sorted_dict, self.gate_type, sorted_temp_diffusion_poly)
 
     def find_unknown_state(self, sorted_dict, metal_wire_linked_keys):
         for element_key, element in sorted_dict.items():
@@ -727,11 +758,12 @@ class GdsDrawing:
             elif "metal_wire_" in selected_side["type"] and "state" in selected_side:
                 # find twin and if both has stats then definitive state for part
                 # TODO not covered
-                print("\n")
-                print("!!!!!Warning metal wire can be false!!!!!")
-                print(selected_part)
-                print(selected_side)
-                print("--------------------")
+                if self.is_debug is False:
+                    print("\n")
+                    print("!!!!!Warning metal wire can be false!!!!!")
+                    print(selected_part)
+                    print(selected_side)
+                    print("--------------------")
 
                 if selected_part.get("type") is None:
                     selected_part["type"] = "connector"
