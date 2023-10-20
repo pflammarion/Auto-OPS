@@ -22,13 +22,11 @@ def test_output(output, file_name):
     with open("test/output_samples/" + file_name, "r") as json_file:
         data = json.load(json_file)
     if data == output:
-        print("-----------------------------------------------------------")
-        print("Results are the same than the test case")
-        print("-----------------------------------------------------------")
+        print("Gate test passed " + file_name)
     else:
         print("\n\n\n\n")
         print("-----------------------------------------------------------")
-        print("A different output is found for your gate please try again")
+        print("A different output is found for your gate please try again " + file_name)
         print("-----------------------------------------------------------")
         print("\n\n\n\n")
 
@@ -255,6 +253,10 @@ class GdsDrawing:
 
     def __init__(self, gds, gate_type, diffusion_layer, polysilicon_layer, connection_layer, label_layer, positions,
                  truthtable, voltage, draw_inputs):
+
+        ##### For debug
+        self.is_debug = True
+
         self.gds = gds
         self.gate_type = gate_type
         self.diffusion_layer = diffusion_layer
@@ -316,30 +318,31 @@ class GdsDrawing:
         label_polygons = polygons.get((self.label_layer, 0), [])
         merged_label_polygons = mergePolygons(label_polygons)
 
-        for label in self.label_list:
-            x, y = label.position
-            plt.scatter(x, y)
-            plt.annotate(label.text, (x, y))
+        if self.is_debug is False:
 
-        for merged_polygon in merged_label_polygons:
-            x, y = merged_polygon.exterior.xy
-            plt.plot(x, y)
+            for label in self.label_list:
+                x, y = label.position
+                plt.scatter(x, y)
+                plt.annotate(label.text, (x, y))
 
-        for merged_polygon in merged_connection_polygons:
-            x, y = merged_polygon.exterior.xy
-            plt.plot(x, y)
+            for merged_polygon in merged_label_polygons:
+                x, y = merged_polygon.exterior.xy
+                plt.plot(x, y)
 
-        # for merged_polygon in sorted_diffusion_polygons:
-        #    x, y = merged_polygon.exterior.xy
-        #    plt.plot(x, y)
+            for merged_polygon in merged_connection_polygons:
+                x, y = merged_polygon.exterior.xy
+                plt.plot(x, y)
 
-        for merged_polysilicon_polygon in sorted_polysilicon_polygons:
-            x, y = merged_polysilicon_polygon.exterior.xy
-            plt.plot(x, y)
+            # for merged_polygon in sorted_diffusion_polygons:
+            #    x, y = merged_polygon.exterior.xy
+            #    plt.plot(x, y)
 
-        plt.title(self.gate_type)
+            for merged_polysilicon_polygon in sorted_polysilicon_polygons:
+                x, y = merged_polysilicon_polygon.exterior.xy
+                plt.plot(x, y)
 
-        plt.show()
+            plt.title(self.gate_type)
+            plt.show()
 
         # End polygones extraction from gds
 
@@ -455,18 +458,18 @@ class GdsDrawing:
                         if linked[1].intersects(connection) and linked[1].intersects(polysilicon) and connection.intersects(polysilicon):
                             linked_list.append(["polysilicon_wire", polysilicon, linked[2]])
 
-        for poly in linked_list:
 
-            x, y = poly[1].exterior.xy
-            plt.plot(x, y)
+        if self.is_debug is False:
+            for poly in linked_list:
+                x, y = poly[1].exterior.xy
+                plt.plot(x, y)
+                if poly[0] != "metal_wire" and poly[0] != "polysilicon_wire":
+                    x, y = poly[2].position
+                    plt.scatter(x, y)
+                    plt.annotate(poly[2].text, (x, y))
 
-            if poly[0] != "metal_wire" and poly[0] != "polysilicon_wire":
-                x, y = poly[2].position
-                plt.scatter(x, y)
-                plt.annotate(poly[2].text, (x, y))
-
-        plt.title("in and out")
-        plt.show()
+            plt.title("in and out")
+            plt.show()
 
         ## old code
         metal_wire_linked_keys = {}
@@ -650,12 +653,14 @@ class GdsDrawing:
         file_name = str(self.gate_type) + "__" + result_string + ".json"
         path_name = "export/" + file_name
 
-        with open(path_name, 'w') as json_file:
-            json.dump(sorted_dict, json_file, indent=4)
+        if self.is_debug is False:
+            with open(path_name, 'w') as json_file:
+                json.dump(sorted_dict, json_file, indent=4)
 
         test_output(sorted_dict, file_name)
 
-        plotShape(sorted_dict, self.gate_type, sorted_temp_diffusion_poly)
+        if self.is_debug is False:
+            plotShape(sorted_dict, self.gate_type, sorted_temp_diffusion_poly)
 
     def find_unknown_state(self, sorted_dict, metal_wire_linked_keys):
         for element_key, element in sorted_dict.items():
@@ -748,11 +753,12 @@ class GdsDrawing:
             elif "metal_wire_" in selected_side["type"] and "state" in selected_side:
                 # find twin and if both has stats then definitive state for part
                 # TODO not covered
-                print("\n")
-                print("!!!!!Warning metal wire can be false!!!!!")
-                print(selected_part)
-                print(selected_side)
-                print("--------------------")
+                if self.is_debug is False:
+                    print("\n")
+                    print("!!!!!Warning metal wire can be false!!!!!")
+                    print(selected_part)
+                    print(selected_side)
+                    print("--------------------")
 
                 if selected_part.get("type") is None:
                     selected_part["type"] = "connector"
