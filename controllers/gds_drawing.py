@@ -19,16 +19,21 @@ def sorting_key_element_list(item):
 
 
 def test_output(output, file_name):
-    with open("test/output_samples/" + file_name, "r") as json_file:
-        data = json.load(json_file)
-    if data == output:
-        print("Gate test passed " + file_name)
-    else:
-        print("\n\n\n\n")
+    try:
+        with open("test/output_samples/" + file_name, "r") as json_file:
+            data = json.load(json_file)
+        if data == output:
+            print("Gate test passed " + file_name)
+        else:
+            print("\n\n\n\n")
+            print("-----------------------------------------------------------")
+            print("A different output is found for your gate please try again " + file_name)
+            print("-----------------------------------------------------------")
+            print("\n\n\n\n")
+    except FileNotFoundError:
         print("-----------------------------------------------------------")
-        print("A different output is found for your gate please try again " + file_name)
+        print(f"Test could not be applied. File {file_name} not found.")
         print("-----------------------------------------------------------")
-        print("\n\n\n\n")
 
 
 def mergePolygons(polygons):

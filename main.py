@@ -158,7 +158,7 @@ if __name__ == "__main__":
                  'XOR2_X1',
                  'XOR2_X2']
 
-        prefix = ''
+        prefix = 'MUX2_X1'
 
         filtered_cells = [cell for cell in cells if cell.startswith(prefix)]
         #filtered_cells = [prefix]
@@ -188,16 +188,16 @@ if __name__ == "__main__":
 
                     GdsDrawing("Platforms/PDK45nm/stdcells.gds", cell, 1, 9, 10, 11, [0, 0], truth_table, voltage, draw_inputs)
 
-
-            except:
+            except Exception as e:
                 print("\n\n\n\n")
                 print("-----------------------------------------------------------")
-                print("An error occurred for gate " + str(cell) + " please try again")
+                print(f"An error occurred for gate {cell}: {e}. Please try again.")
                 print("-----------------------------------------------------------")
                 print("\n\n\n\n")
                 error_cell_list.append(cell)
 
-        print("An error occurred for those cells")
-        print(error_cell_list)
+        if len(error_cell_list) > 0:
+            print("An error occurred for those cells")
+            print(error_cell_list)
 
 
