@@ -187,12 +187,12 @@ class MainController:
                 image_read = cv2.imread(image_path)
 
                 if image_read is None:
-                    print("Failed to load the image")
+                    print("Failed to load the image.py")
                     return
 
                 original_height, original_width, _ = image_read.shape
 
-                # Calculate the center of the image
+                # Calculate the center of the image.py
                 center_x, center_y = original_width // 2, original_height // 2
 
                 target_size = (3000, 3000)
@@ -203,14 +203,14 @@ class MainController:
                 crop_y1 = max(0, center_y - target_size[1] // 2)
                 crop_y2 = min(original_height, center_y + target_size[1] // 2)
 
-                # Crop and resize the image to the target size
+                # Crop and resize the image.py to the target size
                 cropped_resized_image = image_read[crop_y1:crop_y2, crop_x1:crop_x2]
                 cropped_resized_image = cv2.resize(cropped_resized_image, target_size)
 
                 gray_image = cv2.cvtColor(cropped_resized_image, cv2.COLOR_BGR2GRAY)
                 self.image_matrix = gray_image
 
-                self.view.display_image(self.image_matrix, self.is_plot_export, "PNG image")
+                self.view.display_image(self.image_matrix, self.is_plot_export, "PNG image.py")
                 self.imported_image = True
                 print("Image loaded as a matrix")
 
@@ -451,9 +451,9 @@ class MainController:
     def print_original_image(self):
         self.dataframe = None
         if self.imported_image:
-            title = "PNG image"
+            title = "PNG image.py"
         else:
-            title = "Generated image"
+            title = "Generated image.py"
 
         self.view.display_image(self.image_matrix, self.is_plot_export, title)
 
