@@ -1,5 +1,7 @@
 import gdspy
 
+from controllers.GDS_Object.attribute import Attribute
+from controllers.GDS_Object.diffusion import Diffusion
 from controllers.GDS_Object.label import Label
 from controllers.GDS_Object.shape import Shape
 
@@ -8,6 +10,9 @@ from shapely.ops import unary_union
 
 
 import matplotlib.pyplot as plt
+
+from controllers.GDS_Object.type import ShapeType
+from controllers.GDS_Object.zone import Zone
 
 
 # A shape could be created from multiple polygones. This method merge them to have only one shape
@@ -51,9 +56,8 @@ class NewGdsDrawing:
 
         self.inputs = draw_inputs
 
-        self.ground_pin_name = None
-        self.power_pin_name = None
         self.element_list = []
+        self.reflexion_list = []
 
         for volt in voltage:
             if "ground" in volt["type"]:
@@ -83,15 +87,21 @@ class NewGdsDrawing:
             extracted_polygons = polygons.get((layer, 0), [])
             merged_polygons = mergePolygons(extracted_polygons)
             for polygon in merged_polygons:
-                shape = Shape(None, polygon.exterior.xy, layer)
+                shape = Shape(None, polygon, polygon.exterior.xy, layer)
                 shape.set_shape_type(layer_list)
                 self.element_list.append(shape)
 
 
     def main(self):
-        self.print_elements()
+        self.element_sorting()
 
-    def print_elements(self):
+        for diffusion in self.reflexion_list:
+            self.create_diffusion_zone(diffusion)
+
+        self.plot_reflexion()
+
+
+    def plot_elements(self):
         for element in self.element_list:
             x, y = element.coordinates
             if isinstance(element, Label):
@@ -103,6 +113,91 @@ class NewGdsDrawing:
 
         plt.title(self.gate_type)
         plt.show()
+
+    def plot_reflexion(self):
+        for reflexion in self.reflexion_list:
+            x, y = reflexion.polygon.exterior.xy
+            plt.plot(x, y)
+            for zone in reflexion.zone_list:
+                x, y = zone.coordinates
+                plt.plot(x, y)
+                plt.plot()
+
+        plt.title(self.gate_type)
+        plt.show()
+
+
+    def element_sorting(self):
+        for element in self.element_list:
+            if isinstance(element, Shape) and element.shape_type != ShapeType.VIA:
+                for via in self.element_list:
+                    if isinstance(via, Shape) and via.shape_type == ShapeType.VIA and element.polygon.intersects(via.polygon):
+                        element.add_via(via)
+
+        for element in self.element_list:
+            if isinstance(element, Shape):
+                self.is_connected(element)
+
+        for element in self.element_list:
+            # To set up diffusion number if connected to at least one metal
+            if isinstance(element, Shape) and element.shape_type == ShapeType.DIFFUSION and isinstance(element.attribute, Shape):
+                self.reflexion_list.append(Diffusion(element.polygon))
+
+    def is_connected(self, element):
+        if element.shape_type == ShapeType.POLYSILICON or element.shape_type == ShapeType.DIFFUSION:
+            for item in self.element_list:
+                if isinstance(item, Shape) and item.shape_type == ShapeType.METAL:
+                    for element_connection in element.connection_list:
+                        if element_connection in item.connection_list:
+                            element.set_attribute(item)
+
+        elif element.shape_type == ShapeType.METAL:
+            for label in self.element_list:
+                if isinstance(label, Label):
+                    if element.polygon.contains(Point(label.coordinates)):
+                        if label.name in self.inputs.keys():
+                            element.set_attribute(Attribute(ShapeType.INPUT, label.name))
+                            break
+
+                        elif label.name in self.truthtable.keys():
+                            element.set_attribute(Attribute(ShapeType.OUTPUT, label.name))
+                            break
+                    else:
+                        _, point_y = label.coordinates
+                        _, metal_y = element.coordinates
+                        set_metal_y = set(metal_y)
+                        is_label_found = False
+                        for y in set_metal_y:
+                            if y == point_y:
+                                is_label_found = True
+                                break
+
+                        if label.name.lower() == self.ground_pin_name.lower() and is_label_found:
+                            element.set_attribute(Attribute(ShapeType.VSS))
+                            break
+
+                        elif label.name.lower() == self.power_pin_name.lower() and is_label_found:
+                            element.set_attribute(Attribute(ShapeType.VDD))
+                            break
+
+    def create_diffusion_zone(self, diffusion):
+        for element in self.element_list:
+            if isinstance(element, Shape) and element.shape_type == ShapeType.POLYSILICON and element.polygon.intersects(diffusion.polygon):
+                intersections = diffusion.polygon.intersection(element.polygon)
+                if hasattr(intersections, "geoms"):
+                    for index, inter in enumerate(intersections.geoms):
+                        diffusion.set_zone(Zone(ShapeType.POLYSILICON, inter.exterior.xy))
+                else:
+                    diffusion.set_zone(Zone(ShapeType.POLYSILICON, intersections.exterior.xy))
+
+
+
+
+
+
+
+
+
 
 
 
