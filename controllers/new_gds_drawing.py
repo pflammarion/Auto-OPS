@@ -8,7 +8,6 @@ from controllers.GDS_Object.shape import Shape
 from shapely.geometry import Polygon, Point
 from shapely.ops import unary_union
 
-
 import matplotlib.pyplot as plt
 
 from controllers.GDS_Object.type import ShapeType
@@ -68,7 +67,6 @@ class NewGdsDrawing:
         self.element_extractor(gds, layer_list)
         self.main()
 
-
     def element_extractor(self, gds, layer_list):
         lib = gdspy.GdsLibrary()
         lib.read_gds(gds)
@@ -91,15 +89,19 @@ class NewGdsDrawing:
                 shape.set_shape_type(layer_list)
                 self.element_list.append(shape)
 
-
     def main(self):
         self.element_sorting()
 
         for diffusion in self.reflexion_list:
-            self.create_diffusion_zone(diffusion)
+            self.connect_diffusion_to_polygon(diffusion)
+
+        for diffusion in self.reflexion_list:
+            self.init_diffusion_zones(diffusion)
+
+        for diffusion in self.reflexion_list:
+            self.connect_diffusion_to_metal(diffusion)
 
         self.plot_reflexion()
-
 
     def plot_elements(self):
         for element in self.element_list:
@@ -115,17 +117,19 @@ class NewGdsDrawing:
         plt.show()
 
     def plot_reflexion(self):
+        color_list = ['black', 'white']
+        fig, ax = plt.subplots()
         for reflexion in self.reflexion_list:
             x, y = reflexion.polygon.exterior.xy
             plt.plot(x, y)
+
             for zone in reflexion.zone_list:
                 x, y = zone.coordinates
-                plt.plot(x, y)
-                plt.plot()
+                ax.scatter(x, y, marker='o')
+                ax.fill(x, y, facecolor=color_list[zone.state], alpha=0.2, edgecolor='black', linewidth=1)
 
         plt.title(self.gate_type)
         plt.show()
-
 
     def element_sorting(self):
         for element in self.element_list:
@@ -180,29 +184,51 @@ class NewGdsDrawing:
                             element.set_attribute(Attribute(ShapeType.VDD))
                             break
 
-    def create_diffusion_zone(self, diffusion):
+    def connect_diffusion_to_polygon(self, diffusion):
+        """
+            To set up the poly silicon overlapping to the diffusion parts
+        """
         for element in self.element_list:
             if isinstance(element, Shape) and element.shape_type == ShapeType.POLYSILICON and element.polygon.intersects(diffusion.polygon):
                 intersections = diffusion.polygon.intersection(element.polygon)
                 if hasattr(intersections, "geoms"):
                     for index, inter in enumerate(intersections.geoms):
-                        diffusion.set_zone(Zone(ShapeType.POLYSILICON, inter.exterior.xy))
+                        diffusion.set_zone(Zone(ShapeType.POLYSILICON, inter.exterior.xy, element))
                 else:
-                    diffusion.set_zone(Zone(ShapeType.POLYSILICON, intersections.exterior.xy))
+                    diffusion.set_zone(Zone(ShapeType.POLYSILICON, intersections.exterior.xy, element))
+
+    def init_diffusion_zones(self, diffusion):
+        temp_zone_to_add = []
+        diffusion.zone_list = sorted(diffusion.zone_list, key=lambda selected_zone: selected_zone.get_min_x_coord())
+
+        coords = diffusion.get_left_points_coords() + diffusion.get_zone_by_index(0).get_left_points_coords()
+        new_zone = Zone(ShapeType.DIFFUSION)
+        new_zone.set_coordinates_from_list(coords)
+        temp_zone_to_add.append(new_zone)
+
+        for index, zone in enumerate(diffusion.zone_list):
+            if index == len(diffusion.zone_list) - 1:
+                coords = diffusion.get_right_points_coords() + diffusion.get_zone_by_index(index).get_right_points_coords()
+
+            else:
+                coords = diffusion.get_zone_by_index(index).get_right_points_coords() + diffusion.get_zone_by_index(index + 1).get_left_points_coords()
+
+            new_zone = Zone(ShapeType.DIFFUSION)
+            new_zone.set_coordinates_from_list(coords)
+            temp_zone_to_add.append(new_zone)
+
+        for zone in temp_zone_to_add:
+            diffusion.set_zone(zone)
 
 
-
-
-
-
-
-
-
-
-
-
-
-
+    def connect_diffusion_to_metal(self, diffusion):
+        """
+            To set up the metal connected to the diffusion parts
+        """
+        for zone in diffusion.zone_list:
+            for element in self.element_list:
+                if isinstance(element, Shape) and element.shape_type == ShapeType.METAL:
+                    print('ok')
 
 
 
