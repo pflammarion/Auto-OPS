@@ -16,7 +16,6 @@ class Zone:
         else:
             raise ValueError("Invalid state input. Please provide a boolean or 0/1.")
 
-
     def set_connected_to(self, shape):
         self.connected_to = shape
 

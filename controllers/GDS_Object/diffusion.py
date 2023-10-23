@@ -6,6 +6,7 @@ class Diffusion:
         self.name = ""
         self.polygon = polygon
         self.zone_list = []
+        self.shape_type = None
 
     def set_zone(self, zone):
         self.zone_list.append(zone)
@@ -27,3 +28,6 @@ class Diffusion:
             return self.zone_list[index]
         else:
             raise IndexError("Index out of range.")
+
+    def set_type(self, shape_type):
+        self.shape_type = shape_type

@@ -1,3 +1,4 @@
+from controllers.GDS_Object.attribute import Attribute
 from controllers.GDS_Object.element import Element
 from controllers.GDS_Object.type import ShapeType
 
@@ -21,5 +22,6 @@ class Shape(Element):
 
     def add_via(self, via):
         self.connection_list.append(via.polygon)
+
 
 

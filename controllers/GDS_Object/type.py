@@ -9,4 +9,5 @@ class ShapeType(Enum):
     OUTPUT = 11
     VDD = 12
     VSS = 13
-    ZONE = 20
+    PMOS = 20
+    NMOS = 21

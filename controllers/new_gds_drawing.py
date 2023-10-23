@@ -101,6 +101,8 @@ class NewGdsDrawing:
         for diffusion in self.reflexion_list:
             self.connect_diffusion_to_metal(diffusion)
 
+        self.set_zone_states()
+
         self.plot_reflexion()
 
     def plot_elements(self):
@@ -126,7 +128,14 @@ class NewGdsDrawing:
             for zone in reflexion.zone_list:
                 x, y = zone.coordinates
                 ax.scatter(x, y, marker='o')
-                ax.fill(x, y, facecolor=color_list[zone.state], alpha=0.2, edgecolor='black', linewidth=1)
+                state = zone.state
+                if reflexion.shape_type == ShapeType.PMOS:
+                    if bool(state):
+                        state = 0
+                    else:
+                        state = 1
+
+                ax.fill(x, y, facecolor=color_list[state], alpha=0.2, edgecolor='black', linewidth=1)
 
         plt.title(self.gate_type)
         plt.show()
@@ -160,11 +169,14 @@ class NewGdsDrawing:
                 if isinstance(label, Label):
                     if element.polygon.contains(Point(label.coordinates)):
                         if label.name in self.inputs.keys():
-                            element.set_attribute(Attribute(ShapeType.INPUT, label.name))
+                            element.set_attribute(Attribute(ShapeType.INPUT, label.name, self.inputs[label.name]))
                             break
 
                         elif label.name in self.truthtable.keys():
-                            element.set_attribute(Attribute(ShapeType.OUTPUT, label.name))
+                            for outputs in self.truthtable:
+                                for inputs, output in self.truthtable[outputs]:
+                                    if (inputs == self.inputs) & (label.name in output):
+                                        element.set_attribute(Attribute(ShapeType.OUTPUT, label.name, output[label.name]))
                             break
                     else:
                         _, point_y = label.coordinates
@@ -220,20 +232,88 @@ class NewGdsDrawing:
         for zone in temp_zone_to_add:
             diffusion.set_zone(zone)
 
-
     def connect_diffusion_to_metal(self, diffusion):
         """
             To set up the metal connected to the diffusion parts
         """
         for zone in diffusion.zone_list:
-            for element in self.element_list:
-                if isinstance(element, Shape) and element.shape_type == ShapeType.METAL:
-                    print('ok')
+            if zone.shape_type == ShapeType.DIFFUSION:
+                for element in self.element_list:
+                    if isinstance(element, Shape) and element.shape_type == ShapeType.METAL:
+                        zone_polygon = Polygon(Polygon(list(zip(zone.coordinates[0], zone.coordinates[1]))))
+                        for connection_polygons in element.connection_list:
+                            if zone_polygon.intersects(connection_polygons):
+                                zone.set_connected_to(element)
 
+                                break
 
+    def set_zone_states(self):
+        for diffusion in self.reflexion_list:
 
+            diffusion.zone_list = sorted(diffusion.zone_list, key=lambda selected_zone: selected_zone.get_min_x_coord())
 
+            for zone in diffusion.zone_list:
+                if zone.connected_to is not None:
+                    if isinstance(zone.connected_to.attribute, Attribute):
+                        if zone.connected_to.attribute.shape_type == ShapeType.VDD:
+                            zone.set_state(1)
+                            diffusion.set_type(ShapeType.PMOS)
+                        elif zone.connected_to.attribute.shape_type == ShapeType.VSS:
+                            zone.set_state(0)
+                            diffusion.set_type(ShapeType.NMOS)
 
+                        elif zone.connected_to.attribute.shape_type == ShapeType.OUTPUT:
+                            zone.set_state(zone.connected_to.attribute.state)
+                        else:
+                            raise AttributeError("Wrong attribut in " + zone.connected_to.shape_type)
 
+                    elif isinstance(zone.connected_to.attribute, Shape) and zone.connected_to.attribute.attribute.shape_type == ShapeType.INPUT:
+                        zone.set_state(zone.connected_to.attribute.attribute.state)
+
+                    else:
+                        print("find my state")
+
+            for index, zone in enumerate(diffusion.zone_list):
+                if zone.connected_to is None:
+                    self.find_neighbor_state(diffusion, index)
+
+    def find_neighbor_state(self, diffusion, zone_index):
+        diffusion_type = diffusion.shape_type
+        zone_list = diffusion.zone_list
+        neighbor_index = [zone_index - 1, zone_index + 1]
+        is_state = False
+
+        while not is_state:
+            for index in range(len(neighbor_index)):
+
+                if index == 0:
+                    next_index = neighbor_index[index] - 1
+                else:
+                    next_index = neighbor_index[index] + 1
+
+                print(neighbor_index[index], next_index)
+
+                if neighbor_index[index] is not None and 0 <= neighbor_index[index] < len(zone_list):
+                    zone = zone_list[neighbor_index[index]]
+                    if zone.shape_type == ShapeType.POLYSILICON:
+                        if diffusion_type == ShapeType.PMOS and zone.state == 0:
+                            neighbor_index[index] = next_index
+                        elif diffusion_type == ShapeType.NMOS and zone.state == 1:
+                            neighbor_index[index] = next_index
+                        else:
+                            neighbor_index[index] = None
+
+                    elif zone.connected_to.shape_type == ShapeType.METAL:
+                        zone_list[zone_index].set_state = zone.state
+                        is_state = True
+                        break
+
+                    else:
+                        neighbor_index[index] = None
+                else:
+                    neighbor_index[index] = None
+
+            if neighbor_index[0] is None and neighbor_index[1] is None:
+                raise Exception("State not found for " + str(zone_index) + " in zone list in " + str(diffusion.shape_type))
 
 
