@@ -1,3 +1,5 @@
+import json
+
 from controllers.GDS_Object.attribute import Attribute
 from controllers.GDS_Object.diffusion import Diffusion
 from controllers.GDS_Object.label import Label
@@ -142,7 +144,7 @@ class NewGdsDrawing:
         self.inputs = draw_inputs
 
         self.element_list = []
-        self.reflexion_list = []
+        self.reflection_list = []
 
         self.gds_cell = gds_cell
 
@@ -183,16 +185,20 @@ class NewGdsDrawing:
 
         self.element_list = elements_to_keep
 
-        for diffusion in self.reflexion_list:
+        for diffusion in self.reflection_list:
             self.connect_diffusion_to_polygon(diffusion)
 
-        for diffusion in self.reflexion_list:
+        for diffusion in self.reflection_list:
             init_diffusion_zones(diffusion)
 
-        for diffusion in self.reflexion_list:
+        for diffusion in self.reflection_list:
             self.connect_diffusion_to_metal(diffusion)
 
         self.set_zone_states()
+
+        # self.plot_elements()
+        # self.plot_reflection()
+        # self.export_reflection_to_json()
 
     def plot_elements(self):
         for element in self.element_list:
@@ -207,18 +213,18 @@ class NewGdsDrawing:
         plt.title(self.gate_type)
         plt.show()
 
-    def plot_reflexion(self):
+    def plot_reflection(self):
         color_list = ['black', 'white']
         fig, ax = plt.subplots()
-        for reflexion in self.reflexion_list:
-            x, y = reflexion.polygon.exterior.xy
+        for reflection in self.reflection_list:
+            x, y = reflection.polygon.exterior.xy
             plt.plot(x, y)
 
-            for zone in reflexion.zone_list:
+            for zone in reflection.zone_list:
                 x, y = zone.coordinates
                 ax.scatter(x, y, marker='o')
                 state = zone.state
-                if reflexion.shape_type == ShapeType.PMOS:
+                if reflection.shape_type == ShapeType.PMOS:
                     if bool(state):
                         state = 0
                     else:
@@ -228,6 +234,29 @@ class NewGdsDrawing:
 
         plt.title(self.gate_type)
         plt.show()
+
+    def export_reflection_to_json(self):
+        data = {'cell_name': self.gate_type, 'inputs': self.inputs, 'reflection': []}
+        for diffusion in self.reflection_list:
+
+            ref_type = str(diffusion.shape_type)
+            zone_list = []
+
+            for zone in diffusion.zone_list:
+                coordinates = [(x, y) for x, y in zip(*zone.coordinates)]
+                state = zone.state
+                zone_type = str(zone.shape_type)
+                zone_list.append({'type': zone_type, 'state': state, 'coordinates': coordinates})
+
+            data['reflection'].append({'type': ref_type, 'zone_list': zone_list})
+
+        string_list = [f"{key}_{value}" for key, value in sorted(self.inputs.items())]
+        result_string = "_".join(string_list)
+        file_name = str(self.gate_type) + "__" + result_string + ".json"
+        path_name = "export/" + file_name
+
+        with open(path_name, 'w') as json_file:
+            json.dump(data, json_file, indent=4)
 
     def element_sorting(self):
         for element in self.element_list:
@@ -245,7 +274,7 @@ class NewGdsDrawing:
             # To set up diffusion number if connected to at least one metal
             if isinstance(element, Shape) and element.shape_type == ShapeType.DIFFUSION and isinstance(
                     element.attribute, Shape):
-                self.reflexion_list.append(Diffusion(element.polygon))
+                self.reflection_list.append(Diffusion(element.polygon))
 
     def is_connected(self, element):
         if element.shape_type == ShapeType.POLYSILICON or element.shape_type == ShapeType.DIFFUSION:
@@ -319,7 +348,7 @@ class NewGdsDrawing:
                                 break
 
     def set_zone_states(self):
-        for diffusion in self.reflexion_list:
+        for diffusion in self.reflection_list:
 
             diffusion.zone_list = sorted(diffusion.zone_list, key=lambda selected_zone: selected_zone.get_min_x_coord())
 
@@ -358,7 +387,7 @@ class NewGdsDrawing:
                                 break
 
                     if found_state is not None:
-                        for diffusion_loop in self.reflexion_list:
+                        for diffusion_loop in self.reflection_list:
                             for index, zone_to_apply in enumerate(diffusion_loop.zone_list):
                                 if zone_to_apply.connected_to == zone.connected_to or (
                                         isinstance(zone_to_apply.connected_to, Shape) and
