@@ -39,58 +39,6 @@ def mergePolygons(polygons):
 
     return merged_polygons
 
-
-def find_neighbor_state(diffusion, zone_index):
-    diffusion_type = diffusion.shape_type
-    zone_list = diffusion.zone_list
-    neighbor_index = [zone_index - 1, zone_index + 1]
-    stop_loop = False
-    found_state = None
-
-    while not stop_loop:
-        for index in range(len(neighbor_index)):
-            if neighbor_index[index] is not None and 0 <= neighbor_index[index] < len(zone_list) and \
-                    zone_list[neighbor_index[index]].connected_to is not None:
-
-                if index == 0:
-                    next_index = neighbor_index[index] - 1
-                else:
-                    next_index = neighbor_index[index] + 1
-
-                zone = zone_list[neighbor_index[index]]
-
-                if zone.shape_type == ShapeType.POLYSILICON:
-                    if diffusion_type == ShapeType.PMOS and zone.state == 0:
-                        neighbor_index[index] = next_index
-                        continue
-
-                    elif diffusion_type == ShapeType.NMOS and zone.state == 1:
-                        neighbor_index[index] = next_index
-                        continue
-                    else:
-                        neighbor_index[index] = None
-                        continue
-
-                elif zone.connected_to.shape_type == ShapeType.METAL:
-                    zone_list[zone_index].set_state(zone.state)
-                    found_state = zone.state
-                    stop_loop = True
-                    break
-
-                else:
-                    neighbor_index[index] = None
-                    continue
-            else:
-                neighbor_index[index] = None
-                continue
-
-        if all(x is None for x in neighbor_index):
-            print("State not found for " + str(zone_index) + " in zone list in " + str(diffusion.shape_type))
-            break
-
-    return found_state
-
-
 def init_diffusion_zones(diffusion):
     temp_zone_to_add = []
     diffusion.zone_list = sorted(diffusion.zone_list, key=lambda selected_zone: selected_zone.get_min_x_coord())
@@ -134,7 +82,7 @@ class NewGdsDrawing:
     def __init__(self, gds_cell, gate_type, layer_list, positions, truthtable, voltage, draw_inputs):
 
         # For debug
-        self.is_debug = True
+        self.is_debug = False
 
         self.gate_type = gate_type
 
@@ -160,7 +108,7 @@ class NewGdsDrawing:
     def element_extractor(self, layer_list):
 
         for label in self.gds_cell.labels:
-            if label.layer == layer_list[3]:
+            if label.layer == layer_list[4]:
                 founded_label = Label(label.text, label.position.tolist())
                 self.element_list.append(founded_label)
 
@@ -196,8 +144,8 @@ class NewGdsDrawing:
 
         self.set_zone_states()
 
-        # self.plot_elements()
-        # self.plot_reflection()
+        self.plot_elements()
+        self.plot_reflection()
         # self.export_reflection_to_json()
 
     def plot_elements(self):
@@ -230,7 +178,10 @@ class NewGdsDrawing:
                     else:
                         state = 1
 
-                ax.fill(x, y, facecolor=color_list[state], alpha=0.2, edgecolor='black', linewidth=1)
+                if state is None:
+                    raise Exception("The RCV calculation cannot be performed on this shape " + str(self.gate_type) + ". Please try again")
+                else:
+                    ax.fill(x, y, facecolor=color_list[state], alpha=0.2, edgecolor='black', linewidth=1)
 
         plt.title(self.gate_type)
         plt.show()
@@ -253,7 +204,7 @@ class NewGdsDrawing:
         string_list = [f"{key}_{value}" for key, value in sorted(self.inputs.items())]
         result_string = "_".join(string_list)
         file_name = str(self.gate_type) + "__" + result_string + ".json"
-        path_name = "export/" + file_name
+        path_name = "test/output_samples_v2/" + file_name
 
         with open(path_name, 'w') as json_file:
             json.dump(data, json_file, indent=4)
@@ -274,7 +225,19 @@ class NewGdsDrawing:
             # To set up diffusion number if connected to at least one metal
             if isinstance(element, Shape) and element.shape_type == ShapeType.DIFFUSION and isinstance(
                     element.attribute, Shape):
-                self.reflection_list.append(Diffusion(element.polygon))
+                diffusion = Diffusion(element.polygon)
+
+                is_pmos = False
+                for item in self.element_list:
+                    if isinstance(element, Shape) and isinstance(item, Shape) and item.shape_type == ShapeType.NWELL and item.polygon.intersects(element.polygon):
+                        diffusion.set_type(ShapeType.PMOS)
+                        is_pmos = True
+                        break
+
+                if not is_pmos:
+                    diffusion.set_type(ShapeType.NMOS)
+
+                self.reflection_list.append(diffusion)
 
     def is_connected(self, element):
         if element.shape_type == ShapeType.POLYSILICON or element.shape_type == ShapeType.DIFFUSION:
@@ -350,6 +313,9 @@ class NewGdsDrawing:
     def set_zone_states(self):
         for diffusion in self.reflection_list:
 
+            if diffusion.shape_type is None:
+                Exception("Error diffusion shape type none")
+
             diffusion.zone_list = sorted(diffusion.zone_list, key=lambda selected_zone: selected_zone.get_min_x_coord())
 
             # known state loop
@@ -358,10 +324,8 @@ class NewGdsDrawing:
                     if isinstance(zone.connected_to.attribute, Attribute):
                         if zone.connected_to.attribute.shape_type == ShapeType.VDD:
                             zone.set_state(1)
-                            diffusion.set_type(ShapeType.PMOS)
                         elif zone.connected_to.attribute.shape_type == ShapeType.VSS:
                             zone.set_state(0)
-                            diffusion.set_type(ShapeType.NMOS)
 
                         elif zone.connected_to.attribute.shape_type == ShapeType.OUTPUT:
                             zone.set_state(zone.connected_to.attribute.state)
@@ -382,21 +346,82 @@ class NewGdsDrawing:
                     found_state = None
                     for index, zone_to_find in enumerate(diffusion.zone_list):
                         if zone_to_find.connected_to == zone.connected_to:
-                            found_state = find_neighbor_state(diffusion, index)
+                            if zone_to_find.state is not None:
+                                found_state = zone_to_find.state
+                            elif zone_to_find.connected_to.shape_type is not ShapeType.POLYSILICON:
+                                found_state = self.find_neighbor_state(diffusion, index)
                             if found_state is not None:
                                 break
 
                     if found_state is not None:
                         for diffusion_loop in self.reflection_list:
+                            # Find other zone connected to this wire branch
                             for index, zone_to_apply in enumerate(diffusion_loop.zone_list):
                                 if zone_to_apply.connected_to == zone.connected_to or (
                                         isinstance(zone_to_apply.connected_to, Shape) and
                                         zone_to_apply.connected_to.attribute == zone.connected_to):
+                                    if zone_to_apply.state is None:
 
-                                    zone_to_apply.set_state(found_state)
-                                    zone_to_apply.wire = True
+                                        zone_to_apply.set_state(found_state)
+                                        zone_to_apply.wire = True
+
 
             # Unknown loop
             for index, zone in enumerate(diffusion.zone_list):
                 if zone.connected_to is None:
-                    find_neighbor_state(diffusion, index)
+                    found_state = self.find_neighbor_state(diffusion, index)
+                    if found_state is not None:
+
+                        zone.set_state(found_state)
+                    else:
+                        zone.set_state(0)
+
+    def find_neighbor_state(self, diffusion, zone_index) -> bool:
+        diffusion_type = diffusion.shape_type
+        zone_list = diffusion.zone_list
+        neighbor_index = [zone_index - 1, zone_index + 1]
+        stop_loop = False
+        found_state = None
+
+        while not stop_loop:
+            for index in range(len(neighbor_index)):
+                if neighbor_index[index] is not None and 0 <= neighbor_index[index] < len(zone_list):
+
+                    if index == 0:
+                        next_index = neighbor_index[index] - 1
+                    else:
+                        next_index = neighbor_index[index] + 1
+
+                    zone = zone_list[neighbor_index[index]]
+
+                    if zone.shape_type == ShapeType.POLYSILICON:
+                        if diffusion_type == ShapeType.PMOS and zone.state == 0:
+                            neighbor_index[index] = next_index
+                            continue
+
+                        elif diffusion_type == ShapeType.NMOS and zone.state == 1:
+                            neighbor_index[index] = next_index
+                            continue
+                        else:
+                            neighbor_index[index] = None
+                            continue
+
+                    elif (zone.connected_to is not None and zone.connected_to.shape_type == ShapeType.METAL and zone.state is not None) or zone.state is not None:
+                        found_state = zone.state
+                        stop_loop = True
+                        break
+
+                    else:
+                        neighbor_index[index] = next_index
+                        continue
+                else:
+                    neighbor_index[index] = None
+                    continue
+
+            if all(x is None for x in neighbor_index):
+                found_state = 0
+                if self.is_debug is True:
+                    print("State not found for " + str(zone_index) + " in zone list in " + str(diffusion.shape_type))
+                break
+
+        return found_state

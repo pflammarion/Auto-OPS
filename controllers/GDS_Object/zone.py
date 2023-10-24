@@ -5,7 +5,7 @@ class Zone:
     def __init__(self, shape_type, coordinates=None, connected_to=None):
         self.shape_type = shape_type
         self.coordinates = coordinates
-        self.state = 0
+        self.state = None
         self.connected_to = connected_to
         self.wire = False
 
@@ -51,16 +51,54 @@ class Zone:
                 sorted_points = []
                 start_point = points[0]
                 sorted_points.append(start_point)
+                previous_way = "x"
                 while len(sorted_points) != len(points):
-                    start_point, sorted_points = find_next_point(start_point, points, sorted_points)
+                    start_point, sorted_points, previous_way = find_next_point(start_point, points, sorted_points, previous_way)
                 return sorted_points
 
-            def find_next_point(start_point, point_list, sorted_points):
-                for point in point_list:
-                    if (point[0] == start_point[0] or point[1] == start_point[1]) and point not in sorted_points:
+            def find_closest_point(start_point, next_point_list, previous_way):
+                min_distance = float('inf')
+                new_start_point = None
+                for point in next_point_list:
+                    if previous_way == "x":
+                        distance = abs(point[0] - start_point[0])
+                    else:
+                        distance = abs(point[1] - start_point[1])
+
+                    if distance < min_distance:
+                        min_distance = distance
                         new_start_point = point
-                        sorted_points.append(point)
-                        return new_start_point, sorted_points
+                if new_start_point is None:
+                    Exception("This program is no working for this diffusion shape")
+
+                return new_start_point
+
+            def find_next_point(start_point, point_list, sorted_points, previous_way):
+                next_point_list = []
+                for point in point_list:
+                    if ((point[0] == start_point[0] and previous_way == "y") or
+                        (point[1] == start_point[1]) and previous_way == "x") \
+                            and point not in sorted_points:
+
+                        next_point_list.append(point)
+
+                if len(next_point_list) == 1:
+                    new_start_point = next_point_list[0]
+                else:
+                    new_start_point = find_closest_point(start_point, next_point_list, previous_way)
+
+                if new_start_point is not None:
+                    sorted_points.append(new_start_point)
+
+                if previous_way == "x":
+                    previous_way = "y"
+                else:
+                    previous_way = "x"
+
+                if new_start_point is None:
+                    print(point_list)
+
+                return new_start_point, sorted_points, previous_way
 
             sorted_coords = sort_points_L_shape(unique_coords)
 

@@ -2,9 +2,10 @@ from enum import Enum
 
 class ShapeType(Enum):
     DIFFUSION = 0
-    POLYSILICON = 1
-    VIA = 2
-    METAL = 3
+    NWELL = 1
+    POLYSILICON = 2
+    VIA = 3
+    METAL = 4
     INPUT = 10
     OUTPUT = 11
     VDD = 12
