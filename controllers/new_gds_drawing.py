@@ -144,8 +144,8 @@ class NewGdsDrawing:
 
         self.set_zone_states()
 
-        self.plot_elements()
-        self.plot_reflection()
+        # self.plot_elements()
+        # self.plot_reflection()
         # self.export_reflection_to_json()
 
     def plot_elements(self):
@@ -329,6 +329,9 @@ class NewGdsDrawing:
 
                         elif zone.connected_to.attribute.shape_type == ShapeType.OUTPUT:
                             zone.set_state(zone.connected_to.attribute.state)
+
+                        elif zone.connected_to.attribute.shape_type == ShapeType.INPUT and zone.connected_to.attribute.label == "GCK":
+                            raise AttributeError("Clock gates not working " + str(zone.connected_to.attribute.label))
 
                         else:
                             raise AttributeError("Wrong attribut in " + str(zone.connected_to.shape_type))

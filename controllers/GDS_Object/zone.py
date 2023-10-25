@@ -96,11 +96,14 @@ class Zone:
                     previous_way = "x"
 
                 if new_start_point is None:
-                    print(point_list)
+                    raise Exception("Error while sorting coordinates in reflection zone" + str(point_list))
 
                 return new_start_point, sorted_points, previous_way
 
-            sorted_coords = sort_points_L_shape(unique_coords)
+            # Coordinates sorting in y position before performing L shape algo
+            sorted_coords = sorted(unique_coords, key=lambda p: p[1])
+
+            sorted_coords = sort_points_L_shape(sorted_coords)
 
         else:
             # Sort them clockwise and remove duplicated points
