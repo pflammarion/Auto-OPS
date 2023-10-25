@@ -1,41 +1,20 @@
-import gdspy
-import matplotlib.pyplot as plt
-import numpy as np
 import json
+
+from controllers.GDS_Object.attribute import Attribute
+from controllers.GDS_Object.diffusion import Diffusion
+from controllers.GDS_Object.label import Label
+from controllers.GDS_Object.shape import Shape
 
 from shapely.geometry import Polygon, Point
 from shapely.ops import unary_union
 
+import matplotlib.pyplot as plt
 
-def sorting_key_element_list(item):
-    label = item[0]
-    parts = label.split('_')
-    if parts[0] == 'pmos':
-        return 0, int(parts[1])
-    elif parts[0] == 'nmos':
-        return 1, int(parts[1])
-    else:
-        return 2, 0
+from controllers.GDS_Object.type import ShapeType
+from controllers.GDS_Object.zone import Zone
 
 
-def test_output(output, file_name):
-    try:
-        with open("test/output_samples/" + file_name, "r") as json_file:
-            data = json.load(json_file)
-        if data == output:
-            print("Gate test passed " + file_name)
-        else:
-            print("\n\n\n\n")
-            print("-----------------------------------------------------------")
-            print("A different output is found for your gate please try again " + file_name)
-            print("-----------------------------------------------------------")
-            print("\n\n\n\n")
-    except FileNotFoundError:
-        print("-----------------------------------------------------------")
-        print(f"Test could not be applied. File {file_name} not found.")
-        print("-----------------------------------------------------------")
-
-
+# A shape could be created from multiple polygones. This method merge them to have only one shape
 def mergePolygons(polygons):
     polygons = [Polygon(p) for p in polygons]
 
@@ -60,221 +39,62 @@ def mergePolygons(polygons):
 
     return merged_polygons
 
+def init_diffusion_zones(diffusion):
+    temp_zone_to_add = []
+    diffusion.zone_list = sorted(diffusion.zone_list, key=lambda selected_zone: selected_zone.get_min_x_coord())
 
-def sortPointsClockwise(coordinates):
-    cx, cy = np.mean(coordinates, axis=0)
+    coords = diffusion.get_left_points_coords() + diffusion.get_zone_by_index(0).get_left_points_coords()
+    new_zone = Zone(ShapeType.DIFFUSION)
+    new_zone.set_coordinates_from_list(coords)
+    temp_zone_to_add.append(new_zone)
 
-    polar_angles = [np.arctan2(yi - cy, xi - cx) for xi, yi in coordinates]
+    for index, zone in enumerate(diffusion.zone_list):
+        if index == len(diffusion.zone_list) - 1:
+            coords = diffusion.get_right_points_coords() + diffusion.get_zone_by_index(index).get_right_points_coords()
 
-    polar_angles = [angle + 2 * np.pi if angle < 0 else angle for angle in polar_angles]
+        else:
+            coords = diffusion.get_zone_by_index(index).get_right_points_coords() + diffusion.get_zone_by_index(
+                index + 1).get_left_points_coords()
 
-    sorted_points = [point for _, point in sorted(zip(polar_angles, coordinates))]
+        new_zone = Zone(ShapeType.DIFFUSION)
+        new_zone.set_coordinates_from_list(coords)
+        temp_zone_to_add.append(new_zone)
 
-    return [sorted_points]
+        # To handle non square polygones shapes
+        unique_y_values = set(point[1] for point in coords)
 
+        if len(unique_y_values) > 2:
+            min_x = new_zone.get_min_x_coord()
+            max_x = new_zone.get_max_x_coord()
 
-def separate_to_rectangles(coordinates):
-    x_coords = sorted(list(set(point[0] for point in coordinates)))
+            for x, y in zip(*diffusion.polygon.exterior.xy):
+                if min_x < x < max_x:
+                    coords.append((x, y))
 
-    mid_x = x_coords[1]
-    min_x = x_coords[0]
-    max_x = x_coords[2]
+            new_zone.set_coordinates_from_list(coords)
 
-    min_y_when_min_x = None
-    max_y_when_min_x = None
-    for point in coordinates:
-        x, y = point
-        if x == min_x:
-            if min_y_when_min_x is None or y <= min_y_when_min_x:
-                min_y_when_min_x = y
-            if max_y_when_min_x is None or y >= max_y_when_min_x:
-                max_y_when_min_x = y
-
-    max_y_when_max_x = None
-    min_y_when_max_x = None
-    for point in coordinates:
-        x, y = point
-        if x == max_x:
-            if min_y_when_max_x is None or y <= min_y_when_max_x:
-                min_y_when_max_x = y
-            if max_y_when_max_x is None or y >= max_y_when_max_x:
-                max_y_when_max_x = y
-
-    left_rectangle = [(min_x, min_y_when_min_x), (min_x, max_y_when_min_x), (mid_x, max_y_when_min_x),
-                      (mid_x, min_y_when_min_x)]
-    right_rectangle = [(mid_x, min_y_when_max_x), (mid_x, max_y_when_max_x), (max_x, max_y_when_max_x),
-                       (max_x, min_y_when_max_x)]
-
-    return [left_rectangle, right_rectangle]
-
-
-def plotShape(data, title="", diff=None):
-
-    if diff is None:
-        diff = []
-
-    fig, ax = plt.subplots()
-
-    point_number = 1
-    counter = 0
-    color_list = ['black', 'white']
-    legend_labels = []
-
-    for d in diff:
-        x, y = d[1].exterior.xy
-        plt.plot(x, y)
-        legend_labels.append(d[0])
-
-    # Iterate through the sub-dictionaries ('top' and 'bottom')
-    for key, sub_dict in data.items():
-        # Iterate through the sub-dictionary items ('diff_1', 'diff_2', 'poly')
-        for sub_key, part in sub_dict.items():
-
-            coordinates = part["position"]
-            # TODO remove resorting points already sorted
-
-            # default no reflexion
-            state = 0
-            if "state" in part:
-                state = part["state"]
-                if "pmos" in key:
-                    if bool(state):
-                        state = 0
-                    else:
-                        state = 1
-
-            if len(coordinates) > 4:
-                sorted_points_list = separate_to_rectangles(coordinates)
-            else:
-                sorted_points_list = sortPointsClockwise(coordinates)
-            for sorted_points in sorted_points_list:
-
-                x, y = zip(*sorted_points)
-
-                ax.scatter(x, y, label=f'{key} - {sub_key}', marker='o')
-
-                for xi, yi in zip(x, y):
-                    # ax.annotate(str(point_number), (xi, yi), textcoords="offset points", xytext=(0, 10), ha='center')
-                    point_number += 1
-
-                color = color_list[state]
-
-                ax.fill(x, y, facecolor=color, alpha=0.2, edgecolor='black', linewidth=1)
-
-            counter += 1
-
-    ax.set_xlabel('X-coordinate')
-    ax.set_ylabel('Y-coordinate')
-    # ax.legend()
-    plt.title(title)
-    plt.legend(legend_labels)
-
-    plt.show()
-
-
-def sortPointsInDict(data):
-    for key, sub_dict in data.items():
-        # Iterate through the sub-dictionary items ('diff_1', 'diff_2', 'poly')
-        for sub_key, part in sub_dict.items():
-
-            coordinates = part["position"]
-
-            if len(coordinates) > 4:
-                original_list = separate_to_rectangles(coordinates)
-            else:
-                original_list = sortPointsClockwise(coordinates)
-
-            part["position"] = [[x, y] for sublist in original_list for x, y in sublist]
-
-    return data
-
-
-def find_extreme_points(points):
-    sorted_points = sorted(points, key=lambda point: point[0])
-
-    extreme_left = sorted_points[:2]
-    extreme_right = sorted_points[-2:]
-
-    return extreme_left, extreme_right
-
-
-# This function will sort the keys in alternating order, first "diff_0", then "poly_0", "diff_1", "poly_1", and so on.
-def sort_dict_alternating_keys(input_dict):
-    sorted_dict = {}
-    for key, value in input_dict.items():
-        # Extract the keys starting with "diff_" and "poly_"
-        diff_keys = [k for k in value if k.startswith("diff")]
-        poly_keys = [k for k in value if k.startswith("poly")]
-
-        # Sort the keys in alternating order
-        sorted_keys = []
-        for i in range(max(len(diff_keys), len(poly_keys))):
-            if i < len(diff_keys):
-                sorted_keys.append(diff_keys[i])
-            if i < len(poly_keys):
-                sorted_keys.append(poly_keys[i])
-
-        # Create a new sub-dictionary with the sorted keys
-        sorted_dict[key] = {sub_key: value[sub_key] for sub_key in sorted_keys}
-
-    return sorted_dict
+    for zone in temp_zone_to_add:
+        diffusion.set_zone(zone)
 
 
 class GdsDrawing:
-    """
-    Represents a drawing element in a GDS (Graphics Data System) layout.
 
-    Args:
-        gds (str): The GDS file path or name.
-        gate_type (str): The name of the gate in the gds file in the Cells' list.
-        diffusion_layer (int): The number affiliated to the layer of the n and p diffusion.
-        polysilicon_layer (int): The number affiliated to the layer of the polysilicon.
-        positions (list): A list containing the X and Y coordinates of the drawing's position.
-        truthtable (dict): The truthtable is a list containing the information the output based on the input for a gate.
-        connection_layer (int): The number affiliated to the layer of the conections.
-        label_layer(int): The number affiliated to the layer of labels.
-        voltage(list): Contains the voltage names and types.
-        draw_inputs(dict): contains the inputs values.
+    def __init__(self, gds_cell, gate_type, layer_list, positions, truthtable, voltage, draw_inputs):
 
-    Attributes:
-        gds (str): The GDS file path or name.
-        gate_type (str): The name of the gate in the gds file in the Cells' list.
-        diffusion_layer (int): The number affiliated to the layer of the n and p diffusion.
-        polysilicon_layer (int): The number affiliated to the layer of the polysilicon.
-        positions (list): A list containing the X and Y coordinates of the drawing's position.
-        truthtable (dict): The truthtable is a list containing the information the output based on the input for a gate.
-        connection_layer (int): The number affiliated to the layer of the conections.
-        label_layer(int): The number affiliated to the layer of labels.
-        ground_pin_name(list): Contains the voltage names and types.
-        inputs(dict): contains the inputs values.
+        # For debug
+        self.is_debug = False
 
-    Example:
-        To create a GdsDrawing instance:
-
-        >>> drawing = GdsDrawing("example.gds", "INV_X1", 1, 9, 10, 11, [10, 20], {'ZN': [({'A': True}, {'ZN': False}), ({'A': False}, {'ZN': True})]}, [{'name': 'VDD', 'type': 'primary_power'}, {'name': 'VSS', 'type': 'primary_ground'}], {'A1': 1, 'A2': 1})
-
-    This class draw over a GDS input the optical state of each gate depending on the position and gates states.
-    """
-
-    def __init__(self, gds, gate_type, diffusion_layer, polysilicon_layer, connection_layer, label_layer, positions,
-                 truthtable, voltage, draw_inputs):
-
-        ##### For debug
-        self.is_debug = True
-
-        self.gds = gds
         self.gate_type = gate_type
-        self.diffusion_layer = diffusion_layer
-        self.polysilicon_layer = polysilicon_layer
+
         self.positions = positions
         self.truthtable = truthtable
-        self.connection_layer = connection_layer
-        self.label_layer = label_layer
-        self.label_list = []
+
         self.inputs = draw_inputs
 
-        self.ground_pin_name = None
-        self.power_pin_name = None
+        self.element_list = []
+        self.reflection_list = []
+
+        self.gds_cell = gds_cell
 
         for volt in voltage:
             if "ground" in volt["type"]:
@@ -282,508 +102,362 @@ class GdsDrawing:
             elif "power" in volt["type"]:
                 self.power_pin_name = volt["name"]
 
+        self.element_extractor(layer_list)
         self.main()
 
+    def element_extractor(self, layer_list):
+
+        for label in self.gds_cell.labels:
+            if label.layer == layer_list[4]:
+                founded_label = Label(label.text, label.position.tolist())
+                self.element_list.append(founded_label)
+
+        # extract polygons from GDS
+        polygons = self.gds_cell.get_polygons(by_spec=True)
+
+        for layer in layer_list:
+            extracted_polygons = polygons.get((layer, 0), [])
+            merged_polygons = mergePolygons(extracted_polygons)
+            for polygon in merged_polygons:
+                shape = Shape(None, polygon, polygon.exterior.xy, layer)
+                shape.set_shape_type(layer_list)
+                self.element_list.append(shape)
+
     def main(self):
-        lib = gdspy.GdsLibrary()
-        lib.read_gds(self.gds)
-        cell = lib.cells[self.gate_type]
+        self.element_sorting()
 
-        for label in cell.labels:
-            if label.layer == self.label_layer:
-                self.label_list.append(label)
+        elements_to_keep = []
+        for element in self.element_list:
+            if not (isinstance(element, Shape) and element.shape_type == ShapeType.VIA):
+                elements_to_keep.append(element)
 
-        polygons = cell.get_polygons(by_spec=True)
+        self.element_list = elements_to_keep
 
-        # TODO check about the polygons (layers) selection for gds files (idem for diff)
-        polysilicon_polygon = polygons.get((self.polysilicon_layer, 0), [])
+        for diffusion in self.reflection_list:
+            self.connect_diffusion_to_polygon(diffusion)
 
-        # find the rectangle
-        merged_polysilicon_polygons = mergePolygons(polysilicon_polygon)
-        sorted_polysilicon_polygons = sorted(merged_polysilicon_polygons,
-                                             key=lambda polygon: min(polygon.exterior.xy[0]))
+        for diffusion in self.reflection_list:
+            init_diffusion_zones(diffusion)
 
-        min_y_coords = [min(polygon.exterior.xy[1]) for polygon in merged_polysilicon_polygons]
-        max_y_coords = [max(polygon.exterior.xy[1]) for polygon in merged_polysilicon_polygons]
+        for diffusion in self.reflection_list:
+            self.connect_diffusion_to_metal(diffusion)
 
-        min_y_poly = min(min_y_coords)
-        max_y_poly = max(max_y_coords)
+        self.set_zone_states()
 
-        diffusion_polygons = polygons.get((self.diffusion_layer, 0), [])
+        # self.plot_elements()
+        # self.plot_reflection()
+        # self.export_reflection_to_json()
 
-        filtered_diffusion_polygons = [polygon for polygon in diffusion_polygons if
-                                       all(min_y_poly <= y <= max_y_poly for _, y in polygon)]
-        merged_diffusion_polygons = mergePolygons(filtered_diffusion_polygons)
-        sorted_diffusion_polygons = sorted(merged_diffusion_polygons, key=lambda polygon: min(polygon.exterior.xy[1]),
-                                           reverse=True)
+        # self.export_reflection_to_png()
 
-        connection_polygons = polygons.get((self.connection_layer, 0), [])
-        merged_connection_polygons = mergePolygons(connection_polygons)
-
-        label_polygons = polygons.get((self.label_layer, 0), [])
-        merged_label_polygons = mergePolygons(label_polygons)
-
-        if self.is_debug is False:
-
-            for label in self.label_list:
-                x, y = label.position
+    def plot_elements(self):
+        for element in self.element_list:
+            x, y = element.coordinates
+            if isinstance(element, Label):
                 plt.scatter(x, y)
-                plt.annotate(label.text, (x, y))
-
-            for merged_polygon in merged_label_polygons:
-                x, y = merged_polygon.exterior.xy
-                plt.plot(x, y)
-
-            for merged_polygon in merged_connection_polygons:
-                x, y = merged_polygon.exterior.xy
-                plt.plot(x, y)
-
-            # for merged_polygon in sorted_diffusion_polygons:
-            #    x, y = merged_polygon.exterior.xy
-            #    plt.plot(x, y)
-
-            for merged_polysilicon_polygon in sorted_polysilicon_polygons:
-                x, y = merged_polysilicon_polygon.exterior.xy
-                plt.plot(x, y)
-
-            plt.title(self.gate_type)
-            plt.show()
-
-        # End polygones extraction from gds
-
-        # Start sorting and filtering polygones to have only usefull information
-
-        # linked_list is used to know which polygones are state linked to each other
-        linked_list = []
-        check_label_list = self.label_list
-        # first loop to check if a poly is an input
-        is_metal_used = False
-        for label in check_label_list:
-            for metal in merged_label_polygons:
-                label_position = Point(label.position.tolist())
-                if metal.contains(label_position):
-                    for connection in merged_connection_polygons:
-                        if metal.intersects(connection):
-                            for polysilicon in merged_polysilicon_polygons:
-                                if polysilicon.intersects(connection) and polysilicon.intersects(metal):
-                                    linked_list.append(['polysilicon', polysilicon, label])
-                                    is_metal_used = True
-                    if is_metal_used:
-                        merged_label_polygons.remove(metal)
-
-        # first loop to check if a metal is an output
-        # fix those for loops to get all vss and vdd
-        for label in check_label_list:
-            for metal in merged_label_polygons:
-                label_position = Point(label.position.tolist())
-
-                if metal.contains(label_position):
-                    linked_list.append(["metal", metal, label])
-                    merged_label_polygons.remove(metal)
-                    break
-
-        # try to find vss and vcc from the label position
-        temp_diffusion_poly = []
-        nmos_counter = 0
-        pmos_counter = 0
-
-        for label in check_label_list:
-            for metal in merged_label_polygons:
-                _, point_y = label.position
-                _, metal_y = metal.exterior.xy
-                set_metal_y = set(metal_y)
-                for y in set_metal_y:
-                    if y == point_y:
-                        linked_list.append(["metal", metal, label])
-
-                        # TODO find a way to do not duplicate this code
-                        # change the name of element to vss or vdd linked
-                        if label.text.lower() == self.power_pin_name.lower():
-                            for connection in merged_connection_polygons:
-                                for diff in sorted_diffusion_polygons:
-                                    if metal.intersects(connection) and connection.intersects(diff) and diff.intersects(metal):
-                                        new_key = "pmos_" + str(pmos_counter)
-                                        temp_diffusion_poly.append([new_key, diff])
-                                        sorted_diffusion_polygons.remove(diff)
-                                        pmos_counter += 1
-                                        break
-
-                        elif label.text.lower() == self.ground_pin_name.lower():
-                            for connection in merged_connection_polygons:
-                                for diff in sorted_diffusion_polygons:
-                                    if metal.intersects(connection) and connection.intersects(diff) and diff.intersects(metal):
-                                        new_key = "nmos_" + str(nmos_counter)
-                                        temp_diffusion_poly.append([new_key, diff])
-                                        sorted_diffusion_polygons.remove(diff)
-                                        nmos_counter += 1
-                                        break
-
-                        merged_label_polygons.remove(metal)
-                        break
-
-        # for undefined pmos or nom try to find their y pos to determine if they are in n or p mos part
-
-        for diff in temp_diffusion_poly:
-            for unknown_diff in sorted_diffusion_polygons:
-                if set(unknown_diff.exterior.xy[1]).intersection(set(diff[1].exterior.xy[1])):
-                    if "nmos" in diff[0]:
-                        new_key = "nmos_" + str(nmos_counter)
-                        temp_diffusion_poly.append([new_key, unknown_diff])
-                        sorted_diffusion_polygons.remove(unknown_diff)
-                        nmos_counter += 1
-                        break
-
-                    elif "pmos" in diff[0]:
-                        new_key = "pmos_" + str(pmos_counter)
-                        temp_diffusion_poly.append([new_key, unknown_diff])
-                        sorted_diffusion_polygons.remove(unknown_diff)
-                        pmos_counter += 1
-                        break
-
-        # sort the temps diff from pmos_0, pmos_1... to nmos_0, nmos_1..
-        sorted_temp_diffusion_poly = sorted(temp_diffusion_poly, key=sorting_key_element_list)
-
-        # for other metals
-        metal_wire_index = 0
-        for connection in merged_connection_polygons:
-            for diffusion in merged_diffusion_polygons:
-                for metal in merged_label_polygons:
-                    if metal.intersects(connection) and connection.intersects(diffusion) and diffusion.intersects(
-                            metal):
-                        # metals which is to connect 2 parts without imposed value
-                        linked_list.append(["metal_wire", metal, metal_wire_index])
-                        metal_wire_index += 1
-                        merged_label_polygons.remove(metal)
-
-        # find polysilicon_wire
-        for linked in linked_list:
-            if linked[0] == "metal_wire":
-                for connection in merged_connection_polygons:
-                    for polysilicon in merged_polysilicon_polygons:
-                        if linked[1].intersects(connection) and linked[1].intersects(polysilicon) and connection.intersects(polysilicon):
-                            linked_list.append(["polysilicon_wire", polysilicon, linked[2]])
-
-
-        if self.is_debug is False:
-            for poly in linked_list:
-                x, y = poly[1].exterior.xy
-                plt.plot(x, y)
-                if poly[0] != "metal_wire" and poly[0] != "polysilicon_wire":
-                    x, y = poly[2].position
-                    plt.scatter(x, y)
-                    plt.annotate(poly[2].text, (x, y))
-
-            plt.title("in and out")
-            plt.show()
-
-        ## old code
-        metal_wire_linked_keys = {}
-        temp_final_shape = {}
-        final_shape = {}
-
-        polysilicon_list = []
-        for poly in linked_list:
-            if poly[0] == "polysilicon" or poly[0] == "polysilicon_wire":
-                polysilicon_list.append(poly)
-
-        for i in range(len(sorted_temp_diffusion_poly)):
-            key = sorted_temp_diffusion_poly[i][0]
-            temp_final_shape[key] = {}
-            intersection_counter = 0
-
-            polysilicon_list = []
-            for poly in linked_list:
-                if poly[0] == "polysilicon" or poly[0] == "polysilicon_wire":
-                    polysilicon_list.append(poly)
-            for merged_polysilicon in polysilicon_list:
-                found_pair = False
-                if sorted_temp_diffusion_poly[i][1].intersects(merged_polysilicon[1]):
-                    intersection_polygons = sorted_temp_diffusion_poly[i][1].intersection(merged_polysilicon[1])
-
-                    # init var to handle error
-                    # TODO do somthing for this horrible code part
-                    if hasattr(intersection_polygons, "geoms"):
-                        for index, intersection_polygon in enumerate(intersection_polygons.geoms):
-                            x, y = intersection_polygon.exterior.xy
-                            ploysilicon_key = merged_polysilicon[0] + "_" + str(intersection_counter)
-                            temp_final_shape[key][ploysilicon_key] = {}
-                            unique_coordinates = list(set(zip(x, y)))
-                            temp_final_shape[key][ploysilicon_key]["position"] = unique_coordinates
-                            if "polysilicon_wire" not in merged_polysilicon[0]:
-                                if merged_polysilicon[2].text in self.inputs:
-                                    temp_final_shape[key][ploysilicon_key]["state"] = self.inputs[merged_polysilicon[2].text]
-                                    temp_final_shape[key][ploysilicon_key]["type"] = "input"
-                            else:
-                                temp_final_shape[key][ploysilicon_key]["type"] = merged_polysilicon[0] + "_" + str(merged_polysilicon[2])
-                                for pair_index in metal_wire_linked_keys:
-                                    wire_list = metal_wire_linked_keys.get(pair_index)
-                                    if pair_index == merged_polysilicon[2] and [key, ploysilicon_key] not in wire_list:
-                                        wire_list.append([key, ploysilicon_key])
-                                        found_pair = True
-                                        break
-
-                                if found_pair is False:
-                                    metal_wire_linked_keys[merged_polysilicon[2]] = [[key, ploysilicon_key]]
-
-                            intersection_counter += 1
-                    else:
-                        x, y = intersection_polygons.exterior.xy
-                        ploysilicon_key = merged_polysilicon[0] + "_" + str(intersection_counter)
-                        temp_final_shape[key][ploysilicon_key] = {}
-                        unique_coordinates = list(set(zip(x, y)))
-                        temp_final_shape[key][ploysilicon_key]["position"] = unique_coordinates
-                        if "polysilicon_wire" not in merged_polysilicon[0]:
-                            if merged_polysilicon[2].text in self.inputs:
-                                temp_final_shape[key][ploysilicon_key]["state"] = self.inputs[merged_polysilicon[2].text]
-                                temp_final_shape[key][ploysilicon_key]["type"] = "input"
-                        else:
-                            temp_final_shape[key][ploysilicon_key]["type"] = merged_polysilicon[0] + "_" + str(merged_polysilicon[2])
-                            for pair_index in metal_wire_linked_keys:
-                                wire_list = metal_wire_linked_keys.get(pair_index)
-                                if pair_index == merged_polysilicon[2] and [key, ploysilicon_key] not in wire_list:
-                                    wire_list.append([key, ploysilicon_key])
-                                    found_pair = True
-                                    break
-
-                            if found_pair is False:
-                                metal_wire_linked_keys[merged_polysilicon[2]] = [[key, ploysilicon_key]]
-
-                        intersection_counter += 1
-
-            diff_coordinates_x, diff_coordinates_y = sorted_temp_diffusion_poly[i][1].exterior.xy
-            diff_coordinates_list = list(set(zip(diff_coordinates_x, diff_coordinates_y)))
-            extreme_left_diff, extreme_right_diff = find_extreme_points(diff_coordinates_list)
-
-            # To sort keys from left to right after overlap check on diffusion
-            sorted_keys_polysilicon = sorted(temp_final_shape[key], key=lambda polygon: min(temp_final_shape[key][polygon]["position"], key=lambda point: point[0]))
-
-            final_shape[key] = {}
-            for saved_polysilicon_key in sorted_keys_polysilicon:
-                final_shape[key][saved_polysilicon_key] = temp_final_shape[key][saved_polysilicon_key]
-
-            # to extract diffusion parts
-            for j in range(len(sorted_keys_polysilicon) + 1):
-                diffusion_key = "diff_" + str(j)
-                final_shape[key][diffusion_key] = {}
-                if j == 0:
-                    poly_left, poly_right = find_extreme_points(final_shape[key][sorted_keys_polysilicon[j]]["position"])
-                    combined_points = extreme_left_diff + poly_left
-                elif j == len(sorted_keys_polysilicon):
-                    poly_left, poly_right = find_extreme_points(final_shape[key][sorted_keys_polysilicon[j - 1]]["position"])
-                    combined_points = poly_right + extreme_right_diff
-                else:
-                    # try to understand why points are sorted in the inverse way (right for left, and left fort right)
-                    poly_left, _ = find_extreme_points(final_shape[key][sorted_keys_polysilicon[j]]["position"])
-                    _, poly_right_before = find_extreme_points(final_shape[key][sorted_keys_polysilicon[j - 1]]["position"])
-                    combined_points = poly_left + poly_right_before
-
-                # to handle non square polygones shapes
-
-                unique_y_values = set(point[1] for point in combined_points)
-                num_unique_y = len(unique_y_values)
-
-                if num_unique_y > 2:
-                    min_x = min(point[0] for point in combined_points)
-                    max_x = max(point[0] for point in combined_points)
-                    min_y = min(point[1] for point in combined_points)
-                    max_y = max(point[1] for point in combined_points)
-
-                    filtered_points = [
-                        point for point in diff_coordinates_list
-                        if min_x <= point[0] <= max_x and min_y <= point[1] <= max_y
-                    ]
-                    existing_y_coords_combined = set(point[1] for point in combined_points)
-                    existing_y_coords_filtered = set(point[1] for point in filtered_points)
-                    missing_y = existing_y_coords_combined - existing_y_coords_filtered
-
-                    if missing_y:
-                        missing_x = set(point[0] for point in filtered_points)
-                        new_point = list(set(zip(missing_x, missing_y)))
-                        combined_points = combined_points + new_point
-
-                    combined_points = combined_points + filtered_points
-
-                final_shape[key][diffusion_key]["position"] = combined_points
-
-        sorted_dict = sort_dict_alternating_keys(final_shape)
-        sorted_dict = sortPointsInDict(sorted_dict)
-
-        for element_key in sorted_dict:
-            for part_key in sorted_dict[element_key]:
-                found_pair = False
-                position = sorted_dict[element_key][part_key]["position"]
-                part_poly = Polygon(position)
-                for connection in merged_connection_polygons:
-                    for linked in linked_list:
-                        # setup ground, power and output
-
-                        if linked[0] == "metal" and part_poly.intersects(connection) and connection.intersects(
-                                linked[1]) and part_poly.intersects(linked[1]):
-                            label = linked[2]
-                            if label.text.lower() == self.power_pin_name.lower():
-                                sorted_dict[element_key][part_key]["state"] = 1
-                                sorted_dict[element_key][part_key]["type"] = "power"
-                            elif label.text.lower() == self.ground_pin_name.lower():
-                                sorted_dict[element_key][part_key]["state"] = 0
-                                sorted_dict[element_key][part_key]["type"] = "ground"
-                            else:
-                                for outputs in self.truthtable:
-                                    for inputs, output in self.truthtable[outputs]:
-                                        if (inputs == self.inputs) & (label.text in output):
-                                            output_value = output[label.text]
-                                            sorted_dict[element_key][part_key]["state"] = int(output_value)
-                                            sorted_dict[element_key][part_key]["type"] = "output"
-
-                        # setup wire even if it is metal, polysilicon or both
-                        elif linked[0] == "metal_wire" and part_poly.intersects(connection) and connection.intersects(linked[1]) and part_poly.intersects(linked[1]):
-                            sorted_dict[element_key][part_key]["type"] = linked[0] + "_" + str(linked[2])
-                            for pair_index in metal_wire_linked_keys:
-                                wire_list = metal_wire_linked_keys.get(pair_index)
-                                if pair_index == linked[2] and [element_key, part_key] not in wire_list:
-                                    wire_list.append([element_key, part_key])
-                                    found_pair = True
-                                    break
-
-                            if found_pair is False:
-                                metal_wire_linked_keys[linked[2]] = [[element_key, part_key]]
-
-        # do it two times bcs of unknown poly states of wires
-        sorted_dict = self.find_unknown_state(sorted_dict, metal_wire_linked_keys)
-        sorted_dict = self.find_unknown_state(sorted_dict, metal_wire_linked_keys)
-
-        string_list = [f"{key}_{value}" for key, value in sorted(self.inputs.items())]
-
-        # Join the string list elements with "_"
-        result_string = "_".join(string_list)
-        file_name = str(self.gate_type) + "__" + result_string + ".json"
-        path_name = "export/" + file_name
-
-        if self.is_debug is False:
-            with open(path_name, 'w') as json_file:
-                json.dump(sorted_dict, json_file, indent=4)
-
-        test_output(sorted_dict, file_name)
-
-        if self.is_debug is False:
-            plotShape(sorted_dict, self.gate_type, sorted_temp_diffusion_poly)
-
-    def find_unknown_state(self, sorted_dict, metal_wire_linked_keys):
-        for element_key, element in sorted_dict.items():
-            for counter, sub_dict in enumerate(element):
-                if element[sub_dict].get("state") is None and "polysilicon" not in sub_dict:
-                    selected_part = element[sub_dict]
-                    left_index = counter
-                    right_index = counter
-                    continue_loop = True
-                    list_element = list(element.items())
-
-                    while continue_loop:
-                        continue_loop, left_index, right_index = self.check_neighbor_state(sorted_dict, element_key,
-                                                                                           list_element,
-                                                                                           metal_wire_linked_keys,
-                                                                                           sub_dict, selected_part,
-                                                                                           left_index, right_index)
-        return sorted_dict
-
-    def check_neighbor_state(self, sorted_dict, element_key, element, metal_wire_linked_keys, selected_key,
-                             selected_part,
-                             left_index, right_index):
-
-        new_left_index = None
-        new_right_index = None
-        left_state = False
-        right_state = False
-
-        if left_index is not None:
-            if 0 <= left_index - 1 < len(element):
-                selected_left = element[left_index - 1]
-                left_state, new_left_index = self.check_part(sorted_dict, element_key, metal_wire_linked_keys,
-                                                             selected_key,
-                                                             selected_part, selected_left[1], left_index - 1)
-        if right_index is not None:
-            if 0 <= right_index + 1 < len(element):
-                selected_right = element[right_index + 1]
-                right_state, new_right_index = self.check_part(sorted_dict, element_key, metal_wire_linked_keys,
-                                                               selected_key,
-                                                               selected_part, selected_right[1], right_index + 1)
-
-        return (left_state or right_state), new_left_index, new_right_index
-
-    def check_part(self, sorted_dict, element_key, metal_wire_linked_keys, selected_key, selected_part, selected_side,
-                   new_index):
-        if selected_side.get("type"):
-            if selected_side["type"] == "ground":
-                if selected_part.get("type") is None:
-                    selected_part["type"] = "connector"
-                    selected_part["state"] = 0
-
-                # TODO or "polysilicon_wire"
-                elif "metal_wire" in selected_part["type"]:
-                    for pair_index in metal_wire_linked_keys:
-                        for pair in metal_wire_linked_keys.get(pair_index):
-                            if selected_key in pair:
-                                for founded_pair in metal_wire_linked_keys.get(pair_index):
-                                    sorted_dict[founded_pair[0]][founded_pair[1]]["state"] = 0
-
-                    # find twin and apply 0
-                return False, None
-
-            elif selected_side["type"] == "power":
-                selected_part["state"] = 1
-                if selected_part.get("type") is None:
-                    selected_part["type"] = "connector"
-                elif "metal_wire_" in selected_part["type"]:
-                    for pair_index in metal_wire_linked_keys:
-                        for pair in metal_wire_linked_keys.get(pair_index):
-                            if selected_key in pair:
-                                for founded_pair in metal_wire_linked_keys.get(pair_index):
-                                    sorted_dict[founded_pair[0]][founded_pair[1]]["state"] = 1
-                return False, None
-
-            elif selected_side["type"] == "output":
-                if selected_part.get("type") is None:
-                    selected_part["type"] = "connector"
-                    selected_part["state"] = selected_side["state"]
-
-                elif "metal_wire_" in selected_part["type"]:
-                    for pair_index in metal_wire_linked_keys:
-                        for pair in metal_wire_linked_keys.get(pair_index):
-                            if selected_key in pair:
-                                for founded_pair in metal_wire_linked_keys.get(pair_index):
-                                    if not (sorted_dict[founded_pair[0]][founded_pair[1]].get("state")):
-                                        sorted_dict[founded_pair[0]][founded_pair[1]]["state"] = selected_side["state"]
-
-                return True, new_index
-
-            elif "metal_wire_" in selected_side["type"] and "state" in selected_side:
-                # find twin and if both has stats then definitive state for part
-                # TODO not covered
-                if self.is_debug is False:
-                    print("\n")
-                    print("!!!!!Warning metal wire can be false!!!!!")
-                    print(selected_part)
-                    print(selected_side)
-                    print("--------------------")
-
-                if selected_part.get("type") is None:
-                    selected_part["type"] = "connector"
-                    selected_part["state"] = selected_side["state"]
-
-                return False, None
+                plt.annotate(element.name, (x, y))
 
             else:
-                # TODO extract the state if connector between 2 high state poly
-                # is like a switch open then we can stop here
+                plt.plot(x, y)
 
-                if "state" in selected_side \
-                        and ("polysilicon_wire" in selected_side["type"] or "input" in selected_side["type"]) \
-                        and (
-                            (selected_side["state"] == 1 and "pmos" in element_key)
-                            or (selected_side["state"] == 0 and "nmos" in element_key)):
-                    # in this case we stop here the loop bcs power don't pass through state 0 in nmos or 1 in pmos
-                    return False, None
+        plt.title(self.gate_type)
+        plt.show()
 
+    def plot_reflection(self):
+        color_list = ['black', 'white']
+        fig, ax = plt.subplots()
+        for reflection in self.reflection_list:
+            x, y = reflection.polygon.exterior.xy
+            plt.plot(x, y)
+
+            for zone in reflection.zone_list:
+                x, y = zone.coordinates
+                ax.scatter(x, y, marker='o')
+                state = zone.state
+                if reflection.shape_type == ShapeType.PMOS:
+                    if bool(state):
+                        state = 0
+                    else:
+                        state = 1
+
+                if state is None:
+                    raise Exception("The RCV calculation cannot be performed on this shape " + str(self.gate_type) + ". Please try again")
                 else:
-                    return True, new_index
-        else:
-            return False, None
+                    ax.fill(x, y, facecolor=color_list[state], alpha=0.2, edgecolor='black', linewidth=1)
+
+        plt.title(self.gate_type)
+        plt.show()
+
+    def export_reflection_to_png(self):
+        color_list = ['white', 'black']
+        fig, ax = plt.subplots()
+        for reflection in self.reflection_list:
+            for zone in reflection.zone_list:
+                x, y = zone.coordinates
+                state = zone.state
+                if reflection.shape_type == ShapeType.PMOS:
+                    if bool(state):
+                        state = 0
+                    else:
+                        state = 1
+
+                if state is None:
+                    raise Exception("The RCV calculation cannot be performed on this shape " + str(self.gate_type) + ". Please try again")
+                else:
+                    ax.fill(x, y, facecolor=color_list[state], alpha=1, edgecolor='grey', linewidth=1)
+
+        string_list = [f"{key}_{value}" for key, value in sorted(self.inputs.items())]
+        result_string = "_".join(string_list)
+        file_name = str(self.gate_type) + "__" + result_string
+        path_name = "tmp/" + file_name
+        plt.title(file_name)
+        plt.savefig(path_name)
+        plt.close()
+
+    def export_reflection_to_json(self):
+        data = {'cell_name': self.gate_type, 'inputs': self.inputs, 'reflection': []}
+        for diffusion in self.reflection_list:
+
+            ref_type = str(diffusion.shape_type)
+            zone_list = []
+
+            for zone in diffusion.zone_list:
+                coordinates = [(x, y) for x, y in zip(*zone.coordinates)]
+                state = zone.state
+                zone_type = str(zone.shape_type)
+                zone_list.append({'type': zone_type, 'state': state, 'coordinates': coordinates})
+
+            data['reflection'].append({'type': ref_type, 'zone_list': zone_list})
+
+        string_list = [f"{key}_{value}" for key, value in sorted(self.inputs.items())]
+        result_string = "_".join(string_list)
+        file_name = str(self.gate_type) + "__" + result_string + ".json"
+        path_name = "test/output_samples_v2/" + file_name
+
+        with open(path_name, 'w') as json_file:
+            json.dump(data, json_file, indent=4)
+
+    def element_sorting(self):
+        for element in self.element_list:
+            if isinstance(element, Shape) and element.shape_type != ShapeType.VIA:
+                for via in self.element_list:
+                    if isinstance(via, Shape) and via.shape_type == ShapeType.VIA and element.polygon.intersects(
+                            via.polygon):
+                        element.add_via(via)
+
+        for element in self.element_list:
+            if isinstance(element, Shape):
+                self.is_connected(element)
+
+        for element in self.element_list:
+            # To set up diffusion number if connected to at least one metal
+            if isinstance(element, Shape) and element.shape_type == ShapeType.DIFFUSION and isinstance(
+                    element.attribute, Shape):
+                diffusion = Diffusion(element.polygon)
+
+                is_pmos = False
+                for item in self.element_list:
+                    if isinstance(element, Shape) and isinstance(item, Shape) and item.shape_type == ShapeType.NWELL and item.polygon.intersects(element.polygon):
+                        diffusion.set_type(ShapeType.PMOS)
+                        is_pmos = True
+                        break
+
+                if not is_pmos:
+                    diffusion.set_type(ShapeType.NMOS)
+
+                self.reflection_list.append(diffusion)
+
+    def is_connected(self, element):
+        if element.shape_type == ShapeType.POLYSILICON or element.shape_type == ShapeType.DIFFUSION:
+            for item in self.element_list:
+                if isinstance(item, Shape) and item.shape_type == ShapeType.METAL:
+                    for element_connection in element.connection_list:
+                        if element_connection in item.connection_list:
+                            element.set_attribute(item)
+
+        elif element.shape_type == ShapeType.METAL:
+            for label in self.element_list:
+                if isinstance(label, Label):
+                    if element.polygon.contains(Point(label.coordinates)):
+                        if label.name in self.inputs.keys():
+                            element.set_attribute(Attribute(ShapeType.INPUT, label.name, self.inputs[label.name]))
+                            break
+
+                        elif label.name in self.truthtable.keys():
+                            for outputs in self.truthtable:
+                                for inputs, output in self.truthtable[outputs]:
+                                    if (inputs == self.inputs) & (label.name in output):
+                                        element.set_attribute(
+                                            Attribute(ShapeType.OUTPUT, label.name, output[label.name]))
+                                    else:
+                                        raise Exception("Missing inputs: " + str(inputs))
+
+                            break
+                        else:
+                            raise Exception("Missing label: " + str(label.name))
+                    else:
+                        _, point_y = label.coordinates
+                        _, metal_y = element.coordinates
+                        set_metal_y = set(metal_y)
+                        is_label_found = False
+                        for y in set_metal_y:
+                            if y == point_y:
+                                is_label_found = True
+                                break
+
+                        if label.name.lower() == self.ground_pin_name.lower() and is_label_found:
+                            element.set_attribute(Attribute(ShapeType.VSS))
+                            break
+
+                        elif label.name.lower() == self.power_pin_name.lower() and is_label_found:
+                            element.set_attribute(Attribute(ShapeType.VDD))
+                            break
+
+    def connect_diffusion_to_polygon(self, diffusion):
+        """
+            To set up the poly silicon overlapping to the diffusion parts
+        """
+        for element in self.element_list:
+            if isinstance(element, Shape) and element.shape_type == ShapeType.POLYSILICON and \
+                    element.polygon.intersects(diffusion.polygon):
+
+                intersections = diffusion.polygon.intersection(element.polygon)
+                if hasattr(intersections, "geoms"):
+                    for index, inter in enumerate(intersections.geoms):
+                        diffusion.set_zone(Zone(ShapeType.POLYSILICON, inter.exterior.xy, element))
+                else:
+                    diffusion.set_zone(Zone(ShapeType.POLYSILICON, intersections.exterior.xy, element))
+
+    def connect_diffusion_to_metal(self, diffusion):
+        """
+            To set up the metal connected to the diffusion parts
+        """
+        for zone in diffusion.zone_list:
+            if zone.shape_type == ShapeType.DIFFUSION:
+                for element in self.element_list:
+                    if isinstance(element, Shape) and element.shape_type == ShapeType.METAL:
+                        zone_polygon = Polygon(Polygon(list(zip(zone.coordinates[0], zone.coordinates[1]))))
+                        for connection_polygons in element.connection_list:
+                            if zone_polygon.intersects(connection_polygons):
+                                zone.set_connected_to(element)
+
+                                break
+
+    def set_zone_states(self):
+        for diffusion in self.reflection_list:
+
+            if diffusion.shape_type is None:
+                Exception("Error diffusion shape type none")
+
+            diffusion.zone_list = sorted(diffusion.zone_list, key=lambda selected_zone: selected_zone.get_min_x_coord())
+
+            # known state loop
+            for zone in diffusion.zone_list:
+                if zone.connected_to is not None:
+                    if isinstance(zone.connected_to.attribute, Attribute):
+                        if zone.connected_to.attribute.shape_type == ShapeType.VDD:
+                            zone.set_state(1)
+                        elif zone.connected_to.attribute.shape_type == ShapeType.VSS:
+                            zone.set_state(0)
+
+                        elif zone.connected_to.attribute.shape_type == ShapeType.OUTPUT:
+                            zone.set_state(zone.connected_to.attribute.state)
+
+                        elif zone.connected_to.attribute.shape_type == ShapeType.INPUT and zone.connected_to.attribute.label == "GCK":
+                            raise AttributeError("Clock gates not working " + str(zone.connected_to.attribute.label))
+
+                        else:
+                            raise AttributeError("Wrong attribut in " + str(zone.connected_to.shape_type))
+
+                    elif isinstance(zone.connected_to.attribute, Shape) and isinstance(
+                            zone.connected_to.attribute.attribute,
+                            Attribute) and zone.connected_to.attribute.attribute.shape_type == ShapeType.INPUT:
+                        zone.set_state(zone.connected_to.attribute.attribute.state)
+
+            # Wire unknown loop
+            for zone in diffusion.zone_list:
+                if isinstance(zone.connected_to, Shape) and zone.connected_to.shape_type == ShapeType.METAL \
+                        and not zone.wire and zone.connected_to.attribute is None:
+
+                    found_state = None
+                    for index, zone_to_find in enumerate(diffusion.zone_list):
+                        if zone_to_find.connected_to == zone.connected_to:
+                            if zone_to_find.state is not None:
+                                found_state = zone_to_find.state
+                            elif zone_to_find.connected_to.shape_type is not ShapeType.POLYSILICON:
+                                found_state = self.find_neighbor_state(diffusion, index)
+                            if found_state is not None:
+                                break
+
+                    if found_state is not None:
+                        for diffusion_loop in self.reflection_list:
+                            # Find other zone connected to this wire branch
+                            for index, zone_to_apply in enumerate(diffusion_loop.zone_list):
+                                if zone_to_apply.connected_to == zone.connected_to or (
+                                        isinstance(zone_to_apply.connected_to, Shape) and
+                                        zone_to_apply.connected_to.attribute == zone.connected_to):
+                                    if zone_to_apply.state is None:
+
+                                        zone_to_apply.set_state(found_state)
+                                        zone_to_apply.wire = True
+
+
+            # Unknown loop
+            for index, zone in enumerate(diffusion.zone_list):
+                if zone.connected_to is None:
+                    found_state = self.find_neighbor_state(diffusion, index)
+                    if found_state is not None:
+
+                        zone.set_state(found_state)
+                    else:
+                        zone.set_state(0)
+
+    def find_neighbor_state(self, diffusion, zone_index) -> bool:
+        diffusion_type = diffusion.shape_type
+        zone_list = diffusion.zone_list
+        neighbor_index = [zone_index - 1, zone_index + 1]
+        stop_loop = False
+        found_state = None
+
+        while not stop_loop:
+            for index in range(len(neighbor_index)):
+                if neighbor_index[index] is not None and 0 <= neighbor_index[index] < len(zone_list):
+
+                    if index == 0:
+                        next_index = neighbor_index[index] - 1
+                    else:
+                        next_index = neighbor_index[index] + 1
+
+                    zone = zone_list[neighbor_index[index]]
+
+                    if zone.shape_type == ShapeType.POLYSILICON:
+                        if diffusion_type == ShapeType.PMOS and zone.state == 0:
+                            neighbor_index[index] = next_index
+                            continue
+
+                        elif diffusion_type == ShapeType.NMOS and zone.state == 1:
+                            neighbor_index[index] = next_index
+                            continue
+                        else:
+                            neighbor_index[index] = None
+                            continue
+
+                    elif (zone.connected_to is not None and zone.connected_to.shape_type == ShapeType.METAL and zone.state is not None) or zone.state is not None:
+                        found_state = zone.state
+                        stop_loop = True
+                        break
+
+                    else:
+                        neighbor_index[index] = next_index
+                        continue
+                else:
+                    neighbor_index[index] = None
+                    continue
+
+            if all(x is None for x in neighbor_index):
+                found_state = 0
+                if self.is_debug is True:
+                    print("State not found for " + str(zone_index) + " in zone list in " + str(diffusion.shape_type))
+                break
+
+        return found_state
