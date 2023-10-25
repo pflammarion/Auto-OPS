@@ -148,6 +148,8 @@ class NewGdsDrawing:
         # self.plot_reflection()
         # self.export_reflection_to_json()
 
+        # self.export_reflection_to_png()
+
     def plot_elements(self):
         for element in self.element_list:
             x, y = element.coordinates
@@ -185,6 +187,32 @@ class NewGdsDrawing:
 
         plt.title(self.gate_type)
         plt.show()
+
+    def export_reflection_to_png(self):
+        color_list = ['white', 'black']
+        fig, ax = plt.subplots()
+        for reflection in self.reflection_list:
+            for zone in reflection.zone_list:
+                x, y = zone.coordinates
+                state = zone.state
+                if reflection.shape_type == ShapeType.PMOS:
+                    if bool(state):
+                        state = 0
+                    else:
+                        state = 1
+
+                if state is None:
+                    raise Exception("The RCV calculation cannot be performed on this shape " + str(self.gate_type) + ". Please try again")
+                else:
+                    ax.fill(x, y, facecolor=color_list[state], alpha=1, edgecolor='grey', linewidth=1)
+
+        string_list = [f"{key}_{value}" for key, value in sorted(self.inputs.items())]
+        result_string = "_".join(string_list)
+        file_name = str(self.gate_type) + "__" + result_string
+        path_name = "tmp/" + file_name
+        plt.title(file_name)
+        plt.savefig(path_name)
+        plt.close()
 
     def export_reflection_to_json(self):
         data = {'cell_name': self.gate_type, 'inputs': self.inputs, 'reflection': []}
@@ -261,7 +289,12 @@ class NewGdsDrawing:
                                     if (inputs == self.inputs) & (label.name in output):
                                         element.set_attribute(
                                             Attribute(ShapeType.OUTPUT, label.name, output[label.name]))
+                                    else:
+                                        raise Exception("Missing inputs: " + str(inputs))
+
                             break
+                        else:
+                            raise Exception("Missing label: " + str(label.name))
                     else:
                         _, point_y = label.coordinates
                         _, metal_y = element.coordinates
