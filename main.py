@@ -1,8 +1,8 @@
 import itertools
-import json
 import sys
-import os
-from PIL import Image
+import time
+
+import gdspy
 from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QApplication
 
@@ -158,17 +158,24 @@ if __name__ == "__main__":
                  'XOR2_X1',
                  'XOR2_X2']
 
-        prefix = 'MUX2_X1'
+        cell_to_fix = ['ANTENNA_X1', 'CLKGATETST_X1', 'CLKGATETST_X2', 'CLKGATETST_X4', 'CLKGATETST_X8', 'CLKGATE_X1', 'CLKGATE_X2', 'CLKGATE_X4', 'CLKGATE_X8', 'DFFRS_X2', 'DFFR_X2', 'DFFS_X2', 'SDFFRS_X1', 'SDFFR_X1', 'SDFFR_X2', 'SDFF_X2', 'WELLTAP_X1']
 
-        filtered_cells = [cell for cell in cells if cell.startswith(prefix)]
+        prefix = 'SDFFR_X2'
+
+        filtered_cells = [cell for cell in cell_to_fix if cell.startswith(prefix)]
         #filtered_cells = [prefix]
         is_debug = True
         error_cell_list = []
+        start_time = time.time()
+        counter = 0
 
-        for cell in filtered_cells:
-            print("\n" + cell)
+        for cell_name in filtered_cells:
+            print("\n" + cell_name)
             try:
-                lib_reader = LibReader(cell, "Platforms/PDK45nm/NangateOpenCellLibrary_typical.lib")
+                lib = gdspy.GdsLibrary()
+                gds_cell = lib.read_gds("Platforms/PDK45nm/stdcells.gds").cells[cell_name]
+
+                lib_reader = LibReader(cell_name, "Platforms/PDK45nm/NangateOpenCellLibrary_typical.lib")
                 truth_table, voltage, input_names = lib_reader.extract_truth_table()
                 draw_inputs = {}
 
@@ -180,24 +187,58 @@ if __name__ == "__main__":
                         for index, inp in enumerate(input_names):
                             draw_inputs[inp] = combination[index]
 
-                        GdsDrawing("Platforms/PDK45nm/stdcells.gds", cell, 1, 9, 10, 11, [0, 0], truth_table, voltage, draw_inputs)
+                        GdsDrawing(gds_cell, cell_name, [1, 5, 9, 10, 11], [0, 0], truth_table, voltage, draw_inputs)
+                        counter += 1
                 else:
                     for inp in input_names:
                         value = input(f"Enter a value for {inp}: ")
                         draw_inputs[inp] = int(value)
 
-                    GdsDrawing("Platforms/PDK45nm/stdcells.gds", cell, 1, 9, 10, 11, [0, 0], truth_table, voltage, draw_inputs)
+                    GdsDrawing(gds_cell, cell_name, [1, 5, 9, 10, 11], [0, 0], truth_table, voltage, draw_inputs)
 
             except Exception as e:
-                print("\n\n\n\n")
+                print("\n")
                 print("-----------------------------------------------------------")
-                print(f"An error occurred for gate {cell}: {e}. Please try again.")
+                print(f"An error occurred for gate {cell_name}: {e}. Please try again.")
                 print("-----------------------------------------------------------")
-                print("\n\n\n\n")
-                error_cell_list.append(cell)
+                print("\n")
+                error_cell_list.append(cell_name)
 
-        if len(error_cell_list) > 0:
-            print("An error occurred for those cells")
-            print(error_cell_list)
+        with open('output.log', 'a') as f:
+            end_time = time.time()
+            f.write(time.strftime("%d/%m/%Y %Hh%M") + "\n\n")
+            if len(error_cell_list) > 0:
+                f.write("An error occurred for those cells\n")
+                f.write(str(error_cell_list) + "\n")
+
+            execution_time = round(end_time - start_time, 2)
+            number_of_gate = len(filtered_cells) - len(error_cell_list)
+            time_per_sate = round(execution_time/counter, 4)
+
+            f.write(f"Execution time: {execution_time} seconds\n")
+            f.write(f"Number of gates: {number_of_gate} \n")
+            f.write(f"Number of state calculated : {counter}\n")
+            f.write(f"Time per state : {time_per_sate} seconds\n\n")
+            f.write("-----------------------------------------------------------\n\n")
+
+
+    if program == 5:
+        #cell_name = "OR3_X4"
+        cell_name = "FA_X1"
+        lib = gdspy.GdsLibrary()
+        gds_cell = lib.read_gds("Platforms/PDK45nm/stdcells.gds").cells[cell_name]
+
+        start_time = time.time()
+
+        #GdsDrawing(gds_cell, cell_name, [1, 9, 10, 11], [0, 0], {'ZN': [({'A1': True, 'A2': True, 'A3': True}, {'ZN': True}), ({'A1': True, 'A2': True, 'A3': False}, {'ZN': True}), ({'A1': True, 'A2': False, 'A3': True}, {'ZN': True}), ({'A1': True, 'A2': False, 'A3': False}, {'ZN': True}), ({'A1': False, 'A2': True, 'A3': True}, {'ZN': True}), ({'A1': False, 'A2': True, 'A3': False}, {'ZN': True}), ({'A1': False, 'A2': False, 'A3': True}, {'ZN': True}), ({'A1': False, 'A2': False, 'A3': False}, {'ZN': False})]}, [{'name': 'VDD', 'type': 'primary_power'}, {'name': 'VSS', 'type': 'primary_ground'}], {'A1': 1, 'A2': 0, 'A3': 1})
+        GdsDrawing(gds_cell, cell_name, [1, 5, 9, 10, 11], [0, 0], {'CO': [({'A': True, 'B': True, 'CI': True}, {'CO': True}), ({'A': True, 'B': True, 'CI': False}, {'CO': True}), ({'A': True, 'B': False, 'CI': True}, {'CO': True}), ({'A': True, 'B': False, 'CI': False}, {'CO': False}), ({'A': False, 'B': True, 'CI': True}, {'CO': True}), ({'A': False, 'B': True, 'CI': False}, {'CO': False}), ({'A': False, 'B': False, 'CI': True}, {'CO': False}), ({'A': False, 'B': False, 'CI': False}, {'CO': False})], 'S': [({'A': True, 'B': True, 'CI': True}, {'S': True}), ({'A': True, 'B': True, 'CI': False}, {'S': False}), ({'A': True, 'B': False, 'CI': True}, {'S': False}), ({'A': True, 'B': False, 'CI': False}, {'S': True}), ({'A': False, 'B': True, 'CI': True}, {'S': False}), ({'A': False, 'B': True, 'CI': False}, {'S': True}), ({'A': False, 'B': False, 'CI': True}, {'S': True}), ({'A': False, 'B': False, 'CI': False}, {'S': False})]} ,  [{'name': 'VDD', 'type': 'primary_power'}, {'name': 'VSS', 'type': 'primary_ground'}],  {'A': 0, 'B': 0, 'CI': 0})
+
+        end_time = time.time()
+        execution_time = round(end_time - start_time, 2)
+        print(f"Execution time: {execution_time} seconds")
+
+
+
+
 
 
