@@ -40,15 +40,15 @@ class Shape(Element):
         self.shape_type = shape_type
         self.attribute = attribute
 
-    def set_shape_type(self, layer_list):
+    def set_shape_type(self, layer_list) -> None:
         type_index = layer_list.index(self.layer)
         if type_index is not None:
             self.shape_type = ShapeType(type_index)
 
-    def set_attribute(self, attribute):
+    def set_attribute(self, attribute) -> None:
         self.attribute = attribute
 
-    def add_via(self, via):
+    def add_via(self, via) -> None:
         self.connection_list.append(via.polygon)
 
 
