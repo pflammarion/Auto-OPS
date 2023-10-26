@@ -286,9 +286,11 @@ class GdsDrawing:
                         elif label.name in self.truthtable.keys():
                             for outputs in self.truthtable:
                                 for inputs, output in self.truthtable[outputs]:
-                                    if (inputs == self.inputs) & (label.name in output):
-                                        element.set_attribute(
-                                            Attribute(ShapeType.OUTPUT, label.name, output[label.name]))
+                                    if label.name in output:
+                                        if inputs == self.inputs:
+                                            element.set_attribute(
+                                                Attribute(ShapeType.OUTPUT, label.name, output[label.name])
+                                            )
                                     else:
                                         raise Exception("Missing inputs: " + str(inputs))
 
@@ -454,8 +456,15 @@ class GdsDrawing:
                     neighbor_index[index] = None
                     continue
 
+            # If the zone is between two un passing zones, not reflecting state applied
             if all(x is None for x in neighbor_index):
-                found_state = 0
+
+                if diffusion_type == ShapeType.PMOS:
+                    found_state = 1
+
+                else:
+                    found_state = 0
+
                 if self.is_debug is True:
                     print("State not found for " + str(zone_index) + " in zone list in " + str(diffusion.shape_type))
                 break
