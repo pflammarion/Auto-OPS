@@ -6,3 +6,4 @@ scipy
 pandas
 matplotlib
 gdspy
+liberty-parser
