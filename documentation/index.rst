@@ -41,11 +41,27 @@ The Opti-Sim-Plus project
 
    <br/><br/>
 
-Nowadays, doing some optical probing demonstration are laborious and costly.
+Currently, conducting optical probing demonstrations can be both challenging and expensive.
 
-The Opti-Sim-Plus project is a graphical interface which was developed to provide an easy to use and complete tool to perform optical probing simulation.
+The Opti-Sim-Plus project introduces a user-friendly graphical interface designed to simplify and streamline optical probing simulations.
 
-Opti-Sim-Plus is created to be fast with a low ressources consuption
+Opti-Sim-Plus is engineered for speed and efficiency, ensuring minimal resource consumption, and is tailored for use by designers and security engineers.
+
+
+Getting started
+---------------------------
+
+Wanna try Opti-Sim-Plus ? You need to install
+Wanna try Exegol and join our great community? You need to :ref:`install requirements <install_requirements>` first, then proceed to the :ref:`install requirements <install_requirements>` instructions.
+
+
+
+The future of Opti-Sim-Plus
+---------------------------
+
+We want this tool to be integrated into the ASIC design flow to provide a high security standard to modern chips.
+
+We also want to connect this tool to the Verilog Procedural Interface (VPI) to provide a security test to designers during their chip creation.
 
 
 .. toctree::
