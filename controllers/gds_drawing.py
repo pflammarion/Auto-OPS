@@ -456,8 +456,15 @@ class GdsDrawing:
                     neighbor_index[index] = None
                     continue
 
+            # If the zone is between two un passing zones, not reflecting state applied
             if all(x is None for x in neighbor_index):
-                found_state = 0
+
+                if diffusion_type == ShapeType.PMOS:
+                    found_state = 1
+
+                else:
+                    found_state = 0
+
                 if self.is_debug is True:
                     print("State not found for " + str(zone_index) + " in zone list in " + str(diffusion.shape_type))
                 break
