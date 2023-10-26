@@ -20,10 +20,10 @@ class Diffusion:
             Append to the instance zone list a new zone(Zone) object.
 
         get_right_points_coords():
-            Get the x maximum coordinates (list[(int, int)]) of the polygon of this instance.
+            Get the x maximum coordinates (list[(float, float)]) of the polygon of this instance.
 
         get_left_points_coords():
-            Get the x minimum coordinates (list[(int, int)]) of the polygon of this instance.
+            Get the x minimum coordinates (list[(float, float)]) of the polygon of this instance.
 
         get_zone_by_index(index):
             Get a zone object by index(int) from the zone list of this instance.
@@ -42,16 +42,16 @@ class Diffusion:
         self.zone_list = []
         self.shape_type = None
 
-    def set_zone(self, zone):
+    def set_zone(self, zone) -> None:
         self.zone_list.append(zone)
 
-    def get_right_points_coords(self) -> list[(int, int)]:
+    def get_right_points_coords(self) -> list[(float, float)]:
         x_coords = [point[0] for point in self.polygon.exterior.coords]
         max_x = max(x_coords)
         right_points = [(x, y) for x, y in self.polygon.exterior.coords if x == max_x]
         return right_points
 
-    def get_left_points_coords(self) -> list[(int, int)]:
+    def get_left_points_coords(self) -> list[(float, float)]:
         x_coords = [point[0] for point in self.polygon.exterior.coords]
         min_x = min(x_coords)
         left_points = [(x, y) for x, y in self.polygon.exterior.coords if x == min_x]
@@ -63,5 +63,5 @@ class Diffusion:
         else:
             raise IndexError("Index out of range.")
 
-    def set_type(self, shape_type):
+    def set_type(self, shape_type) -> None:
         self.shape_type = shape_type
