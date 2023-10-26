@@ -160,9 +160,9 @@ if __name__ == "__main__":
 
         cell_to_fix = ['ANTENNA_X1', 'CLKGATETST_X1', 'CLKGATETST_X2', 'CLKGATETST_X4', 'CLKGATETST_X8', 'CLKGATE_X1', 'CLKGATE_X2', 'CLKGATE_X4', 'CLKGATE_X8', 'DFFRS_X2', 'DFFR_X2', 'DFFS_X2', 'SDFFRS_X1', 'SDFFR_X1', 'SDFFR_X2', 'SDFF_X2', 'WELLTAP_X1']
 
-        prefix = 'SDFFR_X2'
+        prefix = 'NAND2_X2'
 
-        filtered_cells = [cell for cell in cell_to_fix if cell.startswith(prefix)]
+        filtered_cells = [cell for cell in cells if cell.startswith(prefix)]
         #filtered_cells = [prefix]
         is_debug = True
         error_cell_list = []
