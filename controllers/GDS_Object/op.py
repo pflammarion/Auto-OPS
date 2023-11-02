@@ -12,18 +12,39 @@ from controllers.GDS_Object.zone import Zone
 
 class Op:
     """
-    An Op object can be used for multiple purpose, it contains a few variable to be able to
+    Represents an object usable to perform Optical probing simulation from a GDS (Graphics Data System) layout.
 
+    Args:
+        cell_name (str): The name of the gate in the gds file in the Cells' list.
+        gds_cell (GdsLibrary): Read a GDSII file into this library and select a cell to add to it by name.
+        layer_list (list[int]): Diffusion layer, N well layer, poly silicon layer, via layer, metal layer.
+        truthtable (dict{list[set(dict)]})): A list containing the information the output based on the input for a gate.
+        voltage(list[dict]): Contains the voltage names and types.
+        inputs(dict): contains the inputs values.
     Attributes:
-        Inherits attributes from the Element class.
+        name (str): The name of the gate in the gds file in the Cells' list.
+        inputs(dict): Contains the inputs names and values.
+        truthtable (dict): The truthtable is a list containing the information the output based on the input for a gate.
+        via_element_list = Contains all the extracted via elements converted to objects.
+        element_list: Contains all the extracted elements converted to objects.
+        reflection_list: Conains all reflecting elements as diffusion's zones and polysilicon's overlapping.
 
-    Methods:
-        __init__(name, coordinate):
-            Initializes a new instance of the Label class with the provided name and coordinate.
+    Example:
+        To create a GdsDrawing instance:
+        >>> import gdspy
+        >>> lib = gdspy.GdsLibrary()
+        >>> gds_cell = lib.read_gds("Platforms/PDK45nm/stdcells.gds").cells["INV_X1"]
+        >>> drawing = Op(
+        >>>         "INV_X1",
+        >>>         gds_cell,
+        >>>         [1, 5, 9, 10, 11],
+        >>>         {'ZN': [({'A': True}, {'ZN': False}), ({'A': False}, {'ZN': True})]},
+        >>>         [{'name': 'VDD', 'type': 'primary_power'}, {'name': 'VSS', 'type': 'primary_ground'}],
+        >>>         {'A1': 1, 'A2': 1}
+        >>>     )
 
-    Usage:
-        # Creating an instance of the Label class
-        my_label = Label('ExampleLabel', (x, y))
+    This class create an object from a GDS input and store information as the optical state of each gate,
+     depending on the position and gates states.
     """
 
     def __init__(self, cell_name, gds_cell, layer_list, truthtable, voltage, inputs):
@@ -58,6 +79,7 @@ class Op:
 
 
 def element_sorting(element_list, inputs, truthtable, voltage) -> list:
+    # TODO
     """
     This function is to categorize the different shapes based on their shape type.
     It is also to append to every shapes the affiliated via to determine the connections.
@@ -71,7 +93,7 @@ def element_sorting(element_list, inputs, truthtable, voltage) -> list:
 
     Returns:
     --------
-    None
+    list
 
     Raises:
     -------
@@ -219,6 +241,7 @@ def init_diffusion_zones(diffusion) -> None:
 
 
 def element_extractor(gds_cell, layer_list) -> list:
+    # TODO
     """
     Function to init the class by extracting every needed polygones for the reflection calculation.
     This is also characterizing the different shapes on a shape type.
@@ -263,6 +286,7 @@ def element_extractor(gds_cell, layer_list) -> list:
 
 
 def is_connected(element_list, inputs, truthtable, voltage, element) -> None:
+    # TODO
     """
     This function is to link element together.
 
@@ -344,6 +368,7 @@ def is_connected(element_list, inputs, truthtable, voltage, element) -> None:
 
 
 def connect_diffusion_to_polygon(element_list, diffusion) -> None:
+    # TODO
     """
     To set up zones where the poly silicon overlap to the diffusion parts.
     Creating a zone from the overlaps coordinates.
@@ -379,6 +404,7 @@ def connect_diffusion_to_polygon(element_list, diffusion) -> None:
 
 
 def connect_diffusion_to_metal(element_list, diffusion) -> None:
+    # TODO
     """
     Identify each zones where a metal layer is connected through a via connection.
 
@@ -414,6 +440,7 @@ def connect_diffusion_to_metal(element_list, diffusion) -> None:
 
 
 def set_zone_states(reflection_list) -> None:
+    # TODO
     """
     This function is to determine a state for all the diffusion zones.
 
@@ -515,6 +542,7 @@ def set_zone_states(reflection_list) -> None:
 
 
 def find_neighbor_state(diffusion, zone_index) -> bool:
+    # TODO
     """
     This function is to find the state applicable to a zone based on physics electronic properties.
 
