@@ -1,5 +1,3 @@
-import json
-
 from controllers.GDS_Object.attribute import Attribute
 from controllers.GDS_Object.diffusion import Diffusion
 from controllers.GDS_Object.label import Label
