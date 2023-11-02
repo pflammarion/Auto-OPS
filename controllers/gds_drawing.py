@@ -10,6 +10,7 @@ from controllers.GDS_Object.type import ShapeType
 
 
 def plot_elements(op_object) -> None:
+    # TODO
     """
     Plots elements based on their coordinates and types.
 
@@ -43,6 +44,7 @@ def plot_elements(op_object) -> None:
 
 
 def plot_reflection(op_object) -> None:
+    # TODO
     """
     Plots reflection zones based on their coordinates and state.
 
@@ -90,6 +92,7 @@ def plot_reflection(op_object) -> None:
 
 
 def plot_show_case(op_object) -> None:
+    # TODO
     """
     Plots elements based on their coordinates and types.
 
@@ -156,6 +159,7 @@ def plot_show_case(op_object) -> None:
 
 
 def export_reflection_to_png(op_object) -> None:
+    # TODO
     """
     Export as a PNG the reflection zones based on their coordinates and state.
     The title of the figure is defined from the gate name, inputs names, and inputs states.
@@ -293,6 +297,7 @@ def export_reflection_to_png_over_gds_cell(op_object) -> None:
 
 
 def export_reflection_to_json(op_object) -> None:
+    # TODO
     """
     This function retrieves reflection data from the current instance of the class and exports it to a JSON file.
     It constructs a dictionary 'data' containing cell_name, inputs, and reflection information. The 'reflection'
