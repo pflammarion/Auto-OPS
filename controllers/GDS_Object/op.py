@@ -16,7 +16,7 @@ class Op:
 
     Args:
         cell_name (str): The name of the gate in the gds file in the Cells' list.
-        gds_cell (GdsLibrary): Read a GDSII file into this library and select a cell to add to it by name.
+        gds_cell (GdsLibrary): Dictionary of cells in the library's object, indexed by name.
         layer_list (list[int]): Diffusion layer, N well layer, poly silicon layer, via layer, metal layer.
         truthtable (dict{list[set(dict)]})): A list containing the information the output based on the input for a gate.
         voltage(list[dict]): Contains the voltage names and types.
@@ -25,9 +25,9 @@ class Op:
         name (str): The name of the gate in the gds file in the Cells' list.
         inputs(dict): Contains the inputs names and values.
         truthtable (dict): The truthtable is a list containing the information the output based on the input for a gate.
-        via_element_list = Contains all the extracted via elements converted to objects.
-        element_list: Contains all the extracted elements converted to objects.
-        reflection_list: Conains all reflecting elements as diffusion's zones and polysilicon's overlapping.
+        via_element_list(list) Contains all the extracted via elements converted to objects.
+        element_list(list): Contains all the extracted elements converted to objects.
+        reflection_list(list): Contains all reflecting elements as diffusion's zones and poly-silicon's overlapping.
 
     Example:
         To create a GdsDrawing instance:
@@ -79,7 +79,6 @@ class Op:
 
 
 def element_sorting(element_list, inputs, truthtable, voltage) -> list:
-    # TODO
     """
     This function is to categorize the different shapes based on their shape type.
     It is also to append to every shapes the affiliated via to determine the connections.
@@ -87,13 +86,22 @@ def element_sorting(element_list, inputs, truthtable, voltage) -> list:
 
     Parameters:
     -----------
-    self : object
-       The instance of the class.
+     element_list: list
+        Contains all the extracted elements converted to objects.
 
+     inputs: dict
+        Contains the inputs names and values.
+
+     truthtable: dict
+        The truthtable is a list containing the information the output based on the input for a gate.
+
+     voltage: list[dict]
+        Contains all the extracted via elements converted to objects.
 
     Returns:
     --------
-    list
+    reflection_list: list
+        Contains all reflecting elements as diffusion's zones and poly-silicon's overlapping.
 
     Raises:
     -------
@@ -241,15 +249,14 @@ def init_diffusion_zones(diffusion) -> None:
 
 
 def element_extractor(gds_cell, layer_list) -> list:
-    # TODO
     """
     Function to init the class by extracting every needed polygones for the reflection calculation.
     This is also characterizing the different shapes on a shape type.
 
     Parameters:
     -----------
-    self : object
-        The instance of the class.
+    gds_cell: GdsLibrary
+        Dictionary of cells in the library's object, indexed by name.
 
     layer_list: list(int)
         A list which contains the layer number in the gds file in that order:
@@ -257,7 +264,8 @@ def element_extractor(gds_cell, layer_list) -> list:
 
     Returns:
     --------
-    None
+    element_list: list
+        Contains all the extracted elements converted to objects.
 
     Raises:
     -------
@@ -286,7 +294,6 @@ def element_extractor(gds_cell, layer_list) -> list:
 
 
 def is_connected(element_list, inputs, truthtable, voltage, element) -> None:
-    # TODO
     """
     This function is to link element together.
 
@@ -297,8 +304,17 @@ def is_connected(element_list, inputs, truthtable, voltage, element) -> None:
 
     Parameters:
     -----------
-    self : object
-       The instance of the class.
+    element_list: list
+        Contains all the extracted elements converted to objects.
+
+    inputs: dict
+        Contains the inputs names and values.
+
+    truthtable: dict
+        The truthtable is a list containing the information the output based on the input for a gate.
+
+    voltage: list[dict]
+        Contains all the extracted via elements converted to objects.
 
     element : Shape | Label
         Objects in the class element list instance
@@ -368,15 +384,14 @@ def is_connected(element_list, inputs, truthtable, voltage, element) -> None:
 
 
 def connect_diffusion_to_polygon(element_list, diffusion) -> None:
-    # TODO
     """
     To set up zones where the poly silicon overlap to the diffusion parts.
     Creating a zone from the overlaps coordinates.
 
     Parameters:
     -----------
-    self : object
-       The instance of the class.
+    element_list: list
+        Contains all the extracted elements converted to objects.
 
     diffusion : Diffusion
         Objects in the class reflection list instance which hold the reflection zone objects
@@ -404,14 +419,13 @@ def connect_diffusion_to_polygon(element_list, diffusion) -> None:
 
 
 def connect_diffusion_to_metal(element_list, diffusion) -> None:
-    # TODO
     """
     Identify each zones where a metal layer is connected through a via connection.
 
     Parameters:
     -----------
-    self : object
-       The instance of the class.
+    element_list: list
+        Contains all the extracted elements converted to objects.
 
     diffusion : Diffusion
         Objects in the class reflection list instance which hold the reflection zone objects
@@ -440,7 +454,6 @@ def connect_diffusion_to_metal(element_list, diffusion) -> None:
 
 
 def set_zone_states(reflection_list) -> None:
-    # TODO
     """
     This function is to determine a state for all the diffusion zones.
 
@@ -451,8 +464,8 @@ def set_zone_states(reflection_list) -> None:
 
     Parameters:
     -----------
-    self : object
-       The instance of the class.
+    reflection_list: list
+        Contains all reflecting elements as diffusion's zones and poly-silicon's overlapping.
 
     Returns:
     --------
@@ -542,7 +555,6 @@ def set_zone_states(reflection_list) -> None:
 
 
 def find_neighbor_state(diffusion, zone_index) -> bool:
-    # TODO
     """
     This function is to find the state applicable to a zone based on physics electronic properties.
 
@@ -556,9 +568,6 @@ def find_neighbor_state(diffusion, zone_index) -> bool:
 
     Parameters:
     -----------
-    self : object
-       The instance of the class.
-
     diffusion : Diffusion
         The diffusion part where the searching algorithm is going to be performed.
 
