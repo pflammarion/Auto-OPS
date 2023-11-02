@@ -10,7 +10,6 @@ from controllers.GDS_Object.type import ShapeType
 
 
 def plot_elements(op_object) -> None:
-    # TODO
     """
     Plots elements based on their coordinates and types.
 
@@ -20,8 +19,8 @@ def plot_elements(op_object) -> None:
 
     Parameters:
     -----------
-    self : object
-        The instance of the class.
+    op_object: Op
+        Op object which contains the information to be extracted
 
     Returns:
     --------
@@ -44,7 +43,6 @@ def plot_elements(op_object) -> None:
 
 
 def plot_reflection(op_object) -> None:
-    # TODO
     """
     Plots reflection zones based on their coordinates and state.
 
@@ -53,8 +51,8 @@ def plot_reflection(op_object) -> None:
 
     Parameters:
     -----------
-    self : object
-        The instance of the class.
+    op_object: Op
+        Op object which contains the information to be extracted
 
     Returns:
     --------
@@ -92,7 +90,6 @@ def plot_reflection(op_object) -> None:
 
 
 def plot_show_case(op_object) -> None:
-    # TODO
     """
     Plots elements based on their coordinates and types.
 
@@ -102,8 +99,8 @@ def plot_show_case(op_object) -> None:
 
     Parameters:
     -----------
-    self : object
-        The instance of the class.
+    op_object: Op
+        Op object which contains the information to be extracted
 
     Returns:
     --------
@@ -159,7 +156,6 @@ def plot_show_case(op_object) -> None:
 
 
 def export_reflection_to_png(op_object) -> None:
-    # TODO
     """
     Export as a PNG the reflection zones based on their coordinates and state.
     The title of the figure is defined from the gate name, inputs names, and inputs states.
@@ -171,8 +167,8 @@ def export_reflection_to_png(op_object) -> None:
 
     Parameters:
     -----------
-    self : object
-        The instance of the class.
+    op_object: Op
+        Op object which contains the information to be extracted
 
     Returns:
     --------
@@ -185,11 +181,10 @@ def export_reflection_to_png(op_object) -> None:
 
     Note:
     -----
-    Ensure that the 'tmp' directory exists before calling this method,
+    Ensure that the 'tmp' directory exists before calling this function,
     as it will attempt to write the PNG file to this location.
     """
     color_list = ['white', 'black']
-    fig, ax = plt.subplots()
     for reflection in op_object.reflection_list:
         for zone in reflection.zone_list:
             x, y = zone.coordinates
@@ -204,7 +199,7 @@ def export_reflection_to_png(op_object) -> None:
                 raise Exception("The RCV calculation cannot be performed on this shape " + str(
                     op_object.name) + ". Please try again")
             else:
-                ax.fill(x, y, facecolor=color_list[state], alpha=1, edgecolor='grey', linewidth=1)
+                plt.fill(x, y, facecolor=color_list[state], alpha=1, edgecolor='grey', linewidth=1)
 
     string_list = [f"{key}_{value}" for key, value in sorted(op_object.inputs.items())]
     result_string = "_".join(string_list)
@@ -215,7 +210,10 @@ def export_reflection_to_png(op_object) -> None:
     plt.close()
 
 
-def export_reflection_to_png_over_gds_cell(op_object) -> None:
+def export_reflection_to_png_over_gds_cell(op_object, reflection_draw=False, with_axes=True) -> None:
+
+    # plt.figure(figsize=(6, 8))
+
     for element in op_object.element_list:
         x, y = element.coordinates
 
@@ -264,42 +262,47 @@ def export_reflection_to_png_over_gds_cell(op_object) -> None:
                 text = element.name
 
             plt.annotate(text, (x, y), bbox=dict(facecolor='grey', edgecolor='none', boxstyle='round,pad=0.2'),
-                         color="black")
+                         color=(0.95, 0.90, 0.67))
 
     for via in op_object.via_element_list:
         x, y = via.coordinates
         plt.plot(x, y, color='none')
         plt.fill(x, y, color="white", alpha=0.8)
 
-    for reflection in op_object.reflection_list:
-        for zone in reflection.zone_list:
-            x, y = zone.coordinates
-            state = zone.state
-            if reflection.shape_type == ShapeType.PMOS:
-                if bool(state):
-                    state = 0
-                else:
-                    state = 1
+    if reflection_draw:
+        for reflection in op_object.reflection_list:
+            for zone in reflection.zone_list:
+                x, y = zone.coordinates
+                state = zone.state
+                if reflection.shape_type == ShapeType.PMOS:
+                    if bool(state):
+                        state = 0
+                    else:
+                        state = 1
 
-            if state is None:
-                raise Exception("The RCV calculation cannot be performed on this shape " + str(
-                    op_object.name) + ". Please try again")
-            elif bool(state):
-                plt.fill(x, y, facecolor="black", alpha=1)
+                if state is None:
+                    raise Exception("The RCV calculation cannot be performed on this shape " + str(
+                        op_object.name) + ". Please try again")
+                elif bool(state):
+                    plt.fill(x, y, facecolor="black", alpha=1)
 
     string_list = [f"{key}_{value}" for key, value in sorted(op_object.inputs.items())]
     result_string = "_".join(string_list)
     file_name = str(op_object.name) + "_overlay__" + result_string
     path_name = "tmp/" + file_name
-    plt.title(file_name)
-    plt.savefig(path_name)
+
+    if with_axes:
+        plt.title(file_name)
+        plt.savefig(path_name)
+    else:
+        plt.axis('off')
+        plt.savefig(path_name, bbox_inches='tight', pad_inches=0, format='png')
     plt.close()
 
 
 def export_reflection_to_json(op_object) -> None:
-    # TODO
     """
-    This function retrieves reflection data from the current instance of the class and exports it to a JSON file.
+    This function retrieves reflection data from the op_object and exports it to a JSON file.
     It constructs a dictionary 'data' containing cell_name, inputs, and reflection information. The 'reflection'
     key in 'data' stores a list of reflections, each having a 'type' and a list of 'zone_list' elements.
 
@@ -311,8 +314,8 @@ def export_reflection_to_json(op_object) -> None:
 
     Parameters:
     -----------
-    self : object
-       The instance of the class.
+    op_object: Op
+        Op object which contains the information to be extracted
 
     Returns:
     --------
