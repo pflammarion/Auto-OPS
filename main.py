@@ -6,7 +6,8 @@ import gdspy
 from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QApplication
 
-from controllers.gds_drawing import GdsDrawing
+from controllers import gds_drawing
+from controllers.GDS_Object.op import Op
 from controllers.lib_reader import LibReader
 from controllers.main_controller import MainController
 
@@ -160,9 +161,9 @@ if __name__ == "__main__":
 
         cell_to_fix = ['ANTENNA_X1', 'CLKGATETST_X1', 'CLKGATETST_X2', 'CLKGATETST_X4', 'CLKGATETST_X8', 'CLKGATE_X1', 'CLKGATE_X2', 'CLKGATE_X4', 'CLKGATE_X8', 'DFFRS_X2', 'DFFR_X2', 'DFFS_X2', 'SDFFRS_X1', 'SDFFR_X1', 'SDFFR_X2', 'SDFF_X2', 'WELLTAP_X1']
 
-        prefix = 'SDFFR_X2'
+        prefix = ''
 
-        filtered_cells = [cell for cell in cell_to_fix if cell.startswith(prefix)]
+        filtered_cells = [cell for cell in cells if cell.startswith(prefix)]
         #filtered_cells = [prefix]
         is_debug = True
         error_cell_list = []
@@ -187,14 +188,16 @@ if __name__ == "__main__":
                         for index, inp in enumerate(input_names):
                             draw_inputs[inp] = combination[index]
 
-                        GdsDrawing(gds_cell, cell_name, [1, 5, 9, 10, 11], [0, 0], truth_table, voltage, draw_inputs)
+                        op_object = Op(cell_name, gds_cell, [1, 5, 9, 10, 11], truth_table, voltage, draw_inputs)
                         counter += 1
                 else:
                     for inp in input_names:
                         value = input(f"Enter a value for {inp}: ")
                         draw_inputs[inp] = int(value)
 
-                    GdsDrawing(gds_cell, cell_name, [1, 5, 9, 10, 11], [0, 0], truth_table, voltage, draw_inputs)
+                    op_object = Op(cell_name, gds_cell, [1, 5, 9, 10, 11], truth_table, voltage, draw_inputs)
+                    counter += 1
+
 
             except Exception as e:
                 print("\n")
@@ -223,15 +226,23 @@ if __name__ == "__main__":
 
 
     if program == 5:
-        #cell_name = "OR3_X4"
-        cell_name = "FA_X1"
+        cell_name = "OR3_X4"
+        #cell_name = "FA_X1"
         lib = gdspy.GdsLibrary()
         gds_cell = lib.read_gds("Platforms/PDK45nm/stdcells.gds").cells[cell_name]
 
         start_time = time.time()
 
         #GdsDrawing(gds_cell, cell_name, [1, 9, 10, 11], [0, 0], {'ZN': [({'A1': True, 'A2': True, 'A3': True}, {'ZN': True}), ({'A1': True, 'A2': True, 'A3': False}, {'ZN': True}), ({'A1': True, 'A2': False, 'A3': True}, {'ZN': True}), ({'A1': True, 'A2': False, 'A3': False}, {'ZN': True}), ({'A1': False, 'A2': True, 'A3': True}, {'ZN': True}), ({'A1': False, 'A2': True, 'A3': False}, {'ZN': True}), ({'A1': False, 'A2': False, 'A3': True}, {'ZN': True}), ({'A1': False, 'A2': False, 'A3': False}, {'ZN': False})]}, [{'name': 'VDD', 'type': 'primary_power'}, {'name': 'VSS', 'type': 'primary_ground'}], {'A1': 1, 'A2': 0, 'A3': 1})
-        GdsDrawing(gds_cell, cell_name, [1, 5, 9, 10, 11], [0, 0], {'CO': [({'A': True, 'B': True, 'CI': True}, {'CO': True}), ({'A': True, 'B': True, 'CI': False}, {'CO': True}), ({'A': True, 'B': False, 'CI': True}, {'CO': True}), ({'A': True, 'B': False, 'CI': False}, {'CO': False}), ({'A': False, 'B': True, 'CI': True}, {'CO': True}), ({'A': False, 'B': True, 'CI': False}, {'CO': False}), ({'A': False, 'B': False, 'CI': True}, {'CO': False}), ({'A': False, 'B': False, 'CI': False}, {'CO': False})], 'S': [({'A': True, 'B': True, 'CI': True}, {'S': True}), ({'A': True, 'B': True, 'CI': False}, {'S': False}), ({'A': True, 'B': False, 'CI': True}, {'S': False}), ({'A': True, 'B': False, 'CI': False}, {'S': True}), ({'A': False, 'B': True, 'CI': True}, {'S': False}), ({'A': False, 'B': True, 'CI': False}, {'S': True}), ({'A': False, 'B': False, 'CI': True}, {'S': True}), ({'A': False, 'B': False, 'CI': False}, {'S': False})]} ,  [{'name': 'VDD', 'type': 'primary_power'}, {'name': 'VSS', 'type': 'primary_ground'}],  {'A': 0, 'B': 0, 'CI': 0})
+        #GdsDrawing(gds_cell, cell_name, [1, 5, 9, 10, 11], [0, 0], {'CO': [({'A': True, 'B': True, 'CI': True}, {'CO': True}), ({'A': True, 'B': True, 'CI': False}, {'CO': True}), ({'A': True, 'B': False, 'CI': True}, {'CO': True}), ({'A': True, 'B': False, 'CI': False}, {'CO': False}), ({'A': False, 'B': True, 'CI': True}, {'CO': True}), ({'A': False, 'B': True, 'CI': False}, {'CO': False}), ({'A': False, 'B': False, 'CI': True}, {'CO': False}), ({'A': False, 'B': False, 'CI': False}, {'CO': False})], 'S': [({'A': True, 'B': True, 'CI': True}, {'S': True}), ({'A': True, 'B': True, 'CI': False}, {'S': False}), ({'A': True, 'B': False, 'CI': True}, {'S': False}), ({'A': True, 'B': False, 'CI': False}, {'S': True}), ({'A': False, 'B': True, 'CI': True}, {'S': False}), ({'A': False, 'B': True, 'CI': False}, {'S': True}), ({'A': False, 'B': False, 'CI': True}, {'S': True}), ({'A': False, 'B': False, 'CI': False}, {'S': False})]} ,  [{'name': 'VDD', 'type': 'primary_power'}, {'name': 'VSS', 'type': 'primary_ground'}],  {'A': 0, 'B': 0, 'CI': 0})
+
+        op_object = Op(cell_name, gds_cell, [1, 5, 9, 10, 11], {'ZN': [({'A1': True, 'A2': True, 'A3': True}, {'ZN': True}), ({'A1': True, 'A2': True, 'A3': False}, {'ZN': True}), ({'A1': True, 'A2': False, 'A3': True}, {'ZN': True}), ({'A1': True, 'A2': False, 'A3': False}, {'ZN': True}), ({'A1': False, 'A2': True, 'A3': True}, {'ZN': True}), ({'A1': False, 'A2': True, 'A3': False}, {'ZN': True}), ({'A1': False, 'A2': False, 'A3': True}, {'ZN': True}), ({'A1': False, 'A2': False, 'A3': False}, {'ZN': False})]}, [{'name': 'VDD', 'type': 'primary_power'}, {'name': 'VSS', 'type': 'primary_ground'}], {'A1': 1, 'A2': 0, 'A3': 1})
+
+        gds_drawing.export_reflection_to_png_over_gds_cell(op_object)
+        gds_drawing.export_reflection_to_json(op_object)
+        gds_drawing.export_reflection_to_png(op_object)
+        gds_drawing.plot_reflection(op_object)
+        gds_drawing.plot_elements(op_object)
 
         end_time = time.time()
         execution_time = round(end_time - start_time, 2)
