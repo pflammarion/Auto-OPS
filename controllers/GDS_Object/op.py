@@ -544,14 +544,7 @@ def set_zone_states(reflection_list) -> None:
             if zone.connected_to is None:
                 found_state = find_neighbor_state(diffusion, index)
                 if found_state is not None:
-
                     zone.set_state(found_state)
-                else:
-                    if diffusion.shape_type == ShapeType.PMOS:
-                        zone.set_state(1)
-
-                    else:
-                        zone.set_state(0)
 
 
 def find_neighbor_state(diffusion, zone_index) -> bool:
