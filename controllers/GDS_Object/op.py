@@ -634,13 +634,6 @@ def find_neighbor_state(diffusion, zone_index) -> bool:
 
         # If the zone is between two un passing zones, not reflecting state applied
         if all(x is None for x in neighbor_index):
-
-            if diffusion_type == ShapeType.PMOS:
-                found_state = 1
-
-            else:
-                found_state = 0
-
             break
 
     return found_state

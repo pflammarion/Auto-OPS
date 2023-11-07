@@ -1,9 +1,11 @@
+import csv
 import json
+import re
 
 from controllers.GDS_Object.attribute import Attribute
 from controllers.GDS_Object.label import Label
 from controllers.GDS_Object.shape import Shape
-
+import pandas as pd
 import matplotlib.pyplot as plt
 
 from controllers.GDS_Object.type import ShapeType
@@ -211,8 +213,7 @@ def export_reflection_to_png(op_object) -> None:
 
 
 def export_reflection_to_png_over_gds_cell(op_object, reflection_draw=False, with_axes=True) -> None:
-
-    # plt.figure(figsize=(6, 8))
+    plt.figure(figsize=(6, 8))
 
     for element in op_object.element_list:
         x, y = element.coordinates
@@ -262,7 +263,7 @@ def export_reflection_to_png_over_gds_cell(op_object, reflection_draw=False, wit
                 text = element.name
 
             plt.annotate(text, (x, y), bbox=dict(facecolor='grey', edgecolor='none', boxstyle='round,pad=0.2'),
-                         color=(0.95, 0.90, 0.67))
+                         color=(0.95, 0.90, 0.67), fontsize=18)
 
     for via in op_object.via_element_list:
         x, y = via.coordinates
@@ -288,7 +289,7 @@ def export_reflection_to_png_over_gds_cell(op_object, reflection_draw=False, wit
 
     string_list = [f"{key}_{value}" for key, value in sorted(op_object.inputs.items())]
     result_string = "_".join(string_list)
-    file_name = str(op_object.name) + "_overlay__" + result_string
+    file_name = str(op_object.name) + "_overlay__" + result_string + ".pdf"
     path_name = "tmp/" + file_name
 
     if with_axes:
@@ -296,7 +297,7 @@ def export_reflection_to_png_over_gds_cell(op_object, reflection_draw=False, wit
         plt.savefig(path_name)
     else:
         plt.axis('off')
-        plt.savefig(path_name, bbox_inches='tight', pad_inches=0, format='png')
+        plt.savefig(path_name, bbox_inches='tight', pad_inches=0, format='pdf')
     plt.close()
 
 
@@ -353,3 +354,71 @@ def export_reflection_to_json(op_object) -> None:
 
     with open(path_name, 'w') as json_file:
         json.dump(data, json_file, indent=4)
+
+
+def data_export_csv(cell_name, time_extraction, cumulative_time_op, op_object):
+    filename = "try/export.csv"
+
+    number_of_zone = 0
+    for diff in op_object.reflection_list:
+        number_of_zone += len(diff.zone_list)
+
+    number_of_input = len(op_object.inputs.keys())
+
+    avg_time_op = cumulative_time_op / 2 ** number_of_input
+
+    suffix_number = re.search(r'(\d+)$', cell_name)
+    if suffix_number:
+        suffix_number = int(suffix_number.group(1))
+
+    prefix_number = re.search(r'(\d+)_X', cell_name)
+    if prefix_number:
+        prefix_number = int(prefix_number.group(1))
+
+    prefix_name = re.search(r'^([A-Za-z]+)', cell_name)
+    if prefix_name:
+        prefix_name = prefix_name.group(1)
+
+    try:
+        df = pd.read_csv(filename)
+    except FileNotFoundError:
+        df = pd.DataFrame(
+            columns=['cell_name', 'time_extraction', 'number_of_zone', 'number_of_input', 'suffix_number',
+                     'prefix_name', 'prefix_number', 'cumulative_time_op', 'avg_time_op'])
+
+    if cell_name in df['cell_name'].values:
+        df.loc[df['cell_name'] == cell_name, [
+            'time_extraction',
+            'cumulative_time_op',
+            'avg_time_op',
+            'number_of_zone',
+            'number_of_input',
+            'suffix_number',
+            'prefix_name',
+            'prefix_number']] = \
+            time_extraction, \
+                cumulative_time_op, \
+                avg_time_op, \
+                number_of_zone, \
+                number_of_input, \
+                suffix_number, \
+                prefix_name, \
+                prefix_number
+    else:
+        new_row = {
+            'cell_name': cell_name,
+            'time_extraction': time_extraction,
+            'cumulative_time_op': cumulative_time_op,
+            'avg_time_op': avg_time_op,
+            'number_of_zone': number_of_zone,
+            'number_of_input': number_of_input,
+            'suffix_number': suffix_number,
+            'prefix_name': prefix_name,
+            'prefix_number': prefix_number
+        }
+
+        df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
+
+    df.to_csv(filename, index=False)
+
+    print(f"Data successfully exported to {filename}.")
