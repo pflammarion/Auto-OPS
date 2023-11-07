@@ -1,6 +1,9 @@
-import csv
+from datetime import datetime
 import json
 import re
+import time
+
+import numpy as np
 
 from controllers.GDS_Object.attribute import Attribute
 from controllers.GDS_Object.label import Label
@@ -76,15 +79,14 @@ def plot_reflection(op_object) -> None:
             ax.scatter(x, y, marker='o')
             state = zone.state
             if reflection.shape_type == ShapeType.PMOS:
-                if bool(state):
-                    state = 0
+                if state is None:
+                    reflect = False
                 else:
-                    state = 1
-
-            if state is None:
-                raise Exception("The RCV calculation cannot be performed on this shape " + str(
-                    op_object.name) + ". Please try again")
+                    reflect = not state
             else:
+                reflect = state
+
+            if bool(reflect):
                 ax.fill(x, y, facecolor=color_list[state], alpha=0.2, edgecolor='black', linewidth=1)
 
     plt.title(op_object.name)
@@ -192,15 +194,14 @@ def export_reflection_to_png(op_object) -> None:
             x, y = zone.coordinates
             state = zone.state
             if reflection.shape_type == ShapeType.PMOS:
-                if bool(state):
-                    state = 0
+                if state is None:
+                    reflect = False
                 else:
-                    state = 1
-
-            if state is None:
-                raise Exception("The RCV calculation cannot be performed on this shape " + str(
-                    op_object.name) + ". Please try again")
+                    reflect = not state
             else:
+                reflect = state
+
+            if bool(reflect):
                 plt.fill(x, y, facecolor=color_list[state], alpha=1, edgecolor='grey', linewidth=1)
 
     string_list = [f"{key}_{value}" for key, value in sorted(op_object.inputs.items())]
@@ -276,16 +277,15 @@ def export_reflection_to_png_over_gds_cell(op_object, reflection_draw=False, wit
                 x, y = zone.coordinates
                 state = zone.state
                 if reflection.shape_type == ShapeType.PMOS:
-                    if bool(state):
-                        state = 0
+                    if state is None:
+                        reflect = False
                     else:
-                        state = 1
+                        reflect = not state
+                else:
+                    reflect = state
 
-                if state is None:
-                    raise Exception("The RCV calculation cannot be performed on this shape " + str(
-                        op_object.name) + ". Please try again")
-                elif bool(state):
-                    plt.fill(x, y, facecolor="black", alpha=1)
+                if bool(reflect):
+                    plt.fill(x, y, facecolor="none", edgecolor="black", hatch='////', alpha=0.8)
 
     string_list = [f"{key}_{value}" for key, value in sorted(op_object.inputs.items())]
     result_string = "_".join(string_list)
@@ -356,8 +356,14 @@ def export_reflection_to_json(op_object) -> None:
         json.dump(data, json_file, indent=4)
 
 
-def data_export_csv(cell_name, time_extraction, cumulative_time_op, op_object):
-    filename = "try/export.csv"
+def data_export_csv(cell_name, time_extraction, cumulative_time_op, op_object, hand_input):
+
+    current_date = datetime.now().strftime('%Y-%m-%d_%H')
+    filename = f"tmp/export_{current_date}.csv"
+
+    suffix_number = np.nan
+    prefix_name = np.nan
+    prefix_number = np.nan
 
     number_of_zone = 0
     for diff in op_object.reflection_list:
@@ -367,24 +373,24 @@ def data_export_csv(cell_name, time_extraction, cumulative_time_op, op_object):
 
     avg_time_op = cumulative_time_op / 2 ** number_of_input
 
-    suffix_number = re.search(r'(\d+)$', cell_name)
-    if suffix_number:
-        suffix_number = int(suffix_number.group(1))
+    suffix_number_match = re.search(r'(\d+)$', cell_name)
+    if suffix_number_match:
+        suffix_number = int(suffix_number_match.group(1))
 
-    prefix_number = re.search(r'(\d+)_X', cell_name)
-    if prefix_number:
-        prefix_number = int(prefix_number.group(1))
+    prefix_number_match = re.search(r'(\d+)_X', cell_name)
+    if prefix_number_match:
+        prefix_number = int(prefix_number_match.group(1))
 
-    prefix_name = re.search(r'^([A-Za-z]+)', cell_name)
-    if prefix_name:
-        prefix_name = prefix_name.group(1)
+    prefix_name_match = re.search(r'^([A-Za-z]+)', cell_name)
+    if prefix_name_match:
+        prefix_name = prefix_name_match.group(1)
 
     try:
         df = pd.read_csv(filename)
     except FileNotFoundError:
         df = pd.DataFrame(
             columns=['cell_name', 'time_extraction', 'number_of_zone', 'number_of_input', 'suffix_number',
-                     'prefix_name', 'prefix_number', 'cumulative_time_op', 'avg_time_op'])
+                     'prefix_name', 'prefix_number', 'cumulative_time_op', 'avg_time_op', 'hand_input'])
 
     if cell_name in df['cell_name'].values:
         df.loc[df['cell_name'] == cell_name, [
@@ -395,7 +401,8 @@ def data_export_csv(cell_name, time_extraction, cumulative_time_op, op_object):
             'number_of_input',
             'suffix_number',
             'prefix_name',
-            'prefix_number']] = \
+            'prefix_number',
+            'hand_input']] = \
             time_extraction, \
                 cumulative_time_op, \
                 avg_time_op, \
@@ -403,7 +410,8 @@ def data_export_csv(cell_name, time_extraction, cumulative_time_op, op_object):
                 number_of_input, \
                 suffix_number, \
                 prefix_name, \
-                prefix_number
+                prefix_number, \
+                hand_input
     else:
         new_row = {
             'cell_name': cell_name,
@@ -414,7 +422,8 @@ def data_export_csv(cell_name, time_extraction, cumulative_time_op, op_object):
             'number_of_input': number_of_input,
             'suffix_number': suffix_number,
             'prefix_name': prefix_name,
-            'prefix_number': prefix_number
+            'prefix_number': prefix_number,
+            'hand_input': hand_input
         }
 
         df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
@@ -422,3 +431,34 @@ def data_export_csv(cell_name, time_extraction, cumulative_time_op, op_object):
     df.to_csv(filename, index=False)
 
     print(f"Data successfully exported to {filename}.")
+
+def write_output_log(start_time, end_time, cell_counter=1, filtered_cells=None, time_counter_ex=None, time_counter_op=None, error_cell_list=[]):
+    with open('output.log', 'a') as f:
+
+        execution_time = round(end_time - start_time, 2)
+
+        f.write(time.strftime("%d/%m/%Y %Hh%M") + "\n\n")
+        f.write(f"Number of state calculated : {cell_counter}\n")
+        f.write(f"Total Execution time: {execution_time} seconds\n")
+
+        if len(error_cell_list) > 0:
+            f.write("An error occurred for those cells\n")
+            f.write(str(error_cell_list) + "\n")
+
+        if time_counter_op is not None:
+            execution_time_op = round(time_counter_op, 4)
+            time_per_sate = round(execution_time_op/cell_counter, 4)
+            f.write(f"OP Execution time: {execution_time_op} seconds\n")
+            f.write(f"Avg Time per state : {time_per_sate} seconds\n")
+
+        if time_counter_ex is not None:
+            execution_time_ex = round(time_counter_ex, 2)
+            f.write(f"Gate init Execution time: {execution_time_ex} seconds\n")
+
+        if filtered_cells is not None:
+            number_of_gate = len(filtered_cells) - len(error_cell_list)
+            time_per_gate = round(execution_time_ex/number_of_gate, 4)
+            f.write(f"Number of gates: {number_of_gate} \n")
+            f.write(f"Avg Time per gate init : {time_per_gate} seconds\n\n")
+
+        f.write("-----------------------------------------------------------\n\n")
