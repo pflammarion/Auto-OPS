@@ -36,9 +36,9 @@ if __name__ == "__main__":
         cell_name_hand = None
 
         # Ask the user for hand_input
-        while hand_input_user not in ['y', 'n', 'yes', 'no']:
+        while hand_input_user not in ['y', 'n', 'yes', 'no', '']:
             hand_input_user = input("Do you want to input a hand value? (y/n): ").lower()
-            if hand_input_user in ['y', 'yes']:
+            if hand_input_user in ['y', 'yes', '']:
                 hand_input = True
             elif hand_input_user in ['n', 'no']:
                 hand_input = False
@@ -146,38 +146,3 @@ if __name__ == "__main__":
         end_time = time.time()
         print(f'\n{green_color}Processing complete.{reset_color}')
         gds_drawing.write_output_log(start_time, end_time,filtered_cells=cells_list, state_counter=state_counter, error_cell_list=error_cell_list)
-
-
-
-    elif program == 5:
-        cell_name = "XOR2_X1"
-        #cell_name = "FA_X1"
-        lib = gdspy.GdsLibrary()
-        gds_cell = lib.read_gds("Platforms/PDK45nm/stdcells.gds").cells[cell_name]
-
-        lib_reader = LibReader(cell_name, "Platforms/PDK45nm/NangateOpenCellLibrary_typical.lib")
-        truth_table, voltage, input_names = lib_reader.extract_truth_table()
-        draw_inputs = {}
-        for inp in input_names:
-            value = input(f"Enter a value for {inp}: ")
-            draw_inputs[inp] = int(value)
-
-        start_time = time.time()
-
-        #GdsDrawing(gds_cell, cell_name, [1, 9, 10, 11], [0, 0], {'ZN': [({'A1': True, 'A2': True, 'A3': True}, {'ZN': True}), ({'A1': True, 'A2': True, 'A3': False}, {'ZN': True}), ({'A1': True, 'A2': False, 'A3': True}, {'ZN': True}), ({'A1': True, 'A2': False, 'A3': False}, {'ZN': True}), ({'A1': False, 'A2': True, 'A3': True}, {'ZN': True}), ({'A1': False, 'A2': True, 'A3': False}, {'ZN': True}), ({'A1': False, 'A2': False, 'A3': True}, {'ZN': True}), ({'A1': False, 'A2': False, 'A3': False}, {'ZN': False})]}, [{'name': 'VDD', 'type': 'primary_power'}, {'name': 'VSS', 'type': 'primary_ground'}], {'A1': 1, 'A2': 0, 'A3': 1})
-        #GdsDrawing(gds_cell, cell_name, [1, 5, 9, 10, 11], [0, 0], {'CO': [({'A': True, 'B': True, 'CI': True}, {'CO': True}), ({'A': True, 'B': True, 'CI': False}, {'CO': True}), ({'A': True, 'B': False, 'CI': True}, {'CO': True}), ({'A': True, 'B': False, 'CI': False}, {'CO': False}), ({'A': False, 'B': True, 'CI': True}, {'CO': True}), ({'A': False, 'B': True, 'CI': False}, {'CO': False}), ({'A': False, 'B': False, 'CI': True}, {'CO': False}), ({'A': False, 'B': False, 'CI': False}, {'CO': False})], 'S': [({'A': True, 'B': True, 'CI': True}, {'S': True}), ({'A': True, 'B': True, 'CI': False}, {'S': False}), ({'A': True, 'B': False, 'CI': True}, {'S': False}), ({'A': True, 'B': False, 'CI': False}, {'S': True}), ({'A': False, 'B': True, 'CI': True}, {'S': False}), ({'A': False, 'B': True, 'CI': False}, {'S': True}), ({'A': False, 'B': False, 'CI': True}, {'S': True}), ({'A': False, 'B': False, 'CI': False}, {'S': False})]} ,  [{'name': 'VDD', 'type': 'primary_power'}, {'name': 'VSS', 'type': 'primary_ground'}],  {'A': 0, 'B': 0, 'CI': 0})
-
-        #op_object = Op(cell_name, gds_cell, [1, 5, 9, 10, 11], {'ZN': [({'A1': True, 'A2': True, 'A3': True}, {'ZN': True}), ({'A1': True, 'A2': True, 'A3': False}, {'ZN': True}), ({'A1': True, 'A2': False, 'A3': True}, {'ZN': True}), ({'A1': True, 'A2': False, 'A3': False}, {'ZN': True}), ({'A1': False, 'A2': True, 'A3': True}, {'ZN': True}), ({'A1': False, 'A2': True, 'A3': False}, {'ZN': True}), ({'A1': False, 'A2': False, 'A3': True}, {'ZN': True}), ({'A1': False, 'A2': False, 'A3': False}, {'ZN': False})]}, [{'name': 'VDD', 'type': 'primary_power'}, {'name': 'VSS', 'type': 'primary_ground'}], {'A1': 1, 'A2': 0, 'A3': 1})
-        op_object = Op(cell_name, gds_cell, [1, 5, 9, 10, 11], truth_table, voltage, draw_inputs)
-
-        gds_drawing.export_reflection_to_png_over_gds_cell(op_object, True, False)
-
-        end_time = time.time()
-        execution_time = round(end_time - start_time, 2)
-        print(f"Execution time: {execution_time} seconds")
-
-
-
-
-
-
