@@ -45,11 +45,15 @@ class Zone:
         my_zone = Zone(ShapeType.POLYSILICON, inter.exterior.xy, element))
     """
     def __init__(self, shape_type, coordinates=None, connected_to=None):
+        self.name = ""
         self.shape_type = shape_type
         self.coordinates = coordinates
         self.state = None
         self.connected_to = connected_to
         self.wire = False
+        self.diffusion = None
+        self.next_zone_list = []
+        self.previous_zone_list = []
 
     def set_state(self, state) -> None:
         if state is True or state == 1:
@@ -58,6 +62,16 @@ class Zone:
             self.state = 0
         else:
             raise ValueError("Invalid state input. Please provide a boolean or 0/1.")
+
+    def set_diffusion(self, diffusion) -> None:
+        self.diffusion = diffusion
+
+    def add_next_zone(self, zone):
+        self.next_zone_list.append(zone)
+
+    def add_previous_zone(self, zone):
+        self.previous_zone_list.append(zone)
+
 
     def set_connected_to(self, shape) -> None:
         self.connected_to = shape

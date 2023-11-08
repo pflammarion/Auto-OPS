@@ -46,7 +46,8 @@ if __name__ == "__main__":
                 print("Please enter 'y' or 'n'.")
 
         # Ask the user for cell_name_hand
-        cell_name_hand = input("Enter the cell name (press enter to perform all): ")
+        #cell_name_hand = input("Enter the cell name (press enter to perform all): ")
+        cell_name_hand = "INV_X1"
 
         start_time = time.time()
 
@@ -69,7 +70,7 @@ if __name__ == "__main__":
         for cell_name, gds_cell in cells_list.items():
 
             if len(cell_name_hand) > 0:
-                if not cell_name.lower().startswith(cell_name_hand.lower()):
+                if not cell_name.lower() == cell_name_hand.lower():
                     continue
 
             combinations = []
@@ -83,65 +84,61 @@ if __name__ == "__main__":
             print(f'\n\r{reset_color}Progress: {green_color}[{bar}] {int(progress * 100)}% Complete {reset_color} -- {cell_name}{white_color} || {blue_color}', end='', flush=True)
             # end progress bar
 
-            try:
-                start_ex_time = time.time()
+            start_ex_time = time.time()
 
-                truth_table, voltage, input_names = lib_reader.extract_truth_table(cell_name)
-                draw_inputs = {}
+            truth_table, voltage, input_names = lib_reader.extract_truth_table(cell_name)
+            draw_inputs = {}
 
-                end_ex_time = time.time()
-                execution_ex_time = end_ex_time - start_ex_time
-                time_counter_ex += execution_ex_time
+            end_ex_time = time.time()
+            execution_ex_time = end_ex_time - start_ex_time
+            time_counter_ex += execution_ex_time
 
-                def perform_op(time_counter_op):
+            def perform_op(time_counter_op):
 
-                    start_op_time = time.time()
+                start_op_time = time.time()
 
-                    op_object = Op(cell_name, gds_cell, [1, 5, 9, 10, 11], truth_table, voltage, draw_inputs)
+                op_object = Op(cell_name, gds_cell, [1, 5, 9, 10, 11], truth_table, voltage, draw_inputs)
 
-                    # Add here the different exports from the gds drawing lib
-                    #gds_drawing.export_reflection_to_png_over_gds_cell(op_object, True, False)
+                # Add here the different exports from the gds drawing lib
+                #gds_drawing.export_reflection_to_png_over_gds_cell(op_object, True, False)
 
-                    end_op_time = time.time()
-                    execution_time_op = end_op_time - start_op_time
-                    time_counter_op += execution_time_op
+                end_op_time = time.time()
+                execution_time_op = end_op_time - start_op_time
+                time_counter_op += execution_time_op
 
-                    return op_object, time_counter_op
+                return op_object, time_counter_op
 
 
-                if hand_input:
-                    print("\n\n")
-                    for inp in input_names:
-                        value = None
-                        while value not in ['0', '1']:
-                            value = input(f"{reset_color}Enter a value for {inp} {blue_color}(0 or 1){reset_color}: ")
-                            if value not in ['0', '1']:
-                                print(f"{orange_color}Invalid input. Please enter 0 or 1.{reset_color}")
+            if hand_input:
+                print("\n\n")
+                for inp in input_names:
+                    value = None
+                    while value not in ['0', '1']:
+                        value = input(f"{reset_color}Enter a value for {inp} {blue_color}(0 or 1){reset_color}: ")
+                        if value not in ['0', '1']:
+                            print(f"{orange_color}Invalid input. Please enter 0 or 1.{reset_color}")
 
-                        draw_inputs[inp] = int(value)
-                    print(f"\n{blue_color}")
+                    draw_inputs[inp] = int(value)
+                print(f"\n{blue_color}")
+                op_object, time_counter_op = perform_op(time_counter_op)
+
+            else:
+                combinations = list(itertools.product([0, 1], repeat=len(input_names)))
+
+                for combination in combinations:
+                    for index, inp in enumerate(input_names):
+                        draw_inputs[inp] = combination[index]
+
                     op_object, time_counter_op = perform_op(time_counter_op)
+                    combinations_counter += 1
+                    state_counter += 1
 
-                else:
-                    combinations = list(itertools.product([0, 1], repeat=len(input_names)))
+            if combinations_counter == len(combinations):
+                #gds_drawing.data_export_csv(cell_name, execution_ex_time, time_counter_op, op_object, hand_input)
+                time_counter_op = 0
+                combinations_counter = 0
+                time_counter_ex = 0
 
-                    for combination in combinations:
-                        for index, inp in enumerate(input_names):
-                            draw_inputs[inp] = combination[index]
-
-                        op_object, time_counter_op = perform_op(time_counter_op)
-                        combinations_counter += 1
-                        state_counter += 1
-
-                if combinations_counter == len(combinations):
-                    gds_drawing.data_export_csv(cell_name, execution_ex_time, time_counter_op, op_object, hand_input)
-                    time_counter_op = 0
-                    combinations_counter = 0
-                    time_counter_ex = 0
-
-            except Exception as e:
-                print(f"{red_color}An error occurred: {e}{reset_color}")
-                error_cell_list.append(cell_name)
 
         end_time = time.time()
         print(f'\n{green_color}Processing complete.{reset_color}')

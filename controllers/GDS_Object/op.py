@@ -8,6 +8,9 @@ from shapely.ops import unary_union
 
 from controllers.GDS_Object.type import ShapeType
 from controllers.GDS_Object.zone import Zone
+import networkx as nx
+import matplotlib.pyplot as plt
+
 
 
 class Op:
@@ -52,9 +55,10 @@ class Op:
         self.inputs = inputs
         self.truthtable = truthtable
         self.via_element_list = []
+        self.reflection_list = []
 
         self.element_list = element_extractor(gds_cell, layer_list)
-        self.reflection_list = element_sorting(self.element_list, inputs, truthtable, voltage)
+        diffusion_list = element_sorting(self.element_list, inputs, truthtable, voltage)
 
         elements_to_keep = []
 
@@ -66,16 +70,136 @@ class Op:
 
         self.element_list = elements_to_keep
 
-        for diffusion in self.reflection_list:
+        for diffusion in diffusion_list:
             connect_diffusion_to_polygon(self.element_list, diffusion)
 
-        for diffusion in self.reflection_list:
+        for diffusion in diffusion_list:
             init_diffusion_zones(diffusion)
 
-        for diffusion in self.reflection_list:
+        for diffusion in diffusion_list:
             connect_diffusion_to_metal(self.element_list, diffusion)
 
-        set_zone_states(self.reflection_list)
+        diffusion_list, start_node = sort_zone_by_connection(diffusion_list)
+        diffusion_list = set_defined_states(diffusion_list, start_node)
+
+        draw_diff(diffusion_list)
+
+
+def set_defined_states(diffusion_list, start_node):
+
+    current_node = start_node
+    # find the state and then
+
+    for diff in diffusion_list:
+        for zone in diffusion_list:
+            if zone == current_node:
+                next_nodes = zone.next_zone_list
+
+                break
+
+    return diffusion_list
+
+def draw_diff(diffusion_list):
+    G = nx.DiGraph()
+
+    for diff in diffusion_list:
+        for obj in diff.zone_list:
+            G.add_node(obj.name, value=obj.state)
+            for next_obj in obj.next_zone_list:
+                G.add_edge(obj.name, next_obj.name)
+
+    color_map = []
+    for node in G:
+        if G.nodes[node]['value'] == 1:
+            color_map.append('lightgreen')
+        elif G.nodes[node]['value'] == 0:
+            color_map.append('blue')
+        else:
+            color_map.append('skyblue')
+
+    # Draw the graph
+    pos = nx.spring_layout(G)  # You can choose the layout according to your requirements
+    nx.draw(G, pos, with_labels=True, node_size=1000, node_color=color_map, node_shape="o", alpha=0.8, linewidths=4, font_size=12, font_color="red", font_weight="bold", arrowsize=20)
+
+    # Display the graph
+    plt.show()
+
+def sort_zone_by_connection(diffusion_list):
+    start_node = None
+
+    diff_counter = 0
+
+    # sort all diffusion from left to right and find the starting point TODO to be optimized
+    for diffusion in diffusion_list:
+        diffusion.zone_list = sorted(diffusion.zone_list, key=lambda selected_zone: selected_zone.get_min_x_coord())
+        for zone in diffusion.zone_list:
+            zone.set_diffusion(diffusion)
+
+            if zone.connected_to is not None:
+                if isinstance(zone.connected_to.attribute, Attribute):
+                    if zone.connected_to.attribute.shape_type == ShapeType.VDD:
+                        zone.name = "VDD"
+                        if start_node is None:
+                            start_node = zone
+                            start_node.previous_zone_list = ["start"]
+
+                    elif zone.connected_to.attribute.shape_type == ShapeType.VSS:
+                        zone.name = "VSS"
+
+                    elif zone.connected_to.attribute.shape_type == ShapeType.OUTPUT:
+                        zone.name = "Output - " + zone.connected_to.attribute.label
+
+                elif isinstance(zone.connected_to.attribute, Shape) and isinstance(
+                            zone.connected_to.attribute.attribute,
+                            Attribute) and zone.connected_to.attribute.attribute.shape_type == ShapeType.INPUT:
+
+                    zone.name = "Input - " + zone.connected_to.attribute.attribute.label
+
+                else:
+                    if zone.connected_to.shape_type == ShapeType.POLYSILICON:
+                        zone.name = "Input - " + zone.connected_to.attribute.name
+                    else:
+                        zone.name = zone.connected_to.name
+            else:
+                diff_counter += 1
+                zone.name = "Diffusion - " + str(diff_counter)
+
+    def find_next_zone(node):
+        start_index = node.diffusion.zone_list.index(node)
+        left_index = start_index - 1
+        right_index = start_index + 1
+
+        if node.connected_to is not None and node.shape_type != ShapeType.POLYSILICON:
+            # find the nodes to continue the algorithm TODO before recursion
+            for diffusion_to_apply in diffusion_list:
+                for zone_to_apply in diffusion_to_apply.zone_list:
+                    if zone_to_apply.connected_to == node.connected_to or (
+                            isinstance(zone_to_apply.connected_to, Shape) and
+                            zone_to_apply.connected_to.attribute == zone.connected_to):
+
+                        if len(zone_to_apply.previous_zone_list) == 0:
+                            zone_to_apply.previous_zone_list = node.previous_zone_list
+                            find_next_zone(zone_to_apply)
+
+        if right_index < len(node.diffusion.zone_list):
+            right_nodes = node.diffusion.zone_list[right_index]
+            if right_nodes not in node.previous_zone_list:
+                right_nodes.add_previous_zone(node)
+                node.add_next_zone(right_nodes)
+
+        if left_index >= 0:
+            left_node = node.diffusion.zone_list[left_index]
+            if left_node not in node.previous_zone_list:
+                left_node.add_previous_zone(node)
+                node.add_next_zone(left_node)
+
+        for next_node in node.next_zone_list:
+            find_next_zone(next_node)
+
+    find_next_zone(start_node)
+
+    return diffusion_list, start_node
+
 
 
 def element_sorting(element_list, inputs, truthtable, voltage) -> list:
@@ -331,6 +455,8 @@ def is_connected(element_list, inputs, truthtable, voltage, element) -> None:
         Input missing but found in the GDS file.
 
     """
+    metal_counter = 0
+
     ground_pin_name = power_pin_name = ""
     for volt in voltage:
         if "ground" in volt["type"]:
@@ -346,6 +472,9 @@ def is_connected(element_list, inputs, truthtable, voltage, element) -> None:
                         element.set_attribute(item)
 
     elif element.shape_type == ShapeType.METAL:
+        element.name = "Metal - " + str(metal_counter)
+        metal_counter += 1
+
         for label in element_list:
             if isinstance(label, Label):
                 if element.polygon.contains(Point(label.coordinates)):
@@ -481,6 +610,12 @@ def set_zone_states(reflection_list) -> None:
 
     """
 
+    undefined_states = {}
+
+    for diffusion in reflection_list:
+
+        undefined_states[reflection_list.index(diffusion)] = []
+
     for diffusion in reflection_list:
 
         if diffusion.shape_type is None:
@@ -513,41 +648,59 @@ def set_zone_states(reflection_list) -> None:
                         Attribute) and zone.connected_to.attribute.attribute.shape_type == ShapeType.INPUT:
                     zone.set_state(zone.connected_to.attribute.attribute.state)
 
-        # Wire unknown loop
+    # Wire unknown loop
+    def wire_loop(diffusion, zone):
+        target_index = None
+
+        if isinstance(zone.connected_to, Shape) and zone.connected_to.shape_type == ShapeType.METAL \
+                and not zone.wire and zone.connected_to.attribute is None:
+
+            found_state = None
+            counter = 0
+            for index, zone_to_find in enumerate(diffusion.zone_list):
+                if zone_to_find.connected_to == zone.connected_to:
+                    if zone_to_find.state is not None:
+                        found_state = zone_to_find.state
+                    elif zone_to_find.connected_to.shape_type is not ShapeType.POLYSILICON:
+                        found_state, target_index = find_neighbor_state(diffusion, index)
+
+                    if found_state is not None:
+                        break
+
+                    elif target_index is not None and target_index not in undefined_states[reflection_list.index(diffusion)]:
+                        undefined_states[reflection_list.index(diffusion)].append(target_index)
+
+            if found_state is not None:
+                for diffusion_loop in reflection_list:
+                    # Find other zone connected to this wire branch
+                    for index, zone_to_apply in enumerate(diffusion_loop.zone_list):
+                        if zone_to_apply.connected_to == zone.connected_to or (
+                                isinstance(zone_to_apply.connected_to, Shape) and
+                                zone_to_apply.connected_to.attribute == zone.connected_to):
+                            if zone_to_apply.state is None:
+                                zone_to_apply.set_state(found_state)
+                                zone_to_apply.wire = True
+
+    for diffusion in reflection_list:
         for zone in diffusion.zone_list:
-            if isinstance(zone.connected_to, Shape) and zone.connected_to.shape_type == ShapeType.METAL \
-                    and not zone.wire and zone.connected_to.attribute is None:
+            wire_loop(diffusion, zone)
 
-                found_state = None
-                for index, zone_to_find in enumerate(diffusion.zone_list):
-                    if zone_to_find.connected_to == zone.connected_to:
-                        if zone_to_find.state is not None:
-                            found_state = zone_to_find.state
-                        elif zone_to_find.connected_to.shape_type is not ShapeType.POLYSILICON:
-                            found_state = find_neighbor_state(diffusion, index)
-                        if found_state is not None:
-                            break
 
-                if found_state is not None:
-                    for diffusion_loop in reflection_list:
-                        # Find other zone connected to this wire branch
-                        for index, zone_to_apply in enumerate(diffusion_loop.zone_list):
-                            if zone_to_apply.connected_to == zone.connected_to or (
-                                    isinstance(zone_to_apply.connected_to, Shape) and
-                                    zone_to_apply.connected_to.attribute == zone.connected_to):
-                                if zone_to_apply.state is None:
-                                    zone_to_apply.set_state(found_state)
-                                    zone_to_apply.wire = True
+    for diffusion_key, zone_unknown_list in undefined_states.items():
+        diffusion = reflection_list[diffusion_key]
+        for zone_index in zone_unknown_list:
+            zone = diffusion.zone_list[zone_index]
+            wire_loop(diffusion, zone)
 
-        # Unknown loop
+    for diffusion in reflection_list:
         for index, zone in enumerate(diffusion.zone_list):
             if zone.connected_to is None:
-                found_state = find_neighbor_state(diffusion, index)
+                found_state, _ = find_neighbor_state(diffusion, index)
                 if found_state is not None:
                     zone.set_state(found_state)
 
 
-def find_neighbor_state(diffusion, zone_index) -> bool:
+def find_neighbor_state(diffusion, zone_index) -> (bool, int):
     """
     This function is to find the state applicable to a zone based on physics electronic properties.
 
@@ -583,6 +736,7 @@ def find_neighbor_state(diffusion, zone_index) -> bool:
     neighbor_index = [zone_index - 1, zone_index + 1]
     stop_loop = False
     found_state = None
+    target_index = zone_index
 
     while not stop_loop:
         for index in range(len(neighbor_index)):
@@ -603,6 +757,13 @@ def find_neighbor_state(diffusion, zone_index) -> bool:
                     elif diffusion_type == ShapeType.NMOS and zone.state == 1:
                         neighbor_index[index] = next_index
                         continue
+
+                    # if a poly has an unknown state, then temp state
+                    elif zone.state is None:
+                        neighbor_index[index] = 2
+                        stop_loop = True
+                        break
+
                     else:
                         neighbor_index[index] = None
                         continue
@@ -615,6 +776,7 @@ def find_neighbor_state(diffusion, zone_index) -> bool:
                         or zone.state is not None:
 
                     found_state = zone.state
+                    target_index = None
                     stop_loop = True
                     break
 
@@ -629,4 +791,4 @@ def find_neighbor_state(diffusion, zone_index) -> bool:
         if all(x is None for x in neighbor_index):
             break
 
-    return found_state
+    return found_state, target_index

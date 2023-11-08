@@ -278,7 +278,7 @@ def export_reflection_to_png_over_gds_cell(op_object, reflection_draw=False, wit
                 state = zone.state
                 if reflection.shape_type == ShapeType.PMOS:
                     if state is None:
-                        reflect = False
+                        reflect = None
                     else:
                         reflect = not state
                 else:
@@ -286,6 +286,10 @@ def export_reflection_to_png_over_gds_cell(op_object, reflection_draw=False, wit
 
                 if bool(reflect):
                     plt.fill(x, y, facecolor="none", edgecolor="black", hatch='////', alpha=0.8)
+
+                if reflect is None:
+                    plt.fill(x, y, facecolor="none", edgecolor="red", hatch='////', alpha=0.8)
+
 
     string_list = [f"{key}_{value}" for key, value in sorted(op_object.inputs.items())]
     result_string = "_".join(string_list)
