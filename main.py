@@ -62,6 +62,7 @@ if __name__ == "__main__":
         orange_color = "\033[1;33m"
         white_color = "\033[1;37m"
         green_color = "\033[1;32m"
+        red_color = "\033[1;31m"
 
         total_iterations = len(cells_list)
 
@@ -73,6 +74,14 @@ if __name__ == "__main__":
 
             combinations = []
             counter += 1
+
+            # start progress bar
+            progress = counter / total_iterations
+            bar_length = 20
+            filled_length = int(bar_length * progress)
+            bar = '█' * filled_length + '-' * (bar_length - filled_length)
+            print(f'\n\r{reset_color}Progress: {green_color}[{bar}] {int(progress * 100)}% Complete {reset_color} -- {cell_name}{white_color} || {blue_color}', end='', flush=True)
+            # end progress bar
 
             try:
                 start_ex_time = time.time()
@@ -86,19 +95,12 @@ if __name__ == "__main__":
 
                 def perform_op(time_counter_op):
 
-                    # start progress bar
-                    progress = counter / total_iterations
-                    bar_length = 20
-                    filled_length = int(bar_length * progress)
-                    bar = '█' * filled_length + '-' * (bar_length - filled_length)
-                    print(f'\n\r{reset_color}Progress: {green_color}[{bar}] {int(progress * 100)}% Complete {reset_color} -- {cell_name}{white_color} || {blue_color}', end='', flush=True)
-                    # end progress bar
-
                     start_op_time = time.time()
 
                     op_object = Op(cell_name, gds_cell, [1, 5, 9, 10, 11], truth_table, voltage, draw_inputs)
 
-                    gds_drawing.export_reflection_to_png_over_gds_cell(op_object, True, False)
+                    # Add here the different exports from the gds drawing lib
+                    #gds_drawing.export_reflection_to_png_over_gds_cell(op_object, True, False)
 
                     end_op_time = time.time()
                     execution_time_op = end_op_time - start_op_time
@@ -108,15 +110,16 @@ if __name__ == "__main__":
 
 
                 if hand_input:
+                    print("\n\n")
                     for inp in input_names:
                         value = None
                         while value not in ['0', '1']:
-                            value = input(f"Enter a value for {inp} {blue_color}(0 or 1){reset_color}: ")
+                            value = input(f"{reset_color}Enter a value for {inp} {blue_color}(0 or 1){reset_color}: ")
                             if value not in ['0', '1']:
                                 print(f"{orange_color}Invalid input. Please enter 0 or 1.{reset_color}")
 
                         draw_inputs[inp] = int(value)
-
+                    print(f"\n{blue_color}")
                     op_object, time_counter_op = perform_op(time_counter_op)
 
                 else:
@@ -131,19 +134,14 @@ if __name__ == "__main__":
                         state_counter += 1
 
                 if combinations_counter == len(combinations):
-                    #gds_drawing.data_export_csv(cell_name, execution_ex_time, time_counter_op, op_object, hand_input)
+                    gds_drawing.data_export_csv(cell_name, execution_ex_time, time_counter_op, op_object, hand_input)
                     time_counter_op = 0
                     combinations_counter = 0
                     time_counter_ex = 0
 
             except Exception as e:
-                print(f'\n{orange_color}')
-                print("-----------------------------------------------------------")
-                print(f"An error occurred for gate {cell_name}: {e}. Please try again.")
-                print("-----------------------------------------------------------")
-                print(f'\n{reset_color}')
+                print(f"{red_color}An error occurred: {e}{reset_color}")
                 error_cell_list.append(cell_name)
-
 
         end_time = time.time()
         print(f'\n{green_color}Processing complete.{reset_color}')
