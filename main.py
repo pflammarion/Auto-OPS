@@ -27,9 +27,10 @@ if __name__ == "__main__":
         lib_file = "Platforms/PDK45nm/NangateOpenCellLibrary_typical.lib"
         gds_file = "Platforms/PDK45nm/stdcells.gds"
 
-        start_time = time.time()
         lib = gdspy.GdsLibrary()
         cells_list = lib.read_gds(gds_file).cells
+
+        lib_reader = LibReader(lib_file)
 
         hand_input = hand_input_user = None
         cell_name_hand = None
@@ -47,10 +48,22 @@ if __name__ == "__main__":
         # Ask the user for cell_name_hand
         cell_name_hand = input("Enter the cell name (press enter to perform all): ")
 
+        start_time = time.time()
+
         error_cell_list = []
         counter = 0
+        combinations_counter = 0
+        state_counter = 0
         time_counter_op = 0
         time_counter_ex = 0
+
+        blue_color = "\033[1;34m"
+        reset_color = "\033[0m"
+        orange_color = "\033[1;33m"
+        white_color = "\033[1;37m"
+        green_color = "\033[1;32m"
+
+        total_iterations = len(cells_list)
 
         for cell_name, gds_cell in cells_list.items():
 
@@ -59,14 +72,12 @@ if __name__ == "__main__":
                     continue
 
             combinations = []
-
-            print("\n" + cell_name)
+            counter += 1
 
             try:
                 start_ex_time = time.time()
 
-                lib_reader = LibReader(cell_name, lib_file)
-                truth_table, voltage, input_names = lib_reader.extract_truth_table()
+                truth_table, voltage, input_names = lib_reader.extract_truth_table(cell_name)
                 draw_inputs = {}
 
                 end_ex_time = time.time()
@@ -74,6 +85,15 @@ if __name__ == "__main__":
                 time_counter_ex += execution_ex_time
 
                 def perform_op(time_counter_op):
+
+                    # start progress bar
+                    progress = counter / total_iterations
+                    bar_length = 20
+                    filled_length = int(bar_length * progress)
+                    bar = '█' * filled_length + '-' * (bar_length - filled_length)
+                    print(f'\n\r{reset_color}Progress: {green_color}[{bar}] {int(progress * 100)}% Complete {reset_color} -- {cell_name}{white_color} || {blue_color}', end='', flush=True)
+                    # end progress bar
+
                     start_op_time = time.time()
 
                     op_object = Op(cell_name, gds_cell, [1, 5, 9, 10, 11], truth_table, voltage, draw_inputs)
@@ -89,7 +109,12 @@ if __name__ == "__main__":
 
                 if hand_input:
                     for inp in input_names:
-                        value = input(f"Enter a value for {inp}: ")
+                        value = None
+                        while value not in ['0', '1']:
+                            value = input(f"Enter a value for {inp} {blue_color}(0 or 1){reset_color}: ")
+                            if value not in ['0', '1']:
+                                print(f"{orange_color}Invalid input. Please enter 0 or 1.{reset_color}")
+
                         draw_inputs[inp] = int(value)
 
                     op_object, time_counter_op = perform_op(time_counter_op)
@@ -102,24 +127,27 @@ if __name__ == "__main__":
                             draw_inputs[inp] = combination[index]
 
                         op_object, time_counter_op = perform_op(time_counter_op)
-                        counter += 1
+                        combinations_counter += 1
+                        state_counter += 1
 
-                if counter == len(combinations):
-                    gds_drawing.data_export_csv(cell_name, execution_ex_time, time_counter_op, op_object, hand_input)
+                if combinations_counter == len(combinations):
+                    #gds_drawing.data_export_csv(cell_name, execution_ex_time, time_counter_op, op_object, hand_input)
                     time_counter_op = 0
-                    counter = 0
+                    combinations_counter = 0
                     time_counter_ex = 0
 
             except Exception as e:
-                print("\n")
+                print(f'\n{orange_color}')
                 print("-----------------------------------------------------------")
                 print(f"An error occurred for gate {cell_name}: {e}. Please try again.")
                 print("-----------------------------------------------------------")
-                print("\n")
+                print(f'\n{reset_color}')
                 error_cell_list.append(cell_name)
 
+
         end_time = time.time()
-        gds_drawing.write_output_log(start_time, end_time, cell_counter=counter, error_cell_list=error_cell_list)
+        print(f'\n{green_color}Processing complete.{reset_color}')
+        gds_drawing.write_output_log(start_time, end_time,filtered_cells=cells_list, state_counter=state_counter, error_cell_list=error_cell_list)
 
 
 

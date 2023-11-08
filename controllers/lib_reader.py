@@ -24,18 +24,17 @@ class LibReader:
         >>> print(truth_table)
     """
 
-    def __init__(self, gate_name, lib_file_path):
+    def __init__(self, lib_file_path):
         """
-        Initializes a new `LibReader` instance with the provided gate name and library file path.
+        Initializes a new `LibReader` instance with the provided gate name and library file groupe previously extracted.
 
         Args:
             gate_name (str): The name of the gate for which the truth table is to be extracted.
             lib_file_path (str): The path to the library file (.lib) containing gate definitions.
         """
-        self.gate_name = gate_name
-        self.lib_file_path = lib_file_path
+        self.lib_file = parse_liberty(open(lib_file_path).read())
 
-    def extract_truth_table(self):
+    def extract_truth_table(self, gate_name):
         """
         Extracts the truth table for the specified gate from the library file.
 
@@ -43,10 +42,9 @@ class LibReader:
             dict: A dictionary representing the truth table, where input patterns (as binary strings)
             are mapped to their corresponding output values (0 or 1).
         """
-        library = parse_liberty(open(self.lib_file_path).read())
 
         # Find the cell (gate) with the specified name
-        cell = select_cell(library, self.gate_name)
+        cell = select_cell(self.lib_file, gate_name)
 
         voltage = []
 

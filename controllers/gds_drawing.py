@@ -214,7 +214,7 @@ def export_reflection_to_png(op_object) -> None:
 
 
 def export_reflection_to_png_over_gds_cell(op_object, reflection_draw=False, with_axes=True) -> None:
-    plt.figure(figsize=(6, 8))
+    #plt.figure(figsize=(6, 8))
 
     for element in op_object.element_list:
         x, y = element.coordinates
@@ -289,7 +289,7 @@ def export_reflection_to_png_over_gds_cell(op_object, reflection_draw=False, wit
 
     string_list = [f"{key}_{value}" for key, value in sorted(op_object.inputs.items())]
     result_string = "_".join(string_list)
-    file_name = str(op_object.name) + "_overlay__" + result_string + ".pdf"
+    file_name = str(op_object.name) + "_overlay__" + result_string + ".svg"
     path_name = "tmp/" + file_name
 
     if with_axes:
@@ -297,7 +297,7 @@ def export_reflection_to_png_over_gds_cell(op_object, reflection_draw=False, wit
         plt.savefig(path_name)
     else:
         plt.axis('off')
-        plt.savefig(path_name, bbox_inches='tight', pad_inches=0, format='pdf')
+        plt.savefig(path_name, bbox_inches='tight', pad_inches=0, format='svg')
     plt.close()
 
 
@@ -432,14 +432,14 @@ def data_export_csv(cell_name, time_extraction, cumulative_time_op, op_object, h
 
     print(f"Data successfully exported to {filename}.")
 
-def write_output_log(start_time, end_time, cell_counter=1, filtered_cells=None, time_counter_ex=None, time_counter_op=None, error_cell_list=[]):
+def write_output_log(start_time, end_time, state_counter=1, filtered_cells=None, time_counter_ex=None, time_counter_op=None, error_cell_list=[]):
     with open('output.log', 'a') as f:
 
         execution_time = round(end_time - start_time, 2)
 
         f.write(time.strftime("%d/%m/%Y %Hh%M") + "\n\n")
-        f.write(f"Number of state calculated : {cell_counter}\n")
         f.write(f"Total Execution time: {execution_time} seconds\n")
+        f.write(f"Number of state calculated : {state_counter}\n")
 
         if len(error_cell_list) > 0:
             f.write("An error occurred for those cells\n")
@@ -447,7 +447,7 @@ def write_output_log(start_time, end_time, cell_counter=1, filtered_cells=None, 
 
         if time_counter_op is not None:
             execution_time_op = round(time_counter_op, 4)
-            time_per_sate = round(execution_time_op/cell_counter, 4)
+            time_per_sate = round(execution_time_op/state_counter, 4)
             f.write(f"OP Execution time: {execution_time_op} seconds\n")
             f.write(f"Avg Time per state : {time_per_sate} seconds\n")
 
@@ -457,8 +457,8 @@ def write_output_log(start_time, end_time, cell_counter=1, filtered_cells=None, 
 
         if filtered_cells is not None:
             number_of_gate = len(filtered_cells) - len(error_cell_list)
-            time_per_gate = round(execution_time_ex/number_of_gate, 4)
-            f.write(f"Number of gates: {number_of_gate} \n")
-            f.write(f"Avg Time per gate init : {time_per_gate} seconds\n\n")
+            time_per_gate = round(execution_time/number_of_gate, 4)
+            f.write(f"Number of cell processed: {number_of_gate} \n")
+            f.write(f"Avg Time/Cell : {time_per_gate} seconds\n\n")
 
         f.write("-----------------------------------------------------------\n\n")
