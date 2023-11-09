@@ -52,8 +52,8 @@ class Zone:
         self.connected_to = connected_to
         self.wire = False
         self.diffusion = None
-        self.next_zone_list = []
-        self.previous_zone_list = []
+        self.next_zone_list = set()
+        self.previous_zone_list = set()
 
     def set_state(self, state) -> None:
         if state is True or state == 1:
@@ -67,10 +67,10 @@ class Zone:
         self.diffusion = diffusion
 
     def add_next_zone(self, zone):
-        self.next_zone_list.append(zone)
+        self.next_zone_list.add(zone)
 
     def add_previous_zone(self, zone):
-        self.previous_zone_list.append(zone)
+        self.previous_zone_list.add(zone)
 
 
     def set_connected_to(self, shape) -> None:

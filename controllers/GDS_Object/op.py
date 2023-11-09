@@ -79,34 +79,86 @@ class Op:
         for diffusion in diffusion_list:
             connect_diffusion_to_metal(self.element_list, diffusion)
 
-        diffusion_list, start_node = sort_zone_by_connection(diffusion_list)
-        diffusion_list = set_defined_states(diffusion_list, start_node)
+        diffusion_list, start_node_vdd_list, start_node_vss_list = sort_zone_by_connection(diffusion_list)
+
+        #for start_node in start_node_vdd_list:
+            #set_defined_states(start_node, False)
+
+        #for start_node in start_node_vss_list:
+            #set_defined_states(start_node, True)
 
         draw_diff(diffusion_list)
 
 
-def set_defined_states(diffusion_list, start_node):
+def set_defined_states(current_node, reverse, previous_node=None, previous_state=None):
+    is_switch = apply_state(current_node, previous_state)
 
-    current_node = start_node
-    # find the state and then
+    next_state = None
 
-    for diff in diffusion_list:
-        for zone in diffusion_list:
-            if zone == current_node:
-                next_nodes = zone.next_zone_list
+    if is_switch:
+        if not pass_through(current_node):
+            return
 
-                break
+        next_state = previous_node.state
 
-    return diffusion_list
+    if reverse:
+        next_nodes = current_node.previous_zone_list
+    else:
+        next_nodes = current_node.next_zone_list
+
+    for node in next_nodes:
+        set_defined_states(node, reverse, current_node, next_state)
+
+
+def apply_state(zone, previous_state):
+    is_switch = False
+    if zone.connected_to is not None:
+        if isinstance(zone.connected_to.attribute, Attribute):
+            if zone.connected_to.attribute.shape_type == ShapeType.VDD:
+                zone.set_state(1)
+            elif zone.connected_to.attribute.shape_type == ShapeType.VSS:
+                zone.set_state(0)
+
+            elif zone.connected_to.attribute.shape_type == ShapeType.OUTPUT:
+                zone.set_state(zone.connected_to.attribute.state)
+
+            elif zone.connected_to.attribute.shape_type == ShapeType.INPUT \
+                    and zone.connected_to.attribute.label == "GCK":
+
+                raise AttributeError("Clock gates not working " + str(zone.connected_to.attribute.label))
+
+            else:
+                raise AttributeError("Wrong attribut in " + str(zone.connected_to.shape_type))
+
+        elif isinstance(zone.connected_to.attribute, Shape) and isinstance(
+                zone.connected_to.attribute.attribute,
+                Attribute) and zone.connected_to.attribute.attribute.shape_type == ShapeType.INPUT:
+
+            is_switch = True
+            zone.set_state(zone.connected_to.attribute.attribute.state)
+    else:
+        zone.set_state(previous_state)
+
+    return is_switch
+
+def pass_through(zone):
+    if (zone.diffusion.shape_type == ShapeType.PMOS and zone.state == 0) or (zone.diffusion.shape_type == ShapeType.NMOS and zone.state == 1):
+        return True
+    else:
+        return False
+
 
 def draw_diff(diffusion_list):
-    G = nx.DiGraph()
+    G = nx.Graph()
 
     for diff in diffusion_list:
         for obj in diff.zone_list:
-            G.add_node(obj.name, value=obj.state)
+            name = obj.diffusion.name + "_" + obj.name
+            G.add_node(name, value=obj.state)
             for next_obj in obj.next_zone_list:
-                G.add_edge(obj.name, next_obj.name)
+                if not isinstance(next_obj, str):
+                    next_obj_name = next_obj.diffusion.name + "_" + next_obj.name
+                    G.add_edge(name, next_obj_name)
 
     color_map = []
     for node in G:
@@ -119,19 +171,26 @@ def draw_diff(diffusion_list):
 
     # Draw the graph
     pos = nx.spring_layout(G)  # You can choose the layout according to your requirements
-    nx.draw(G, pos, with_labels=True, node_size=1000, node_color=color_map, node_shape="o", alpha=0.8, linewidths=4, font_size=12, font_color="red", font_weight="bold", arrowsize=20)
+    nx.draw(G, pos, with_labels=True, node_size=1000, node_color=color_map, node_shape="o", alpha=0.8, linewidths=4, font_size=12, font_color="red", font_weight="bold")
 
     # Display the graph
     plt.show()
 
 def sort_zone_by_connection(diffusion_list):
-    start_node = None
+    start_node_vdd_list = []
+    start_node_vss_list = []
 
     diff_counter = 0
 
     # sort all diffusion from left to right and find the starting point TODO to be optimized
     for diffusion in diffusion_list:
         diffusion.zone_list = sorted(diffusion.zone_list, key=lambda selected_zone: selected_zone.get_min_x_coord())
+
+        if diffusion.shape_type == ShapeType.PMOS:
+            diffusion.name = "P"
+        else:
+            diffusion.name = "N"
+
         for zone in diffusion.zone_list:
             zone.set_diffusion(diffusion)
 
@@ -139,12 +198,15 @@ def sort_zone_by_connection(diffusion_list):
                 if isinstance(zone.connected_to.attribute, Attribute):
                     if zone.connected_to.attribute.shape_type == ShapeType.VDD:
                         zone.name = "VDD"
-                        if start_node is None:
-                            start_node = zone
-                            start_node.previous_zone_list = ["start"]
+                        if zone not in start_node_vdd_list:
+                            zone.add_previous_zone("start")
+                            start_node_vdd_list.append(zone)
 
                     elif zone.connected_to.attribute.shape_type == ShapeType.VSS:
                         zone.name = "VSS"
+                        if zone not in start_node_vss_list:
+                            zone.add_next_zone("end")
+                            start_node_vss_list.append(zone)
 
                     elif zone.connected_to.attribute.shape_type == ShapeType.OUTPUT:
                         zone.name = "Output - " + zone.connected_to.attribute.label
@@ -175,30 +237,36 @@ def sort_zone_by_connection(diffusion_list):
                 for zone_to_apply in diffusion_to_apply.zone_list:
                     if zone_to_apply.connected_to == node.connected_to or (
                             isinstance(zone_to_apply.connected_to, Shape) and
-                            zone_to_apply.connected_to.attribute == zone.connected_to):
+                            zone_to_apply.connected_to.attribute == node.connected_to):
 
-                        if len(zone_to_apply.previous_zone_list) == 0:
-                            zone_to_apply.previous_zone_list = node.previous_zone_list
+                        if len(zone_to_apply.previous_zone_list) == 0 and zone_to_apply is not node:
+                            # creating a full wire two ways
+                            zone_to_apply.add_previous_zone(node)
+                            zone_to_apply.add_next_zone(node)
+                            node.add_previous_zone(zone_to_apply)
+                            node.add_next_zone(zone_to_apply)
+
                             find_next_zone(zone_to_apply)
 
         if right_index < len(node.diffusion.zone_list):
             right_nodes = node.diffusion.zone_list[right_index]
-            if right_nodes not in node.previous_zone_list:
+            if right_nodes not in node.next_zone_list and right_nodes not in node.previous_zone_list:
                 right_nodes.add_previous_zone(node)
                 node.add_next_zone(right_nodes)
 
         if left_index >= 0:
             left_node = node.diffusion.zone_list[left_index]
-            if left_node not in node.previous_zone_list:
+            if left_node not in node.next_zone_list and left_node not in node.previous_zone_list:
                 left_node.add_previous_zone(node)
                 node.add_next_zone(left_node)
 
         for next_node in node.next_zone_list:
-            find_next_zone(next_node)
+            if not isinstance(next_node, str) and next_node not in node.previous_zone_list:
+                find_next_zone(next_node)
 
-    find_next_zone(start_node)
+    find_next_zone(start_node_vdd_list[0])
 
-    return diffusion_list, start_node
+    return diffusion_list, start_node_vdd_list, start_node_vss_list
 
 
 

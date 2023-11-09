@@ -47,7 +47,7 @@ if __name__ == "__main__":
 
         # Ask the user for cell_name_hand
         #cell_name_hand = input("Enter the cell name (press enter to perform all): ")
-        cell_name_hand = "INV_X1"
+        cell_name_hand = "XOR2_X1"
 
         start_time = time.time()
 
