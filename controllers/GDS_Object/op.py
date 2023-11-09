@@ -79,18 +79,67 @@ class Op:
         for diffusion in diffusion_list:
             connect_diffusion_to_metal(self.element_list, diffusion)
 
-        diffusion_list, start_node_vdd_list, start_node_vss_list = sort_zone_by_connection(diffusion_list)
+        diffusion_list, node_vdd_list, node_vss_list = sort_zone_by_connection(diffusion_list)
 
-        #for start_node in start_node_vdd_list:
-            #set_defined_states(start_node, False)
+        nx_object, start_node_list = create_nx_object(diffusion_list, node_vdd_list, node_vss_list)
 
-        #for start_node in start_node_vss_list:
-            #set_defined_states(start_node, True)
+        set_defined_states(nx_object, start_node_list)
 
-        draw_diff(diffusion_list)
+        draw_diff(nx_object)
+
+def create_nx_object(diffusion_list, node_vdd_list, node_vss_list):
+    G = nx.Graph()
+    start_node_list = []
 
 
-def set_defined_states(current_node, reverse, previous_node=None, previous_state=None):
+    for diff in diffusion_list:
+        for obj in diff.zone_list:
+            name = obj.diffusion.name + "_" + obj.name
+            G.add_node(name, value=obj)
+
+            if obj in node_vdd_list or obj in node_vss_list:
+                for node, data in G.nodes(data=True):
+                    if "value" in data and data['value'] == obj and node not in start_node_list:
+                        start_node_list.append(node)
+
+            for next_obj in obj.next_zone_list:
+                if not isinstance(next_obj, str):
+                    next_obj_name = next_obj.diffusion.name + "_" + next_obj.name
+                    G.add_edge(name, next_obj_name)
+
+    return G, start_node_list
+
+def set_defined_states(nx_object, start_node_list):
+    visited = set()  # To keep track of visited node names
+
+    def traverse(node, previous_zone_state=None):
+        if node not in visited:
+            # Perform operations or set defined states for the node
+            if "value" in nx_object.nodes[node]:
+                zone = nx_object.nodes[node]["value"]
+
+                is_switch = apply_state(zone, previous_zone_state)
+
+                visited.add(node)
+
+                if is_switch:
+                    if not pass_through(zone):
+                        return
+                else:
+                    previous_zone_state = zone.state
+
+                for neighbor in nx_object.neighbors(node):
+                    traverse(neighbor, previous_zone_state)
+            else:
+                print("error")
+
+    for start_node in start_node_list:
+        traverse(start_node)
+
+    return nx_object
+
+
+def set_defined_states_old(current_node,reverse,  previous_node=None, previous_state=None):
     is_switch = apply_state(current_node, previous_state)
 
     next_state = None
@@ -136,6 +185,7 @@ def apply_state(zone, previous_state):
 
             is_switch = True
             zone.set_state(zone.connected_to.attribute.attribute.state)
+            zone.is_switch = is_switch
     else:
         zone.set_state(previous_state)
 
@@ -148,32 +198,40 @@ def pass_through(zone):
         return False
 
 
-def draw_diff(diffusion_list):
-    G = nx.Graph()
-
-    for diff in diffusion_list:
-        for obj in diff.zone_list:
-            name = obj.diffusion.name + "_" + obj.name
-            G.add_node(name, value=obj.state)
-            for next_obj in obj.next_zone_list:
-                if not isinstance(next_obj, str):
-                    next_obj_name = next_obj.diffusion.name + "_" + next_obj.name
-                    G.add_edge(name, next_obj_name)
-
+def draw_diff(G):
+    plt.figure(figsize=(8, 6))
     color_map = []
     for node in G:
-        if G.nodes[node]['value'] == 1:
-            color_map.append('lightgreen')
-        elif G.nodes[node]['value'] == 0:
-            color_map.append('blue')
+        if G.nodes[node]['value'].state == 1:
+            if G.nodes[node]['value'].is_switch:
+                if G.nodes[node]['value'].diffusion.shape_type == ShapeType.PMOS:
+                    color_map.append('red')
+                else:
+                    color_map.append('green')
+            else:
+                color_map.append('blue')
+
+        elif G.nodes[node]['value'].state == 0:
+            if G.nodes[node]['value'].is_switch:
+                if G.nodes[node]['value'].diffusion.shape_type == ShapeType.PMOS:
+                    color_map.append('green')
+                else:
+                    color_map.append('red')
+
+            else:
+                color_map.append('skyblue')
+
         else:
-            color_map.append('skyblue')
+            color_map.append('grey')
 
-    # Draw the graph
-    pos = nx.spring_layout(G)  # You can choose the layout according to your requirements
-    nx.draw(G, pos, with_labels=True, node_size=1000, node_color=color_map, node_shape="o", alpha=0.8, linewidths=4, font_size=12, font_color="red", font_weight="bold")
+    pos = nx.spring_layout(G)
+    nx.draw(G, pos, with_labels=True, node_size=500, node_color=color_map, node_shape="o", alpha=0.8, linewidths=4, font_size=12, font_color="black", font_weight="bold")
 
-    # Display the graph
+    legend_labels = ["Do not pass through", "Pass through", "Power 1", "Power 0", "Unknown state"]
+    custom_legend = [plt.Line2D([0], [0], marker='o', color=color, label=label, linestyle='') for color, label in zip(['red', 'green', 'blue', 'skyblue', 'grey'], legend_labels)]
+
+    plt.legend(handles=custom_legend, loc='upper right', facecolor='white', framealpha=1)
+
     plt.show()
 
 def sort_zone_by_connection(diffusion_list):

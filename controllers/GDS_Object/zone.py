@@ -54,6 +54,7 @@ class Zone:
         self.diffusion = None
         self.next_zone_list = set()
         self.previous_zone_list = set()
+        self.is_switch = False
 
     def set_state(self, state) -> None:
         if state is True or state == 1:
