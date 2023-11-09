@@ -159,6 +159,17 @@ def plot_show_case(op_object) -> None:
     plt.close()
 
 
+def count_unknown_states(op_object) -> None:
+    state_counter = 0
+    for reflection in op_object.reflection_list:
+        for zone in reflection.zone_list:
+            if zone.state is None:
+                state_counter += 1
+
+    print(f"\033[1;33m \n {op_object.name}, {op_object.inputs}, None states = {state_counter}, Loop counter = {op_object.loop_counter}")
+
+
+
 def export_reflection_to_png(op_object) -> None:
     """
     Export as a PNG the reflection zones based on their coordinates and state.
@@ -278,7 +289,7 @@ def export_reflection_to_png_over_gds_cell(op_object, reflection_draw=False, wit
                 state = zone.state
                 if reflection.shape_type == ShapeType.PMOS:
                     if state is None:
-                        reflect = False
+                        reflect = None
                     else:
                         reflect = not state
                 else:
@@ -286,6 +297,10 @@ def export_reflection_to_png_over_gds_cell(op_object, reflection_draw=False, wit
 
                 if bool(reflect):
                     plt.fill(x, y, facecolor="none", edgecolor="black", hatch='////', alpha=0.8)
+
+                if reflect is None:
+                    plt.fill(x, y, facecolor="none", edgecolor="red", hatch='////', alpha=0.8)
+
 
     string_list = [f"{key}_{value}" for key, value in sorted(op_object.inputs.items())]
     result_string = "_".join(string_list)

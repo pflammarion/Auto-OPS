@@ -47,6 +47,7 @@ if __name__ == "__main__":
 
         # Ask the user for cell_name_hand
         cell_name_hand = input("Enter the cell name (press enter to perform all): ")
+        #cell_name_hand = "XOR3_X1"
 
         start_time = time.time()
 
@@ -69,7 +70,7 @@ if __name__ == "__main__":
         for cell_name, gds_cell in cells_list.items():
 
             if len(cell_name_hand) > 0:
-                if not cell_name.lower().startswith(cell_name_hand.lower()):
+                if not cell_name.lower() == cell_name_hand.lower():
                     continue
 
             combinations = []
@@ -100,6 +101,7 @@ if __name__ == "__main__":
                     op_object = Op(cell_name, gds_cell, [1, 5, 9, 10, 11], truth_table, voltage, draw_inputs)
 
                     # Add here the different exports from the gds drawing lib
+
                     #gds_drawing.export_reflection_to_png_over_gds_cell(op_object, True, False)
 
                     end_op_time = time.time()

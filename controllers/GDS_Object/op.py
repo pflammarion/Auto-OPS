@@ -75,7 +75,17 @@ class Op:
         for diffusion in self.reflection_list:
             connect_diffusion_to_metal(self.element_list, diffusion)
 
-        set_zone_states(self.reflection_list)
+        none_counter = 0
+        none_loop_counter = 0
+        while True:
+            new_none_counter = set_zone_states(self.reflection_list)
+
+            if none_counter == new_none_counter:
+                break
+            else:
+                none_counter = new_none_counter
+
+            none_loop_counter += 1
 
 
 def element_sorting(element_list, inputs, truthtable, voltage) -> list:
@@ -453,7 +463,7 @@ def connect_diffusion_to_metal(element_list, diffusion) -> None:
                             break
 
 
-def set_zone_states(reflection_list) -> None:
+def set_zone_states(reflection_list) -> int:
     """
     This function is to determine a state for all the diffusion zones.
 
@@ -480,6 +490,7 @@ def set_zone_states(reflection_list) -> None:
         Wrong or unknown attribut applied to metal.
 
     """
+    state_counter = 0
 
     for diffusion in reflection_list:
 
@@ -490,6 +501,9 @@ def set_zone_states(reflection_list) -> None:
 
         # known state loop
         for zone in diffusion.zone_list:
+            if zone.state is not None:
+                continue
+
             if zone.connected_to is not None:
                 if isinstance(zone.connected_to.attribute, Attribute):
                     if zone.connected_to.attribute.shape_type == ShapeType.VDD:
@@ -515,6 +529,9 @@ def set_zone_states(reflection_list) -> None:
 
         # Wire unknown loop
         for zone in diffusion.zone_list:
+            if zone.state is not None:
+                continue
+
             if isinstance(zone.connected_to, Shape) and zone.connected_to.shape_type == ShapeType.METAL \
                     and not zone.wire and zone.connected_to.attribute is None:
 
@@ -541,11 +558,19 @@ def set_zone_states(reflection_list) -> None:
 
         # Unknown loop
         for index, zone in enumerate(diffusion.zone_list):
+            if zone.state is not None:
+                continue
+
             if zone.connected_to is None:
                 found_state = find_neighbor_state(diffusion, index)
                 if found_state is not None:
                     zone.set_state(found_state)
 
+        for zone in diffusion.zone_list:
+            if zone.state is None:
+                state_counter += 1
+
+    return state_counter
 
 def find_neighbor_state(diffusion, zone_index) -> bool:
     """
