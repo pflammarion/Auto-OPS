@@ -1,16 +1,20 @@
+from datetime import datetime
 import json
+import re
+import time
+
+import numpy as np
 
 from controllers.GDS_Object.attribute import Attribute
 from controllers.GDS_Object.label import Label
 from controllers.GDS_Object.shape import Shape
-
+import pandas as pd
 import matplotlib.pyplot as plt
 
 from controllers.GDS_Object.type import ShapeType
 
 
 def plot_elements(op_object) -> None:
-    # TODO
     """
     Plots elements based on their coordinates and types.
 
@@ -20,8 +24,8 @@ def plot_elements(op_object) -> None:
 
     Parameters:
     -----------
-    self : object
-        The instance of the class.
+    op_object: Op
+        Op object which contains the information to be extracted
 
     Returns:
     --------
@@ -44,7 +48,6 @@ def plot_elements(op_object) -> None:
 
 
 def plot_reflection(op_object) -> None:
-    # TODO
     """
     Plots reflection zones based on their coordinates and state.
 
@@ -53,8 +56,8 @@ def plot_reflection(op_object) -> None:
 
     Parameters:
     -----------
-    self : object
-        The instance of the class.
+    op_object: Op
+        Op object which contains the information to be extracted
 
     Returns:
     --------
@@ -76,15 +79,14 @@ def plot_reflection(op_object) -> None:
             ax.scatter(x, y, marker='o')
             state = zone.state
             if reflection.shape_type == ShapeType.PMOS:
-                if bool(state):
-                    state = 0
+                if state is None:
+                    reflect = False
                 else:
-                    state = 1
-
-            if state is None:
-                raise Exception("The RCV calculation cannot be performed on this shape " + str(
-                    op_object.name) + ". Please try again")
+                    reflect = not state
             else:
+                reflect = state
+
+            if bool(reflect):
                 ax.fill(x, y, facecolor=color_list[state], alpha=0.2, edgecolor='black', linewidth=1)
 
     plt.title(op_object.name)
@@ -92,7 +94,6 @@ def plot_reflection(op_object) -> None:
 
 
 def plot_show_case(op_object) -> None:
-    # TODO
     """
     Plots elements based on their coordinates and types.
 
@@ -102,8 +103,8 @@ def plot_show_case(op_object) -> None:
 
     Parameters:
     -----------
-    self : object
-        The instance of the class.
+    op_object: Op
+        Op object which contains the information to be extracted
 
     Returns:
     --------
@@ -158,8 +159,18 @@ def plot_show_case(op_object) -> None:
     plt.close()
 
 
+def count_unknown_states(op_object) -> None:
+    state_counter = 0
+    for reflection in op_object.reflection_list:
+        for zone in reflection.zone_list:
+            if zone.state is None:
+                state_counter += 1
+
+    print(f"\033[1;33m \n {op_object.name}, {op_object.inputs}, None states = {state_counter}, Loop counter = {op_object.loop_counter}")
+
+
+
 def export_reflection_to_png(op_object) -> None:
-    # TODO
     """
     Export as a PNG the reflection zones based on their coordinates and state.
     The title of the figure is defined from the gate name, inputs names, and inputs states.
@@ -171,8 +182,8 @@ def export_reflection_to_png(op_object) -> None:
 
     Parameters:
     -----------
-    self : object
-        The instance of the class.
+    op_object: Op
+        Op object which contains the information to be extracted
 
     Returns:
     --------
@@ -185,26 +196,24 @@ def export_reflection_to_png(op_object) -> None:
 
     Note:
     -----
-    Ensure that the 'tmp' directory exists before calling this method,
+    Ensure that the 'tmp' directory exists before calling this function,
     as it will attempt to write the PNG file to this location.
     """
     color_list = ['white', 'black']
-    fig, ax = plt.subplots()
     for reflection in op_object.reflection_list:
         for zone in reflection.zone_list:
             x, y = zone.coordinates
             state = zone.state
             if reflection.shape_type == ShapeType.PMOS:
-                if bool(state):
-                    state = 0
+                if state is None:
+                    reflect = False
                 else:
-                    state = 1
-
-            if state is None:
-                raise Exception("The RCV calculation cannot be performed on this shape " + str(
-                    op_object.name) + ". Please try again")
+                    reflect = not state
             else:
-                ax.fill(x, y, facecolor=color_list[state], alpha=1, edgecolor='grey', linewidth=1)
+                reflect = state
+
+            if bool(reflect):
+                plt.fill(x, y, facecolor=color_list[state], alpha=1, edgecolor='grey', linewidth=1)
 
     string_list = [f"{key}_{value}" for key, value in sorted(op_object.inputs.items())]
     result_string = "_".join(string_list)
@@ -215,7 +224,9 @@ def export_reflection_to_png(op_object) -> None:
     plt.close()
 
 
-def export_reflection_to_png_over_gds_cell(op_object) -> None:
+def export_reflection_to_png_over_gds_cell(op_object, reflection_draw=False, with_axes=True) -> None:
+    #plt.figure(figsize=(6, 8))
+
     for element in op_object.element_list:
         x, y = element.coordinates
 
@@ -264,42 +275,50 @@ def export_reflection_to_png_over_gds_cell(op_object) -> None:
                 text = element.name
 
             plt.annotate(text, (x, y), bbox=dict(facecolor='grey', edgecolor='none', boxstyle='round,pad=0.2'),
-                         color="black")
+                         color=(0.95, 0.90, 0.67), fontsize=18)
 
     for via in op_object.via_element_list:
         x, y = via.coordinates
         plt.plot(x, y, color='none')
         plt.fill(x, y, color="white", alpha=0.8)
 
-    for reflection in op_object.reflection_list:
-        for zone in reflection.zone_list:
-            x, y = zone.coordinates
-            state = zone.state
-            if reflection.shape_type == ShapeType.PMOS:
-                if bool(state):
-                    state = 0
+    if reflection_draw:
+        for reflection in op_object.reflection_list:
+            for zone in reflection.zone_list:
+                x, y = zone.coordinates
+                state = zone.state
+                if reflection.shape_type == ShapeType.PMOS:
+                    if state is None:
+                        reflect = None
+                    else:
+                        reflect = not state
                 else:
-                    state = 1
+                    reflect = state
 
-            if state is None:
-                raise Exception("The RCV calculation cannot be performed on this shape " + str(
-                    op_object.name) + ". Please try again")
-            elif bool(state):
-                plt.fill(x, y, facecolor="black", alpha=1)
+                if bool(reflect):
+                    plt.fill(x, y, facecolor="none", edgecolor="black", hatch='////', alpha=0.8)
+
+                if reflect is None:
+                    plt.fill(x, y, facecolor="none", edgecolor="red", hatch='////', alpha=0.8)
+
 
     string_list = [f"{key}_{value}" for key, value in sorted(op_object.inputs.items())]
     result_string = "_".join(string_list)
-    file_name = str(op_object.name) + "_overlay__" + result_string
+    file_name = str(op_object.name) + "_overlay__" + result_string + ".svg"
     path_name = "tmp/" + file_name
-    plt.title(file_name)
-    plt.savefig(path_name)
+
+    if with_axes:
+        plt.title(file_name)
+        plt.savefig(path_name)
+    else:
+        plt.axis('off')
+        plt.savefig(path_name, bbox_inches='tight', pad_inches=0, format='svg')
     plt.close()
 
 
 def export_reflection_to_json(op_object) -> None:
-    # TODO
     """
-    This function retrieves reflection data from the current instance of the class and exports it to a JSON file.
+    This function retrieves reflection data from the op_object and exports it to a JSON file.
     It constructs a dictionary 'data' containing cell_name, inputs, and reflection information. The 'reflection'
     key in 'data' stores a list of reflections, each having a 'type' and a list of 'zone_list' elements.
 
@@ -311,8 +330,8 @@ def export_reflection_to_json(op_object) -> None:
 
     Parameters:
     -----------
-    self : object
-       The instance of the class.
+    op_object: Op
+        Op object which contains the information to be extracted
 
     Returns:
     --------
@@ -350,3 +369,111 @@ def export_reflection_to_json(op_object) -> None:
 
     with open(path_name, 'w') as json_file:
         json.dump(data, json_file, indent=4)
+
+
+def data_export_csv(cell_name, time_extraction, cumulative_time_op, op_object, hand_input):
+
+    current_date = datetime.now().strftime('%Y-%m-%d_%H')
+    filename = f"tmp/export_{current_date}.csv"
+
+    suffix_number = np.nan
+    prefix_name = np.nan
+    prefix_number = np.nan
+
+    number_of_zone = 0
+    for diff in op_object.reflection_list:
+        number_of_zone += len(diff.zone_list)
+
+    number_of_input = len(op_object.inputs.keys())
+
+    avg_time_op = cumulative_time_op / 2 ** number_of_input
+
+    suffix_number_match = re.search(r'(\d+)$', cell_name)
+    if suffix_number_match:
+        suffix_number = int(suffix_number_match.group(1))
+
+    prefix_number_match = re.search(r'(\d+)_X', cell_name)
+    if prefix_number_match:
+        prefix_number = int(prefix_number_match.group(1))
+
+    prefix_name_match = re.search(r'^([A-Za-z]+)', cell_name)
+    if prefix_name_match:
+        prefix_name = prefix_name_match.group(1)
+
+    try:
+        df = pd.read_csv(filename)
+    except FileNotFoundError:
+        df = pd.DataFrame(
+            columns=['cell_name', 'time_extraction', 'number_of_zone', 'number_of_input', 'suffix_number',
+                     'prefix_name', 'prefix_number', 'cumulative_time_op', 'avg_time_op', 'hand_input'])
+
+    if cell_name in df['cell_name'].values:
+        df.loc[df['cell_name'] == cell_name, [
+            'time_extraction',
+            'cumulative_time_op',
+            'avg_time_op',
+            'number_of_zone',
+            'number_of_input',
+            'suffix_number',
+            'prefix_name',
+            'prefix_number',
+            'hand_input']] = \
+            time_extraction, \
+                cumulative_time_op, \
+                avg_time_op, \
+                number_of_zone, \
+                number_of_input, \
+                suffix_number, \
+                prefix_name, \
+                prefix_number, \
+                hand_input
+    else:
+        new_row = {
+            'cell_name': cell_name,
+            'time_extraction': time_extraction,
+            'cumulative_time_op': cumulative_time_op,
+            'avg_time_op': avg_time_op,
+            'number_of_zone': number_of_zone,
+            'number_of_input': number_of_input,
+            'suffix_number': suffix_number,
+            'prefix_name': prefix_name,
+            'prefix_number': prefix_number,
+            'hand_input': hand_input
+        }
+
+        df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
+
+    df.to_csv(filename, index=False)
+
+    print(f"Data successfully exported to {filename}.")
+
+def write_output_log(start_time, end_time, state_counter=1, filtered_cells=None, time_counter_ex=None, time_counter_op=None, error_cell_list=[]):
+    with open('output.log', 'a') as f:
+
+        execution_time = round(end_time - start_time, 2)
+
+        f.write(time.strftime("%d/%m/%Y %Hh%M") + "\n\n")
+        f.write(f"Total Execution time: {execution_time} seconds\n")
+        f.write(f"Number of state calculated : {state_counter}\n")
+
+        if len(error_cell_list) > 0:
+            f.write("An error occurred for those cells\n")
+            f.write(str(error_cell_list) + "\n")
+
+        if time_counter_op is not None:
+            execution_time_op = round(time_counter_op, 4)
+            time_per_sate = round(execution_time_op/state_counter, 4)
+            f.write(f"OP Execution time: {execution_time_op} seconds\n")
+            f.write(f"Avg Time per state : {time_per_sate} seconds\n")
+
+        if time_counter_ex is not None:
+            execution_time_ex = round(time_counter_ex, 2)
+            f.write(f"Gate init Execution time: {execution_time_ex} seconds\n")
+
+        if filtered_cells is not None:
+            number_of_gate = len(filtered_cells) - len(error_cell_list)
+            time_per_gate = round(execution_time/number_of_gate, 4)
+            f.write(f"Number of cell processed: {number_of_gate} \n")
+            f.write(f"Avg Time/Cell : {time_per_gate} seconds\n\n")
+
+        f.write("-----------------------------------------------------------\n\n")

@@ -16,7 +16,7 @@ class Op:
 
     Args:
         cell_name (str): The name of the gate in the gds file in the Cells' list.
-        gds_cell (GdsLibrary): Read a GDSII file into this library and select a cell to add to it by name.
+        gds_cell (GdsLibrary): Dictionary of cells in the library's object, indexed by name.
         layer_list (list[int]): Diffusion layer, N well layer, poly silicon layer, via layer, metal layer.
         truthtable (dict{list[set(dict)]})): A list containing the information the output based on the input for a gate.
         voltage(list[dict]): Contains the voltage names and types.
@@ -25,9 +25,9 @@ class Op:
         name (str): The name of the gate in the gds file in the Cells' list.
         inputs(dict): Contains the inputs names and values.
         truthtable (dict): The truthtable is a list containing the information the output based on the input for a gate.
-        via_element_list = Contains all the extracted via elements converted to objects.
-        element_list: Contains all the extracted elements converted to objects.
-        reflection_list: Conains all reflecting elements as diffusion's zones and polysilicon's overlapping.
+        via_element_list(list) Contains all the extracted via elements converted to objects.
+        element_list(list): Contains all the extracted elements converted to objects.
+        reflection_list(list): Contains all reflecting elements as diffusion's zones and poly-silicon's overlapping.
 
     Example:
         To create a GdsDrawing instance:
@@ -75,11 +75,20 @@ class Op:
         for diffusion in self.reflection_list:
             connect_diffusion_to_metal(self.element_list, diffusion)
 
-        set_zone_states(self.reflection_list)
+        none_counter = 0
+        none_loop_counter = 0
+        while True:
+            new_none_counter = set_zone_states(self.reflection_list)
+
+            if none_counter == new_none_counter:
+                break
+            else:
+                none_counter = new_none_counter
+
+            none_loop_counter += 1
 
 
 def element_sorting(element_list, inputs, truthtable, voltage) -> list:
-    # TODO
     """
     This function is to categorize the different shapes based on their shape type.
     It is also to append to every shapes the affiliated via to determine the connections.
@@ -87,13 +96,22 @@ def element_sorting(element_list, inputs, truthtable, voltage) -> list:
 
     Parameters:
     -----------
-    self : object
-       The instance of the class.
+     element_list: list
+        Contains all the extracted elements converted to objects.
 
+     inputs: dict
+        Contains the inputs names and values.
+
+     truthtable: dict
+        The truthtable is a list containing the information the output based on the input for a gate.
+
+     voltage: list[dict]
+        Contains all the extracted via elements converted to objects.
 
     Returns:
     --------
-    list
+    reflection_list: list
+        Contains all reflecting elements as diffusion's zones and poly-silicon's overlapping.
 
     Raises:
     -------
@@ -241,15 +259,14 @@ def init_diffusion_zones(diffusion) -> None:
 
 
 def element_extractor(gds_cell, layer_list) -> list:
-    # TODO
     """
     Function to init the class by extracting every needed polygones for the reflection calculation.
     This is also characterizing the different shapes on a shape type.
 
     Parameters:
     -----------
-    self : object
-        The instance of the class.
+    gds_cell: GdsLibrary
+        Dictionary of cells in the library's object, indexed by name.
 
     layer_list: list(int)
         A list which contains the layer number in the gds file in that order:
@@ -257,7 +274,8 @@ def element_extractor(gds_cell, layer_list) -> list:
 
     Returns:
     --------
-    None
+    element_list: list
+        Contains all the extracted elements converted to objects.
 
     Raises:
     -------
@@ -286,7 +304,6 @@ def element_extractor(gds_cell, layer_list) -> list:
 
 
 def is_connected(element_list, inputs, truthtable, voltage, element) -> None:
-    # TODO
     """
     This function is to link element together.
 
@@ -297,8 +314,17 @@ def is_connected(element_list, inputs, truthtable, voltage, element) -> None:
 
     Parameters:
     -----------
-    self : object
-       The instance of the class.
+    element_list: list
+        Contains all the extracted elements converted to objects.
+
+    inputs: dict
+        Contains the inputs names and values.
+
+    truthtable: dict
+        The truthtable is a list containing the information the output based on the input for a gate.
+
+    voltage: list[dict]
+        Contains all the extracted via elements converted to objects.
 
     element : Shape | Label
         Objects in the class element list instance
@@ -368,15 +394,14 @@ def is_connected(element_list, inputs, truthtable, voltage, element) -> None:
 
 
 def connect_diffusion_to_polygon(element_list, diffusion) -> None:
-    # TODO
     """
     To set up zones where the poly silicon overlap to the diffusion parts.
     Creating a zone from the overlaps coordinates.
 
     Parameters:
     -----------
-    self : object
-       The instance of the class.
+    element_list: list
+        Contains all the extracted elements converted to objects.
 
     diffusion : Diffusion
         Objects in the class reflection list instance which hold the reflection zone objects
@@ -404,14 +429,13 @@ def connect_diffusion_to_polygon(element_list, diffusion) -> None:
 
 
 def connect_diffusion_to_metal(element_list, diffusion) -> None:
-    # TODO
     """
     Identify each zones where a metal layer is connected through a via connection.
 
     Parameters:
     -----------
-    self : object
-       The instance of the class.
+    element_list: list
+        Contains all the extracted elements converted to objects.
 
     diffusion : Diffusion
         Objects in the class reflection list instance which hold the reflection zone objects
@@ -439,8 +463,7 @@ def connect_diffusion_to_metal(element_list, diffusion) -> None:
                             break
 
 
-def set_zone_states(reflection_list) -> None:
-    # TODO
+def set_zone_states(reflection_list) -> int:
     """
     This function is to determine a state for all the diffusion zones.
 
@@ -451,8 +474,8 @@ def set_zone_states(reflection_list) -> None:
 
     Parameters:
     -----------
-    self : object
-       The instance of the class.
+    reflection_list: list
+        Contains all reflecting elements as diffusion's zones and poly-silicon's overlapping.
 
     Returns:
     --------
@@ -467,6 +490,7 @@ def set_zone_states(reflection_list) -> None:
         Wrong or unknown attribut applied to metal.
 
     """
+    state_counter = 0
 
     for diffusion in reflection_list:
 
@@ -477,6 +501,9 @@ def set_zone_states(reflection_list) -> None:
 
         # known state loop
         for zone in diffusion.zone_list:
+            if zone.state is not None:
+                continue
+
             if zone.connected_to is not None:
                 if isinstance(zone.connected_to.attribute, Attribute):
                     if zone.connected_to.attribute.shape_type == ShapeType.VDD:
@@ -502,6 +529,9 @@ def set_zone_states(reflection_list) -> None:
 
         # Wire unknown loop
         for zone in diffusion.zone_list:
+            if zone.state is not None:
+                continue
+
             if isinstance(zone.connected_to, Shape) and zone.connected_to.shape_type == ShapeType.METAL \
                     and not zone.wire and zone.connected_to.attribute is None:
 
@@ -528,21 +558,21 @@ def set_zone_states(reflection_list) -> None:
 
         # Unknown loop
         for index, zone in enumerate(diffusion.zone_list):
+            if zone.state is not None:
+                continue
+
             if zone.connected_to is None:
                 found_state = find_neighbor_state(diffusion, index)
                 if found_state is not None:
-
                     zone.set_state(found_state)
-                else:
-                    if diffusion.shape_type == ShapeType.PMOS:
-                        zone.set_state(1)
 
-                    else:
-                        zone.set_state(0)
+        for zone in diffusion.zone_list:
+            if zone.state is None:
+                state_counter += 1
 
+    return state_counter
 
 def find_neighbor_state(diffusion, zone_index) -> bool:
-    # TODO
     """
     This function is to find the state applicable to a zone based on physics electronic properties.
 
@@ -556,9 +586,6 @@ def find_neighbor_state(diffusion, zone_index) -> bool:
 
     Parameters:
     -----------
-    self : object
-       The instance of the class.
-
     diffusion : Diffusion
         The diffusion part where the searching algorithm is going to be performed.
 
@@ -625,13 +652,6 @@ def find_neighbor_state(diffusion, zone_index) -> bool:
 
         # If the zone is between two un passing zones, not reflecting state applied
         if all(x is None for x in neighbor_index):
-
-            if diffusion_type == ShapeType.PMOS:
-                found_state = 1
-
-            else:
-                found_state = 0
-
             break
 
     return found_state
