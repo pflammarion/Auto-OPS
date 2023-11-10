@@ -172,6 +172,8 @@ def count_unknown_states(op_object) -> None:
 
 
 def benchmark(object_list, def_extract) -> None:
+
+
     ur_x = def_extract[0]["ur_x"]
     ll_x = def_extract[0]["ll_x"]
     ur_y = def_extract[0]["ur_y"]
@@ -201,7 +203,7 @@ def benchmark(object_list, def_extract) -> None:
         for position in cell_place:
             for reflection in op_object.reflection_list:
                 for zone in reflection.zone_list:
-                    x, y = apply_transformation(zone.coordinates, position['Orientation'], reflection.get_diff_width(), op_object.get_height())
+                    x, y = zone.coordinates
                     x_adder, y_adder = position['Coordinates']
                     x = tuple([element + x_adder/micron for element in x])
                     y = tuple([element + y_adder/micron for element in y])
@@ -217,9 +219,9 @@ def benchmark(object_list, def_extract) -> None:
                         reflect = state
 
                     if bool(reflect):
-                        plt.fill(x, y, facecolor='white', alpha=1)
+                        plt.fill(x, y, facecolor='black', alpha=1, edgecolor='grey', linewidth=1)
 
-    plt.gca().set_facecolor('black')
+
     plt.show()
 
 
