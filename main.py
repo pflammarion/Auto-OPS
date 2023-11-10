@@ -14,7 +14,7 @@ from controllers.lib_reader import LibReader
 from controllers.main_controller import MainController
 
 if __name__ == "__main__":
-    program = 2
+    program = 3
     if program == 1:
         app = QApplication(sys.argv)
         app.setApplicationName("CMOS-INV-GUI")
