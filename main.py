@@ -1,3 +1,4 @@
+import copy
 import itertools
 import sys
 import time
@@ -8,11 +9,12 @@ from PyQt6.QtWidgets import QApplication
 
 from controllers import gds_drawing
 from controllers.GDS_Object.op import Op
+from controllers.def_parser import get_gates_info_from_def_file
 from controllers.lib_reader import LibReader
 from controllers.main_controller import MainController
 
 if __name__ == "__main__":
-    program = 2
+    program = 3
     if program == 1:
         app = QApplication(sys.argv)
         app.setApplicationName("CMOS-INV-GUI")
@@ -25,12 +27,18 @@ if __name__ == "__main__":
     elif program == 2:
 
         lib_file = "Platforms/PDK45nm/NangateOpenCellLibrary_typical.lib"
-        gds_file = "Platforms/PDK45nm/stdcells.gds"
+        gds_file = "Platforms/GDS-II/TRJ.gds"
+        open_cell_lib = "Platforms/PDK45nm/stdcells.gds"
+        def_file = "Platforms/GDS-II/Trojan1_ALU_prime.def"
 
-        lib = gdspy.GdsLibrary()
-        cells_list = lib.read_gds(gds_file).cells
+        def_extract = get_gates_info_from_def_file(def_file)
+        cells_list = def_extract[1]
+
 
         lib_reader = LibReader(lib_file)
+
+        lib_std = gdspy.GdsLibrary()
+        std_cells_list = lib_std.read_gds(open_cell_lib).cells
 
         hand_input = hand_input_user = None
         cell_name_hand = None
@@ -67,14 +75,22 @@ if __name__ == "__main__":
 
         total_iterations = len(cells_list)
 
-        for cell_name, gds_cell in cells_list.items():
+        multiple_exporting_dict = {}
+
+        for cell_name, gds_cell in std_cells_list.items():
 
             if len(cell_name_hand) > 0:
                 if not cell_name.lower() == cell_name_hand.lower():
                     continue
 
+            if len(cells_list) > 0:
+                if cell_name not in cells_list.keys():
+                    continue
+
             combinations = []
             counter += 1
+
+            multiple_exporting_dict[cell_name] = []
 
             # start progress bar
             progress = counter / total_iterations
@@ -100,9 +116,11 @@ if __name__ == "__main__":
 
                     op_object = Op(cell_name, gds_cell, [1, 5, 9, 10, 11], truth_table, voltage, draw_inputs)
 
+
                     # Add here the different exports from the gds drawing lib
 
                     #gds_drawing.export_reflection_to_png_over_gds_cell(op_object, True, False)
+                    #gds_drawing.export_reflection_to_png(op_object)
 
                     end_op_time = time.time()
                     execution_time_op = end_op_time - start_op_time
@@ -132,6 +150,9 @@ if __name__ == "__main__":
                             draw_inputs[inp] = combination[index]
 
                         op_object, time_counter_op = perform_op(time_counter_op)
+
+                        multiple_exporting_dict[cell_name].append(copy.deepcopy(op_object))
+
                         combinations_counter += 1
                         state_counter += 1
 
@@ -148,3 +169,24 @@ if __name__ == "__main__":
         end_time = time.time()
         print(f'\n{green_color}Processing complete.{reset_color}')
         gds_drawing.write_output_log(start_time, end_time,filtered_cells=cells_list, state_counter=state_counter, error_cell_list=error_cell_list)
+
+        gds_drawing.benchmark(multiple_exporting_dict, def_extract)
+
+
+    elif program == 3:
+        lib_file = "Platforms/PDK45nm/NangateOpenCellLibrary_typical.lib"
+        open_cell_lib = "Platforms/PDK45nm/stdcells.gds"
+
+        lib_reader = LibReader(lib_file)
+
+        lib_std = gdspy.GdsLibrary()
+        std_cells_list = lib_std.read_gds(open_cell_lib).cells
+
+        cell_name = "INV_X1"
+
+        gds_cell = std_cells_list[cell_name]
+
+        op_object = Op(cell_name, gds_cell, [1, 5, 9, 10, 11], {'ZN': [({'A': True}, {'ZN': False}), ({'A': False}, {'ZN': True})]}, [{'name': 'VDD', 'type': 'primary_power'}, {'name': 'VSS', 'type': 'primary_ground'}], {'A': 1})
+        gds_drawing.test_orientation(op_object)
+
+
