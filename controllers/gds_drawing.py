@@ -13,6 +13,8 @@ import matplotlib.pyplot as plt
 
 from controllers.GDS_Object.type import ShapeType
 
+import matplotlib.patches as patches
+
 
 def plot_elements(op_object) -> None:
     """
@@ -169,6 +171,129 @@ def count_unknown_states(op_object) -> None:
     print(f"\033[1;33m \n {op_object.name}, {op_object.inputs}, None states = {state_counter}, Loop counter = {op_object.loop_counter}")
 
 
+def benchmark(object_list, def_extract) -> None:
+
+
+    ur_x = def_extract[0]["ur_x"]
+    ll_x = def_extract[0]["ll_x"]
+    ur_y = def_extract[0]["ur_y"]
+    ll_y = def_extract[0]["ll_y"]
+
+    micron = def_extract[0]["micron"]
+
+    # Create a new figure
+    fig, ax = plt.subplots()
+
+    plt.figure(figsize=(8, 8))
+
+    # Create a square patch
+    width = ur_x - ll_x
+    height = ur_y - ll_y
+    #square = patches.Rectangle((ll_x, ll_y), width, height, linewidth=1, edgecolor='r', facecolor='none')
+
+    # Add the square to the plot
+    #ax.add_patch(square)
+
+    # Set limits and show plot
+    plt.xlim(min(ll_x, ur_x) - 1, max(ll_x, ur_x) + 1)
+    plt.ylim(min(ll_y, ur_y) - 1, max(ll_y, ur_y) + 1)
+
+    for cell_name, cell_place in def_extract[1].items():
+        op_object = object_list[cell_name][0]
+        for position in cell_place:
+            for reflection in op_object.reflection_list:
+                for zone in reflection.zone_list:
+                    x, y = zone.coordinates
+                    x_adder, y_adder = position['Coordinates']
+                    x = tuple([element + x_adder/micron for element in x])
+                    y = tuple([element + y_adder/micron for element in y])
+
+                    state = zone.state
+                    if reflection.shape_type == ShapeType.PMOS:
+
+                        if state is None:
+                            reflect = False
+                        else:
+                            reflect = not state
+                    else:
+                        reflect = state
+
+                    if bool(reflect):
+                        plt.fill(x, y, facecolor='black', alpha=1, edgecolor='grey', linewidth=1)
+
+
+    plt.show()
+
+
+def test_orientation(op_object):
+    orientation_list = ["N", "FN", "E", "FE", "S", "FS", "W", "FW"]
+    #orientation_list = ["S", "FS"]
+    for orientation in orientation_list:
+        for reflection in op_object.reflection_list:
+            for zone in reflection.zone_list:
+                x, y = apply_transformation(zone.coordinates, orientation, reflection.get_diff_width(), op_object.get_height())
+                state = zone.state
+                if reflection.shape_type == ShapeType.PMOS:
+                    if state is None:
+                        reflect = False
+                    else:
+                        reflect = not state
+                else:
+                    reflect = state
+
+                if bool(reflect):
+                    plt.fill(x, y, facecolor="black", alpha=1, edgecolor='grey', linewidth=1)
+                else:
+                    plt.fill(x, y, facecolor="grey", alpha=1, edgecolor='grey', linewidth=1)
+
+
+        file_name = str(op_object.name) + "__" + orientation
+        path_name = "tmp/" + file_name + ".svg"
+        plt.title(file_name)
+        plt.savefig(path_name, format='svg')
+        plt.close()
+
+def apply_transformation(coordinates, transformation, width, height):
+
+    x, y = coordinates
+
+
+    if transformation == 'N':
+        # No transformation for North
+        x = x
+        y = y
+    elif transformation == 'FN':
+        # Flip the coordinates along the x-axis
+        x = tuple((xi * - 1) + width for xi in reversed(x))
+        y = tuple(yi for yi in reversed(y))
+
+    elif transformation == 'E':
+        # Rotate 90 degrees clockwise: swap x and y coordinates, and negate the new x coordinate
+        x, y = tuple(yi for yi in y), tuple((xi * -1) + width for xi in x)
+    elif transformation == 'FE':
+        # Flip the coordinates along the y-axis and rotate 90 degrees clockwise (same as MY90)
+        x, y = tuple(yi for yi in reversed(y)), tuple(xi for xi in reversed(x))
+
+    elif transformation == 'S':
+        # Rotate 180 degrees: reverse both x and y coordinates
+        x = tuple((xi * -1) + width for xi in reversed(x))
+        y = tuple((yi * -1) + height for yi in reversed(y))
+    elif transformation == 'FS':
+        # Flip the coordinates along the x-axis
+        x = tuple(xi for xi in x)
+        y = tuple((yi * -1) + height for yi in y)
+
+    elif transformation == 'W':
+        # Rotate 270 degrees clockwise: swap x and y coordinates, and negate the new y coordinate
+        x, y = tuple((yi * -1) + height for yi in reversed(y)), tuple(xi for xi in reversed(x))
+    elif transformation == 'FW':
+        # Flip the coordinates along the y-axis and rotate 270 degrees clockwise (same as MY270)
+        x, y = tuple((yi * -1) + height for yi in y), tuple((xi * -1) + width for xi in x)
+
+    else:
+        raise ValueError("Invalid transformation provided.")
+
+    return x, y
 
 def export_reflection_to_png(op_object) -> None:
     """
