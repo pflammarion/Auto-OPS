@@ -172,6 +172,8 @@ def count_unknown_states(op_object) -> None:
 
 
 def benchmark(object_list, def_extract) -> None:
+
+
     ur_x = def_extract[0]["ur_x"]
     ll_x = def_extract[0]["ll_x"]
     ur_y = def_extract[0]["ur_y"]
@@ -180,6 +182,8 @@ def benchmark(object_list, def_extract) -> None:
     micron = def_extract[0]["micron"]
 
     # Create a new figure
+    fig, ax = plt.subplots()
+
     plt.figure(figsize=(8, 8))
 
     # Create a square patch
@@ -199,7 +203,7 @@ def benchmark(object_list, def_extract) -> None:
         for position in cell_place:
             for reflection in op_object.reflection_list:
                 for zone in reflection.zone_list:
-                    x, y = apply_transformation(zone.coordinates, position['Orientation'], reflection.get_diff_width(), op_object.get_height())
+                    x, y = zone.coordinates
                     x_adder, y_adder = position['Coordinates']
                     x = tuple([element + x_adder/micron for element in x])
                     y = tuple([element + y_adder/micron for element in y])
@@ -215,25 +219,10 @@ def benchmark(object_list, def_extract) -> None:
                         reflect = state
 
                     if bool(reflect):
-                        plt.fill(x, y, facecolor='white', alpha=1)
+                        plt.fill(x, y, facecolor='black', alpha=1, edgecolor='grey', linewidth=1)
 
 
-def benchmark_export_data(def_extract, ex_time, def_name):
-
-    number_op_coord = 0
-    ll_x = def_extract[0]["ll_x"]
-    ur_x = def_extract[0]["ur_x"]
-    ll_y = def_extract[0]["ll_y"]
-    ur_y = def_extract[0]["ur_y"]
-
-    area_square_meters = round((ur_x - ll_x) * (ur_y - ll_y), 2)
-
-    for cell_name, cell in def_extract[1].items():
-        number_op_coord += len(cell)
-
-    with open('benchmarks.log', 'a') as f:
-        execution_time = round(ex_time, 4)
-        f.write(f"{def_name} & {len(def_extract[1].keys())} & {number_op_coord} & {area_square_meters} & {execution_time} \\\\ \hline \n")
+    plt.show()
 
 
 def test_orientation(op_object):
