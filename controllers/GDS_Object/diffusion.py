@@ -45,6 +45,11 @@ class Diffusion:
     def set_zone(self, zone):
         self.zone_list.append(zone)
 
+    def get_diff_width(self) -> int:
+        x_coords = [point[0] for point in self.polygon.exterior.coords]
+        return max(x_coords) + min(x_coords)
+
+
     def get_right_points_coords(self) -> list[(int, int)]:
         x_coords = [point[0] for point in self.polygon.exterior.coords]
         max_x = max(x_coords)

@@ -87,6 +87,18 @@ class Op:
 
             none_loop_counter += 1
 
+    def get_height(self):
+        min_y = float("inf")
+        max_y = 0
+        for diff in self.reflection_list:
+            y_coords = [point[1] for point in diff.polygon.exterior.coords]
+            if max(y_coords) > max_y:
+                max_y = max(y_coords)
+            if min(y_coords) < min_y:
+                min_y = min(y_coords)
+
+        return min_y + max_y
+
 
 def element_sorting(element_list, inputs, truthtable, voltage) -> list:
     """
