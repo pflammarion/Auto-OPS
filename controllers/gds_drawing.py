@@ -180,8 +180,6 @@ def benchmark(object_list, def_extract) -> None:
     micron = def_extract[0]["micron"]
 
     # Create a new figure
-    fig, ax = plt.subplots()
-
     plt.figure(figsize=(8, 8))
 
     # Create a square patch
@@ -219,8 +217,17 @@ def benchmark(object_list, def_extract) -> None:
                     if bool(reflect):
                         plt.fill(x, y, facecolor='white', alpha=1)
 
-    plt.gca().set_facecolor('black')
-    plt.show()
+
+def benchmark_export_data(def_extract, ex_time, def_name):
+
+    number_op_coord = 0
+
+    for cell_name, cell in def_extract[1].items():
+        number_op_coord += len(cell)
+
+    with open('benchmarks.log', 'a') as f:
+        execution_time = round(ex_time, 4)
+        f.write(f"{def_name} & {len(def_extract[1].keys())} & {number_op_coord} & {execution_time} \\\\ \hline \n")
 
 
 def test_orientation(op_object):
