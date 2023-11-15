@@ -221,13 +221,19 @@ def benchmark(object_list, def_extract) -> None:
 def benchmark_export_data(def_extract, ex_time, def_name):
 
     number_op_coord = 0
+    ll_x = def_extract[0]["ll_x"]
+    ur_x = def_extract[0]["ur_x"]
+    ll_y = def_extract[0]["ll_y"]
+    ur_y = def_extract[0]["ur_y"]
+
+    area_square_meters = round((ur_x - ll_x) * (ur_y - ll_y), 2)
 
     for cell_name, cell in def_extract[1].items():
         number_op_coord += len(cell)
 
     with open('benchmarks.log', 'a') as f:
         execution_time = round(ex_time, 4)
-        f.write(f"{def_name} & {len(def_extract[1].keys())} & {number_op_coord} & {execution_time} \\\\ \hline \n")
+        f.write(f"{def_name} & {len(def_extract[1].keys())} & {number_op_coord} & {area_square_meters} & {execution_time} \\\\ \hline \n")
 
 
 def test_orientation(op_object):
