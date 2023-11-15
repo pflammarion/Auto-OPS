@@ -195,27 +195,33 @@ def benchmark(object_list, def_extract) -> None:
     plt.ylim(min(ll_y, ur_y) - 1, max(ll_y, ur_y) + 1)
 
     for cell_name, cell_place in def_extract[1].items():
-        op_object = object_list[cell_name][0]
-        for position in cell_place:
-            for reflection in op_object.reflection_list:
-                for zone in reflection.zone_list:
-                    x, y = apply_transformation(zone.coordinates, position['Orientation'], reflection.get_diff_width(), op_object.get_height())
-                    x_adder, y_adder = position['Coordinates']
-                    x = tuple([element + x_adder/micron for element in x])
-                    y = tuple([element + y_adder/micron for element in y])
+        if cell_name in object_list.keys():
+            op_object = object_list[cell_name][0]
+            for position in cell_place:
+                for reflection in op_object.reflection_list:
+                    for zone in reflection.zone_list:
+                        x, y = apply_transformation(zone.coordinates, position['Orientation'], reflection.get_diff_width(), op_object.get_height())
+                        x_adder, y_adder = position['Coordinates']
+                        x = tuple([element + x_adder/micron for element in x])
+                        y = tuple([element + y_adder/micron for element in y])
 
-                    state = zone.state
-                    if reflection.shape_type == ShapeType.PMOS:
+                        state = zone.state
+                        if reflection.shape_type == ShapeType.PMOS:
 
-                        if state is None:
-                            reflect = False
+                            if state is None:
+                                reflect = False
+                            else:
+                                reflect = not state
                         else:
-                            reflect = not state
-                    else:
-                        reflect = state
+                            reflect = state
 
-                    if bool(reflect):
-                        plt.fill(x, y, facecolor='white', alpha=1)
+                        if bool(reflect):
+                            plt.fill(x, y, facecolor='white', alpha=1)
+
+    #plt.gca().set_facecolor('black')
+    # plt.gca().set_aspect('equal', adjustable='box')
+    # plt.show()
+
 
 
 def benchmark_export_data(def_extract, ex_time, def_name):
