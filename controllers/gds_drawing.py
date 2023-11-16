@@ -171,7 +171,7 @@ def count_unknown_states(op_object) -> None:
     print(f"\033[1;33m \n {op_object.name}, {op_object.inputs}, None states = {state_counter}, Loop counter = {op_object.loop_counter}")
 
 
-def benchmark(object_list, def_extract) -> None:
+def benchmark(object_list, def_extract, plot) -> None:
     ur_x = def_extract[0]["ur_x"]
     ll_x = def_extract[0]["ll_x"]
     ur_y = def_extract[0]["ur_y"]
@@ -182,17 +182,9 @@ def benchmark(object_list, def_extract) -> None:
     # Create a new figure
     #plt.figure(figsize=(8, 8))
 
-    # Create a square patch
-    width = ur_x - ll_x
-    height = ur_y - ll_y
-    #square = patches.Rectangle((ll_x, ll_y), width, height, linewidth=1, edgecolor='r', facecolor='none')
-
-    # Add the square to the plot
-    #ax.add_patch(square)
-
-    # Set limits and show plot
-    #plt.xlim(min(ll_x, ur_x) - 1, max(ll_x, ur_x) + 1)
-    #plt.ylim(min(ll_y, ur_y) - 1, max(ll_y, ur_y) + 1)
+    if plot:
+        plt.xlim(min(ll_x, ur_x) - 1, max(ll_x, ur_x) + 1)
+        plt.ylim(min(ll_y, ur_y) - 1, max(ll_y, ur_y) + 1)
 
     for cell_name, cell_place in def_extract[1].items():
         if cell_name in object_list.keys():
@@ -215,13 +207,13 @@ def benchmark(object_list, def_extract) -> None:
                         else:
                             reflect = state
 
-                        #if bool(reflect):
-                         #   plt.fill(x, y, facecolor='white', alpha=1)
+                        if bool(reflect) and plot:
+                            plt.fill(x, y, facecolor='white', alpha=1)
 
-
-    #plt.gca().set_facecolor('black')
-    #plt.gca().set_aspect('equal', adjustable='box')
-    #plt.show()
+    if plot:
+        plt.gca().set_facecolor('black')
+        plt.gca().set_aspect('equal', adjustable='box')
+        plt.show()
 
 
 
@@ -240,8 +232,8 @@ def benchmark_export_data(def_extract, ex_time, def_name):
 
     with open('benchmarks.log', 'a') as f:
         execution_time = round(ex_time, 4)
-        def_name = "test"+str(def_name)
-        f.write(f"& {def_name} & {len(def_extract[1].keys())} & {number_op_coord} & {area_square_meters} & {execution_time} \\\\ \cline{{2-6}} \n")
+        f.write(f"& {def_name} & & & {len(def_extract[1].keys())} & {number_op_coord} & {area_square_meters} & {execution_time} \\\\ \cline{{2-8}} \n")
+        #f.write(f"{def_name} & {execution_time} \\\\ \cline{{2-8}} \n")
 
 def test_orientation(op_object):
     orientation_list = ["N", "FN", "E", "FE", "S", "FS", "W", "FW"]
