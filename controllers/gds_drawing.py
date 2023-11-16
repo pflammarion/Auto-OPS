@@ -180,7 +180,7 @@ def benchmark(object_list, def_extract) -> None:
     micron = def_extract[0]["micron"]
 
     # Create a new figure
-    plt.figure(figsize=(8, 8))
+    #plt.figure(figsize=(8, 8))
 
     # Create a square patch
     width = ur_x - ll_x
@@ -191,8 +191,8 @@ def benchmark(object_list, def_extract) -> None:
     #ax.add_patch(square)
 
     # Set limits and show plot
-    plt.xlim(min(ll_x, ur_x) - 1, max(ll_x, ur_x) + 1)
-    plt.ylim(min(ll_y, ur_y) - 1, max(ll_y, ur_y) + 1)
+    #plt.xlim(min(ll_x, ur_x) - 1, max(ll_x, ur_x) + 1)
+    #plt.ylim(min(ll_y, ur_y) - 1, max(ll_y, ur_y) + 1)
 
     for cell_name, cell_place in def_extract[1].items():
         if cell_name in object_list.keys():
@@ -215,12 +215,13 @@ def benchmark(object_list, def_extract) -> None:
                         else:
                             reflect = state
 
-                        if bool(reflect):
-                            plt.fill(x, y, facecolor='white', alpha=1)
+                        #if bool(reflect):
+                         #   plt.fill(x, y, facecolor='white', alpha=1)
+
 
     #plt.gca().set_facecolor('black')
-    # plt.gca().set_aspect('equal', adjustable='box')
-    # plt.show()
+    #plt.gca().set_aspect('equal', adjustable='box')
+    #plt.show()
 
 
 
@@ -239,8 +240,8 @@ def benchmark_export_data(def_extract, ex_time, def_name):
 
     with open('benchmarks.log', 'a') as f:
         execution_time = round(ex_time, 4)
-        f.write(f"{def_name} & {len(def_extract[1].keys())} & {number_op_coord} & {area_square_meters} & {execution_time} \\\\ \hline \n")
-
+        def_name = "test"+str(def_name)
+        f.write(f"& {def_name} & {len(def_extract[1].keys())} & {number_op_coord} & {area_square_meters} & {execution_time} \\\\ \cline{{2-6}} \n")
 
 def test_orientation(op_object):
     orientation_list = ["N", "FN", "E", "FE", "S", "FS", "W", "FW"]

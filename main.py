@@ -16,18 +16,13 @@ from controllers.main_controller import MainController
 if __name__ == "__main__":
     #benchmark_list = ['c17', 'c432', 'c499', 'c1355', 'c1908', 'c2670', 'c3540', 'c7552']
 
-    for def_name in range(1, 21):
-        print(def_name)
-
-        if def_name < 10:
-            def_name = "0" + str(def_name)
-
+    for def_name in range(0, 1):
         start_time = time.time()
 
         lib_file = "Platforms/PDK45nm/NangateOpenCellLibrary_typical.lib"
-        gds_file = "Platforms/GDS-II/TRJ.gds"
+        #gds_file = "Platforms/GDS-II/TRJ.gds"
         open_cell_lib = "Platforms/PDK45nm/stdcells.gds"
-        def_path = f"Benchmarks_ISCAS85/GDS-II/ICCAD_Contest2021/test{def_name}/Par/top.def"
+        def_path = f"Benchmarks_ISCAS85/GDS-II/Hyp/Par/top.def"
 
         def_extract = get_gates_info_from_def_file(def_path)
         cells_list = def_extract[1]
