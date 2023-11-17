@@ -1,0 +1,33 @@
+catch { setAnalysisMode -analysisType single }
+catch { setAnalysisMode -checkType setup }
+catch { setAnalysisMode -clkSrcPath true }
+catch { setAnalysisMode -clockPropagation forcedIdeal }
+catch { setAnalysisMode -usefulSkew true }
+catch { setAnalysisMode -virtualIPO false }
+catch { setOptMode -activeHoldViews { _default_view_ } }
+catch { setOptMode -activeSetupViews { _default_view_ } }
+catch { setOptMode -autoSetupViews { _default_view_} }
+catch { setOptMode -autoTDGRSetupViews { _default_view_} }
+catch { setOptMode -drcMargin 0 }
+catch { setOptMode -fixDrc true }
+catch { setOptMode -optimizeFF true }
+catch { setOptMode -setupTargetSlack 0 }
+catch { setExtractRCMode  -engine preRoute }
+catch {setNanoRouteMode -quiet -drouteUseMinSpacingForBlockage false}
+catch {setNanoRouteMode -quiet -drouteUseMultiCutViaEffort "high"}
+catch {setNanoRouteMode -quiet -grouteExpTdUseTifTimingEngineForImportDesign false}
+
+catch { setPlaceMode -place_design_floorplan_mode false }
+catch { setPlaceMode -place_global_place_io_pins true }
+catch { setIlmMode -keepHighFanoutPorts true -keepLoopBack false -keepInstInSdc false -keepFlatten true }
+catch { setDelayCalMode -enable_high_fanout true }
+catch { setDelayCalMode -eng_copyNetPropToNewNet true }
+catch { setDelayCalMode -engine aae }
+catch { setDelayCalMode -ignoreNetLoad false }
+catch { setImportMode -discardFloatingVNets false }
+catch { setImportMode -keepEmptyModule true }
+catch { setSIMode -separate_delta_delay_on_data true }
+catch { setRouteMode -earlyGlobalRouteSecondPG false }
+catch { setFPlanMode -defaultTechSite FreePDK45_38x28_10R_NP_162NW_34O }
+catch { setFPlanMode -maxIoHeight false }
+catch { setFPlanMode -powerRailLayer {} }
