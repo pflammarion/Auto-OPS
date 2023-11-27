@@ -29,7 +29,7 @@ if __name__ == "__main__":
 
     # elif benchmarks == 3
     else:
-        benchmark_list = ['Hyp']
+        benchmark_list = ['adder', 'bar', 'div', 'Hyp', 'log2', 'max', 'multiplier', 'sin', 'sqrt', 'square']
 
     for def_name in benchmark_list:
         start_time = time.time()
@@ -38,9 +38,9 @@ if __name__ == "__main__":
         open_cell_lib = "Platforms/PDK45nm/stdcells.gds"
 
         if benchmarks == 1:
-            def_path = f"Benchmarks_ISCAS85/GDS-II/Benchmarks/{def_name}/{def_name}.def"
+            def_path = f"benchmarks/Benchmarks_ISCAS85/GDS-II/Benchmarks/{def_name}/{def_name}.def"
         elif benchmarks == 2:
-            def_path = f"Benchmarks_ISCAS85/GDS-II/ICCAD_Contest2021/{def_name}/Par/top.def"
+            def_path = f"benchmarks/ICCAD_Contest2021/{def_name}/Par/top.def"
         elif benchmarks == 3:
             def_path = f"benchmarks/EPFL/{def_name}/Par/top.def"
 
