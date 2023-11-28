@@ -1,8 +1,10 @@
+import ast
 import copy
 import itertools
 import sys
 import time
 import argparse
+import traceback
 
 import gdspy
 from PyQt6.QtGui import QIcon
@@ -18,12 +20,12 @@ from controllers.main_controller import MainController
 def run_cli():
     parser = argparse.ArgumentParser(description='Auto-OPS command line tool')
 
-    parser.add_argument('-s', '--std_file', help='Input std file', required=True)
-    parser.add_argument('-l', '--lib_file', help='Input lib file', required=True)
+    parser.add_argument('-s', '--std_file', type=str, help='Input std file', required=True)
+    parser.add_argument('-l', '--lib_file', type=str, help='Input lib file', required=True)
     parser.add_argument('-g', '--gds_file', help='Input GDS design file')
     parser.add_argument('-d', '--def_file', help='Input DEF design file')
     parser.add_argument('-i', '--input', nargs='+', type=int, help='Input pattern list applied as A-Z/0-9 order')
-    parser.add_argument('-la', '--layer_list', nargs='+', type=int, help='Diffusion, ... [1, 5, 9, 10, 11]',
+    parser.add_argument('-la', '--layer_list', type=str, help='Diffusion, ... [1, 5, 9, 10, 11]',
                         required=True)
     parser.add_argument('-c', '--cell_list', nargs='+', type=str,
                         help='Cell list for active regions extraction (empty for all cells)')
@@ -38,7 +40,7 @@ def run_cli():
     gds_file = args.gds_file
     def_file = args.def_file
     cell_input = args.input
-    layer_list = args.layer_list
+    layer_list = ast.literal_eval(args.layer_list)
     cell_list = args.cell_list
     output = args.output
     verbose_mode = args.verbose
@@ -72,6 +74,8 @@ def run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list,
 
     lib_reader = LibReader(lib_file)
 
+    if cell_name_list is None:
+        cell_name_list = gds_cell_list.keys()
     error_cell_list = []
     counter = 0
     state_counter = 0
@@ -141,6 +145,7 @@ def run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list,
             except Exception as e:
                 if verbose_mode:
                     print(f"{red_color}An error occurred: {e}{reset_color}")
+                    #traceback.print_exc()
                     error_cell_list.append(gds_cell_name)
 
         if verbose_mode:
@@ -158,7 +163,7 @@ def run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list,
 if __name__ == "__main__":
     debug = False
     if debug:
-        run_auto_ops("input/stdcells.gds", "input/stdcells.lib", "", "", [1, 0], [1, 5, 9, 10, 11], ['XOR2_X1'], "",
+        run_auto_ops("Platforms/IHP-Open-PDK130nm/sg13g2_stdcell.gds", "Platforms/IHP-Open-PDK130nm/sg13g2_stdcell_typ_1p20V_25C.lib", "", "", [], [[1, 0], [31, 0], [5, 0], [6, 0], [8, 0], [8, 25]], ['sg13g2_nand2_1'], "",
                      True)
     else:
         run_cli()
