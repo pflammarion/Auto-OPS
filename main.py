@@ -1,6 +1,8 @@
+import copy
 import itertools
 import sys
 import time
+import argparse
 
 import gdspy
 from PyQt6.QtGui import QIcon
@@ -8,143 +10,155 @@ from PyQt6.QtWidgets import QApplication
 
 from controllers import gds_drawing
 from controllers.GDS_Object.op import Op
+from controllers.def_parser import get_gates_info_from_def_file
 from controllers.lib_reader import LibReader
 from controllers.main_controller import MainController
 
-if __name__ == "__main__":
-    program = 2
-    if program == 1:
-        app = QApplication(sys.argv)
-        app.setApplicationName("CMOS-INV-GUI")
-        app.setWindowIcon(QIcon('resources/app_logo.png'))
-        controller = MainController()
-        view = controller.get_view()
-        view.show()
-        sys.exit(app.exec())
 
-    elif program == 2:
+def run_cli():
+    parser = argparse.ArgumentParser(description='Auto-OPS command line tool')
 
-        lib_file = "Platforms/PDK45nm/NangateOpenCellLibrary_typical.lib"
-        gds_file = "Platforms/PDK45nm/stdcells.gds"
+    parser.add_argument('-s', '--std_file', help='Input std file', required=True)
+    parser.add_argument('-l', '--lib_file', help='Input lib file', required=True)
+    parser.add_argument('-g', '--gds_file', help='Input GDS design file')
+    parser.add_argument('-d', '--def_file', help='Input DEF design file')
+    parser.add_argument('-i', '--input', nargs='+', type=int, help='Input pattern list applied as A-Z/0-9 order')
+    parser.add_argument('-la', '--layer_list', nargs='+', type=int, help='Diffusion, ... [1, 5, 9, 10, 11]',
+                        required=True)
+    parser.add_argument('-c', '--cell_list', nargs='+', type=str,
+                        help='Cell list for active regions extraction (empty for all cells)')
+    parser.add_argument('-o', '--output', help='Output type', choices=['reflection_over_cell'])
+    parser.add_argument('--gui', action='store_true', help='Start the gui')
+    parser.add_argument('--verbose', action='store_true', help='Enable verbose mode')
 
-        lib = gdspy.GdsLibrary()
-        cells_list = lib.read_gds(gds_file).cells
+    args = parser.parse_args()
 
-        lib_reader = LibReader(lib_file)
+    std_file = args.std_file
+    lib_file = args.lib_file
+    gds_file = args.gds_file
+    def_file = args.def_file
+    cell_input = args.input
+    layer_list = args.layer_list
+    cell_list = args.cell_list
+    output = args.output
+    verbose_mode = args.verbose
 
-        hand_input = hand_input_user = None
-        cell_name_hand = None
+    if args.gui:
+        run_gui()
+    else:
+        run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list, cell_list, output, verbose_mode)
 
-        # Ask the user for hand_input
-        while hand_input_user not in ['y', 'n', 'yes', 'no', '']:
-            hand_input_user = input("Do you want to input a hand value? (y/n): ").lower()
-            if hand_input_user in ['y', 'yes', '']:
-                hand_input = True
-            elif hand_input_user in ['n', 'no']:
-                hand_input = False
-            else:
-                print("Please enter 'y' or 'n'.")
 
-        # Ask the user for cell_name_hand
-        cell_name_hand = input("Enter the cell name (press enter to perform all): ")
-        #cell_name_hand = "XOR3_X1"
+def run_gui():
+    app = QApplication(sys.argv)
+    app.setApplicationName("CMOS-INV-GUI")
+    app.setWindowIcon(QIcon('resources/app_logo.png'))
+    controller = MainController()
+    view = controller.get_view()
+    view.show()
+    sys.exit(app.exec())
 
-        start_time = time.time()
 
-        error_cell_list = []
-        counter = 0
-        combinations_counter = 0
-        state_counter = 0
-        time_counter_op = 0
-        time_counter_ex = 0
+def run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list, cell_name_list, output, verbose_mode):
+    start_time = time.time()
 
-        blue_color = "\033[1;34m"
-        reset_color = "\033[0m"
-        orange_color = "\033[1;33m"
-        white_color = "\033[1;37m"
-        green_color = "\033[1;32m"
-        red_color = "\033[1;31m"
+    lib = gdspy.GdsLibrary()
+    gds_cell_list = lib.read_gds(std_file).cells
 
-        total_iterations = len(cells_list)
+    def_extract = []
+    if def_file:
+        def_extract = get_gates_info_from_def_file(def_file)
+        cell_name_list = def_extract[1].keys()
 
-        for cell_name, gds_cell in cells_list.items():
+    lib_reader = LibReader(lib_file)
 
-            if len(cell_name_hand) > 0:
-                if not cell_name.lower() == cell_name_hand.lower():
-                    continue
+    error_cell_list = []
+    counter = 0
+    state_counter = 0
 
-            combinations = []
+    blue_color = "\033[1;34m"
+    reset_color = "\033[0m"
+    orange_color = "\033[1;33m"
+    white_color = "\033[1;37m"
+    green_color = "\033[1;32m"
+    red_color = "\033[1;31m"
+
+    total_iterations = len(cell_name_list)
+    multiple_exporting_dict = {}
+
+    for input_cell_name in cell_name_list:
+        for gds_cell_name, gds_cell in gds_cell_list.items():
+            if gds_cell_name != input_cell_name:
+                continue
+
             counter += 1
 
+            multiple_exporting_dict[gds_cell_name] = []
+
             # start progress bar
-            progress = counter / total_iterations
-            bar_length = 20
-            filled_length = int(bar_length * progress)
-            bar = '█' * filled_length + '-' * (bar_length - filled_length)
-            print(f'\n\r{reset_color}Progress: {green_color}[{bar}] {int(progress * 100)}% Complete {reset_color} -- {cell_name}{white_color} || {blue_color}', end='', flush=True)
+            if verbose_mode:
+                progress = counter / total_iterations
+                bar_length = 20
+                filled_length = int(bar_length * progress)
+                bar = '█' * filled_length + '-' * (bar_length - filled_length)
+                print(
+                    f'\n\r{reset_color}Progress: {green_color}[{bar}] {int(progress * 100)}% Complete {reset_color} -- {gds_cell_name}{white_color} || {blue_color}',
+                    end='', flush=True)
             # end progress bar
 
             try:
-                start_ex_time = time.time()
+                truth_table, voltage, input_names = lib_reader.extract_truth_table(gds_cell_name)
 
-                truth_table, voltage, input_names = lib_reader.extract_truth_table(cell_name)
                 draw_inputs = {}
 
-                end_ex_time = time.time()
-                execution_ex_time = end_ex_time - start_ex_time
-                time_counter_ex += execution_ex_time
+                if cell_input and len(cell_input) == len(input_names):
+                    for index, inp in enumerate(input_names):
+                        draw_inputs[inp] = cell_input[index]
 
-                def perform_op(time_counter_op):
+                    op_object = Op(gds_cell_name, gds_cell, layer_list, truth_table, voltage, draw_inputs)
 
-                    start_op_time = time.time()
+                    if output == "reflection_over_cell":
+                        gds_drawing.export_reflection_to_png_over_gds_cell(op_object, True, False)
 
-                    op_object = Op(cell_name, gds_cell, [1, 5, 9, 10, 11], truth_table, voltage, draw_inputs)
-
-                    # Add here the different exports from the gds drawing lib
-
-                    #gds_drawing.export_reflection_to_png_over_gds_cell(op_object, True, False)
-
-                    end_op_time = time.time()
-                    execution_time_op = end_op_time - start_op_time
-                    time_counter_op += execution_time_op
-
-                    return op_object, time_counter_op
-
-
-                if hand_input:
-                    print("\n\n")
-                    for inp in input_names:
-                        value = None
-                        while value not in ['0', '1']:
-                            value = input(f"{reset_color}Enter a value for {inp} {blue_color}(0 or 1){reset_color}: ")
-                            if value not in ['0', '1']:
-                                print(f"{orange_color}Invalid input. Please enter 0 or 1.{reset_color}")
-
-                        draw_inputs[inp] = int(value)
-                    print(f"\n{blue_color}")
-                    op_object, time_counter_op = perform_op(time_counter_op)
+                    state_counter += 1
 
                 else:
                     combinations = list(itertools.product([0, 1], repeat=len(input_names)))
-
                     for combination in combinations:
                         for index, inp in enumerate(input_names):
                             draw_inputs[inp] = combination[index]
 
-                        op_object, time_counter_op = perform_op(time_counter_op)
-                        combinations_counter += 1
+                        op_object = Op(gds_cell_name, gds_cell, layer_list, truth_table, voltage, draw_inputs)
+
+                        if output == "reflection_over_cell":
+                            gds_drawing.export_reflection_to_png_over_gds_cell(op_object, True, False)
+
+                        if def_file:
+                            multiple_exporting_dict[gds_cell_name].append(copy.deepcopy(op_object))
+
                         state_counter += 1
 
-                if combinations_counter == len(combinations):
-                    gds_drawing.data_export_csv(cell_name, execution_ex_time, time_counter_op, op_object, hand_input)
-                    time_counter_op = 0
-                    combinations_counter = 0
-                    time_counter_ex = 0
-
             except Exception as e:
-                print(f"{red_color}An error occurred: {e}{reset_color}")
-                error_cell_list.append(cell_name)
+                if verbose_mode:
+                    print(f"{red_color}An error occurred: {e}{reset_color}")
+                    error_cell_list.append(gds_cell_name)
 
+        if verbose_mode:
+            print(f'\n{green_color}Processing complete.{reset_color}')
+
+    end_time_log = time.time()
+    gds_drawing.write_output_log(start_time, end_time_log, filtered_cells=cell_name_list, state_counter=state_counter,
+                                 error_cell_list=error_cell_list)
+    if def_file:
+        gds_drawing.benchmark(multiple_exporting_dict, def_extract, False)
         end_time = time.time()
-        print(f'\n{green_color}Processing complete.{reset_color}')
-        gds_drawing.write_output_log(start_time, end_time,filtered_cells=cells_list, state_counter=state_counter, error_cell_list=error_cell_list)
+        gds_drawing.benchmark_export_data(def_extract, end_time - start_time, def_file)
+
+
+if __name__ == "__main__":
+    debug = False
+    if debug:
+        run_auto_ops("input/stdcells.gds", "input/stdcells.lib", "", "", [1, 0], [1, 5, 9, 10, 11], ['XOR2_X1'], "",
+                     True)
+    else:
+        run_cli()
