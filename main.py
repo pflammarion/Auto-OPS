@@ -23,9 +23,11 @@ def run_cli():
     parser.add_argument('-g', '--gds_file', help='Input GDS design file')
     parser.add_argument('-d', '--def_file', help='Input DEF design file')
     parser.add_argument('-i', '--input', nargs='+', type=int, help='Input pattern list applied as A-Z/0-9 order')
-    parser.add_argument('-la', '--layer_list', nargs='+', type=int, help='Diffusion, ... [1, 5, 9, 10, 11]', required=True)
-    parser.add_argument('-c', '--cell_list', nargs='+', type=str, help='Cell list for active regions extraction (empty for all cells)')
-    parser.add_argument('-o', '--output', help='Output type',  choices=['reflection_over_cell'])
+    parser.add_argument('-la', '--layer_list', nargs='+', type=int, help='Diffusion, ... [1, 5, 9, 10, 11]',
+                        required=True)
+    parser.add_argument('-c', '--cell_list', nargs='+', type=str,
+                        help='Cell list for active regions extraction (empty for all cells)')
+    parser.add_argument('-o', '--output', help='Output type', choices=['reflection_over_cell'])
     parser.add_argument('--gui', action='store_true', help='Start the gui')
     parser.add_argument('--verbose', action='store_true', help='Enable verbose mode')
 
@@ -84,7 +86,6 @@ def run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list,
     total_iterations = len(cell_name_list)
     multiple_exporting_dict = {}
 
-
     for input_cell_name in cell_name_list:
         for gds_cell_name, gds_cell in gds_cell_list.items():
             if gds_cell_name != input_cell_name:
@@ -142,22 +143,22 @@ def run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list,
                     print(f"{red_color}An error occurred: {e}{reset_color}")
                     error_cell_list.append(gds_cell_name)
 
-        end_time = time.time()
-
         if verbose_mode:
             print(f'\n{green_color}Processing complete.{reset_color}')
 
-        if def_file:
-            gds_drawing.benchmark(multiple_exporting_dict, def_extract, False)
-            gds_drawing.benchmark_export_data(def_extract, end_time - start_time, def_file)
-
-        gds_drawing.write_output_log(start_time, end_time, filtered_cells=cell_name_list, state_counter=state_counter,
-                                     error_cell_list=error_cell_list)
+    end_time_log = time.time()
+    gds_drawing.write_output_log(start_time, end_time_log, filtered_cells=cell_name_list, state_counter=state_counter,
+                                 error_cell_list=error_cell_list)
+    if def_file:
+        gds_drawing.benchmark(multiple_exporting_dict, def_extract, False)
+        end_time = time.time()
+        gds_drawing.benchmark_export_data(def_extract, end_time - start_time, def_file)
 
 
 if __name__ == "__main__":
     debug = False
     if debug:
-        run_auto_ops("input/stdcells.gds", "input/stdcells.lib", "", "", [1, 0], [1, 5, 9, 10, 11], ['XOR2_X1'], "", True)
+        run_auto_ops("input/stdcells.gds", "input/stdcells.lib", "", "", [1, 0], [1, 5, 9, 10, 11], ['XOR2_X1'], "",
+                     True)
     else:
         run_cli()

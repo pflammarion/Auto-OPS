@@ -5,7 +5,8 @@ python3 ./main.py\
                 --std_file input/stdcells.gds \
                 --lib_file input/stdcells.lib \
                 --layer_list 1 5 9 10 11 \
-                --cell_list INV_X1 XOR2_X1\
+                --input 1 0 \
+                --cell_list XOR2_X1\
                 --output reflection_over_cell\
                 --verbose
 : <<'END_COMMENT'
@@ -18,5 +19,5 @@ python3 ./main.py\
                 --layer_list \
                 --cell_list \
                 --output \
-                -- verbose
+                --verbose
 END_COMMENT
