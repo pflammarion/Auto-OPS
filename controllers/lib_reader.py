@@ -89,12 +89,13 @@ class LibReader:
             for symbol, value in input_values.items():
                 eval_expression = eval_expression.replace(symbol, str(value))
 
-
-            # Replace not logical operator for Python's operators
-            eval_expression = eval_expression.replace("!", "not ").replace("&", "and")
+            eval_expression = eval_expression.replace("!", " not ").replace("&", " and ").replace("*", " and ").replace("+", " or ")
 
             # Evaluate the expression two time to convert it from a string to a result
             result = eval(eval(eval_expression))
+
+            if not isinstance(result, bool):
+                raise ValueError("Truthtable result is not of type bool")
 
             truth_table.append((input_values, {pin_name: result}))
 
