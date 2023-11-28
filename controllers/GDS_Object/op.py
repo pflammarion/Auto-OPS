@@ -17,7 +17,7 @@ class Op:
     Args:
         cell_name (str): The name of the gate in the gds file in the Cells' list.
         gds_cell (GdsLibrary): Dictionary of cells in the library's object, indexed by name.
-        layer_list (list[int]): Diffusion layer, N well layer, poly silicon layer, via layer, metal layer.
+        layer_list (list[list[int]): Diffusion layer, N well layer, poly silicon layer, via layer, metal layer and label layer.
         truthtable (dict{list[set(dict)]})): A list containing the information the output based on the input for a gate.
         voltage(list[dict]): Contains the voltage names and types.
         inputs(dict): contains the inputs values.
@@ -37,7 +37,7 @@ class Op:
         >>> drawing = Op(
         >>>         "INV_X1",
         >>>         gds_cell,
-        >>>         [1, 5, 9, 10, 11],
+        >>>         [1,0], [31,0], [5,0], [6,0], [8,0], [8,25],
         >>>         {'ZN': [({'A': True}, {'ZN': False}), ({'A': False}, {'ZN': True})]},
         >>>         [{'name': 'VDD', 'type': 'primary_power'}, {'name': 'VSS', 'type': 'primary_ground'}],
         >>>         {'A1': 1, 'A2': 1}
@@ -54,7 +54,10 @@ class Op:
         self.via_element_list = []
 
         self.element_list = element_extractor(gds_cell, layer_list)
-        self.reflection_list = element_sorting(self.element_list, inputs, truthtable, voltage)
+        self.reflection_list = []
+
+        # list without the filtering of unused diffusion zones
+        temp_reflection_list = element_sorting(self.element_list, inputs, truthtable, voltage)
 
         elements_to_keep = []
 
@@ -66,8 +69,10 @@ class Op:
 
         self.element_list = elements_to_keep
 
-        for diffusion in self.reflection_list:
-            connect_diffusion_to_polygon(self.element_list, diffusion)
+        for diffusion in temp_reflection_list:
+            is_intersecting = connect_diffusion_to_polygon(self.element_list, diffusion)
+            if is_intersecting:
+                self.reflection_list.append(diffusion)
 
         for diffusion in self.reflection_list:
             init_diffusion_zones(diffusion)
@@ -297,7 +302,7 @@ def element_extractor(gds_cell, layer_list) -> list:
     element_list = []
 
     for label in gds_cell.labels:
-        if label.layer == layer_list[4]:
+        if label.layer == layer_list[5][0]:
             founded_label = Label(label.text, label.position.tolist())
             element_list.append(founded_label)
 
@@ -305,7 +310,7 @@ def element_extractor(gds_cell, layer_list) -> list:
     polygons = gds_cell.get_polygons(by_spec=True)
 
     for layer in layer_list:
-        extracted_polygons = polygons.get((layer, 0), [])
+        extracted_polygons = polygons.get((layer[0], layer[1]), [])
         merged_polygons = merge_polygons(extracted_polygons)
         for polygon in merged_polygons:
             shape = Shape(None, polygon, polygon.exterior.xy, layer)
@@ -384,6 +389,13 @@ def is_connected(element_list, inputs, truthtable, voltage, element) -> None:
                                             Attribute(ShapeType.OUTPUT, label.name, output[label.name])
                                         )
                         break
+
+                    elif label.name.lower() == "vss":
+                        element.set_attribute(Attribute(ShapeType.VSS))
+                        break
+                    elif label.name.lower() == "vdd":
+                        element.set_attribute(Attribute(ShapeType.VDD))
+                        break
                     else:
                         raise Exception("Missing label: " + str(label.name))
                 else:
@@ -405,7 +417,7 @@ def is_connected(element_list, inputs, truthtable, voltage, element) -> None:
                         break
 
 
-def connect_diffusion_to_polygon(element_list, diffusion) -> None:
+def connect_diffusion_to_polygon(element_list, diffusion) -> bool:
     """
     To set up zones where the poly silicon overlap to the diffusion parts.
     Creating a zone from the overlaps coordinates.
@@ -427,7 +439,8 @@ def connect_diffusion_to_polygon(element_list, diffusion) -> None:
     Exception
         Any relevant exceptions that may occur.
     """
-
+    # If a diffusion zone does not intersect any poly the
+    is_intersecting = False
     for element in element_list:
         if isinstance(element, Shape) and element.shape_type == ShapeType.POLYSILICON and \
                 element.polygon.intersects(diffusion.polygon):
@@ -438,6 +451,10 @@ def connect_diffusion_to_polygon(element_list, diffusion) -> None:
                     diffusion.set_zone(Zone(ShapeType.POLYSILICON, inter.exterior.xy, element))
             else:
                 diffusion.set_zone(Zone(ShapeType.POLYSILICON, intersections.exterior.xy, element))
+
+            is_intersecting = True
+
+    return is_intersecting
 
 
 def connect_diffusion_to_metal(element_list, diffusion) -> None:
