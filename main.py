@@ -114,12 +114,12 @@ def run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list,
                     for index, inp in enumerate(input_names):
                         draw_inputs[inp] = cell_input[index]
 
-                        op_object = Op(gds_cell_name, gds_cell, layer_list, truth_table, voltage, draw_inputs)
+                    op_object = Op(gds_cell_name, gds_cell, layer_list, truth_table, voltage, draw_inputs)
 
-                        if output == "reflection_over_cell":
-                            gds_drawing.export_reflection_to_png_over_gds_cell(op_object, True, False)
+                    if output == "reflection_over_cell":
+                        gds_drawing.export_reflection_to_png_over_gds_cell(op_object, True, False)
 
-                        state_counter += 1
+                    state_counter += 1
 
                 else:
                     combinations = list(itertools.product([0, 1], repeat=len(input_names)))
@@ -156,4 +156,8 @@ def run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list,
 
 
 if __name__ == "__main__":
-    run_cli()
+    debug = False
+    if debug:
+        run_auto_ops("input/stdcells.gds", "input/stdcells.lib", "", "", [1, 0], [1, 5, 9, 10, 11], ['XOR2_X1'], "", True)
+    else:
+        run_cli()
