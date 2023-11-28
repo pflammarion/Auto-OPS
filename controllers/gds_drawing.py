@@ -360,12 +360,14 @@ def export_reflection_to_png(op_object) -> None:
 
 
 def export_reflection_to_png_over_gds_cell(op_object, reflection_draw=False, with_axes=True) -> None:
-    #plt.figure(figsize=(6, 8))
+    plt.figure(figsize=(6, 8))
 
     for element in op_object.element_list:
         x, y = element.coordinates
 
         color = "grey"
+        edge_color = "black"
+        background_color = "grey"
         alpha = 0.4
         text = ""
 
@@ -403,14 +405,25 @@ def export_reflection_to_png_over_gds_cell(op_object, reflection_draw=False, wit
                     for truthtable_inputs, output in op_object.truthtable[outputs]:
                         if element.name in output and truthtable_inputs == op_object.inputs:
                             text = str(element.name) + " = " + str(int(output[element.name]))
+                            edge_color = 'lightblue'
+                            background_color = (228 / 255, 239 / 255, 255 / 255)
 
             elif element.name in op_object.inputs.keys():
                 text = str(element.name) + " = " + str(int(op_object.inputs[element.name]))
+                background_color = 'yellow'
             else:
-                text = element.name
+                edge_color = (110 / 255, 140 / 255, 255 / 255)
+                background_color = (200 / 255, 206 / 255, 247 / 255)
 
-            plt.annotate(text, (x, y), bbox=dict(facecolor='grey', edgecolor='none', boxstyle='round,pad=0.2'),
-                         color=(0.95, 0.90, 0.67), fontsize=18)
+                if element.name == "VSS":
+                    text = "Vss"
+                elif element.name == "VDD":
+                    text = "Vdd"
+                else:
+                    text = element.name
+
+            plt.annotate(text, (x, y), bbox=dict(facecolor=background_color, edgecolor=edge_color, boxstyle='round,pad=0.2', linewidth=2),
+                         color='black', fontsize=18, fontname='Times New Roman')
 
     for via in op_object.via_element_list:
         x, y = via.coordinates
@@ -607,8 +620,10 @@ def write_output_log(start_time, end_time, state_counter=1, filtered_cells=None,
 
         if filtered_cells is not None:
             number_of_gate = len(filtered_cells) - len(error_cell_list)
-            time_per_gate = round(execution_time/number_of_gate, 4)
             f.write(f"Number of cell processed: {number_of_gate} \n")
-            f.write(f"Avg Time/Cell : {time_per_gate} seconds\n\n")
+
+            if number_of_gate > 0:
+                time_per_gate = round(execution_time/number_of_gate, 4)
+                f.write(f"Avg Time/Cell : {time_per_gate} seconds\n\n")
 
         f.write("-----------------------------------------------------------\n\n")
