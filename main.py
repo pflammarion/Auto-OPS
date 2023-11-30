@@ -7,7 +7,8 @@ import argparse
 import traceback
 
 import gdspy
-from PyQt6.QtWidgets import QApplication
+#from PyQt6.QtGui import QIcon
+#from PyQt6.QtWidgets import QApplication
 
 from controllers import gds_drawing
 from controllers.GDS_Object.op import Op
@@ -51,12 +52,18 @@ def run_cli():
 
 
 def run_gui():
+    """
     app = QApplication(sys.argv)
     app.setApplicationName("CMOS-INV-GUI")
+    app.setWindowIcon(QIcon('resources/app_logo.png'))
     controller = MainController()
     view = controller.get_view()
     view.show()
     sys.exit(app.exec())
+
+    :return:
+    """
+
 
 
 def run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list, cell_name_list, output, verbose_mode):
