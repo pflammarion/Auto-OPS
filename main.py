@@ -7,7 +7,6 @@ import argparse
 import traceback
 
 import gdspy
-from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QApplication
 
 from controllers import gds_drawing
@@ -54,7 +53,6 @@ def run_cli():
 def run_gui():
     app = QApplication(sys.argv)
     app.setApplicationName("CMOS-INV-GUI")
-    app.setWindowIcon(QIcon('resources/app_logo.png'))
     controller = MainController()
     view = controller.get_view()
     view.show()
