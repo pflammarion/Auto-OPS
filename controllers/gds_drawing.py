@@ -495,21 +495,21 @@ def unit_test(processed_cells):
         gen_data = json.load(gen)
 
     differences_found = False
-    test_length = len(ref_data.keys())
+    test_length = len(gen_data.keys())
     test_counter = 0
-    for ref_key, ref_value in ref_data.items():
+    for gen_key, gen_value in gen_data.items():
         test_counter += 1
-        if ref_key not in gen_data:
-            print(f"{red_color}{test_counter}/{test_length} Failure: Key '{ref_key}' not found in generated file.{reset_color}")
+        if gen_key not in ref_data:
+            print(f"{red_color}{test_counter}/{test_length} Failure: Key '{gen_key}' not found in generated file.{reset_color}")
             differences_found = True
             continue
 
-        if ref_value != gen_data[ref_key]:
-            print(f"{red_color}{test_counter}/{test_length} Failure: Objects under key '{ref_key}' are different.{reset_color}")
+        if gen_value != ref_data[gen_key]:
+            print(f"{red_color}{test_counter}/{test_length} Failure: Objects under key '{gen_key}' are different.{reset_color}")
             differences_found = True
 
         if not differences_found:
-            print(f"{green_color}{test_counter}/{test_length} Test Passed for '{ref_key}'.{reset_color}")
+            print(f"{green_color}{test_counter}/{test_length} Test Passed for '{gen_key}'.{reset_color}")
 
     if not differences_found:
         print(f"\n{green_color}------------------------------")
