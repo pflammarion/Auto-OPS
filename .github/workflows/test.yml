@@ -69,8 +69,8 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run pre-test
-        run: python -u ./main.py --cell_list INV_X1 NAND2_X1 XOR2_X1 --std_file input/stdcells.gds --lib_file input/stdcells.lib --layer_list "[[1, 0], [5, 0], [9, 0], [10, 0], [11, 0], [11, 0]]" --unit_test 45
+      - name: Run full-test
+        run: python -u ./main.py --std_file input/stdcells.gds --lib_file input/stdcells.lib --layer_list "[[1, 0], [5, 0], [9, 0], [10, 0], [11, 0], [11, 0]]" --unit_test 45
 
   fulltest-130:
     runs-on: ubuntu-latest
