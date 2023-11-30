@@ -28,6 +28,7 @@ def run_cli():
                         help='Cell list for active regions extraction (empty for all cells)')
     parser.add_argument('-o', '--output', help='Output type', choices=['reflection_over_cell', 'unit_test'])
     parser.add_argument('--gui', action='store_true', help='Start the gui')
+    parser.add_argument('--unit_test', help='Do cell technologie unit test')
     parser.add_argument('--verbose', action='store_true', help='Enable verbose mode')
 
     args = parser.parse_args()
@@ -42,10 +43,12 @@ def run_cli():
     output = args.output
     verbose_mode = args.verbose
 
+    unit_test = args.unit_test
+
     if args.gui:
         run_gui()
     else:
-        run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list, cell_list, output, verbose_mode)
+        run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list, cell_list, output, verbose_mode, unit_test)
 
 
 def run_gui():
@@ -63,7 +66,7 @@ def run_gui():
 
 
 
-def run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list, cell_name_list, output, verbose_mode):
+def run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list, cell_name_list, output, verbose_mode, unit_test):
     blue_color = "\033[1;34m"
     reset_color = "\033[0m"
     orange_color = "\033[1;33m"
@@ -73,7 +76,7 @@ def run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list,
 
     start_time = time.time()
 
-    if output == "unit_test":
+    if unit_test:
         print(f"{blue_color}Reading GDS file ...{reset_color}")
 
     lib = gdspy.GdsLibrary()
@@ -84,7 +87,7 @@ def run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list,
         def_extract = get_gates_info_from_def_file(def_file)
         cell_name_list = def_extract[1].keys()
 
-    if output == "unit_test":
+    if unit_test:
         print(f"{blue_color}Reading lib file ...{reset_color}")
 
     lib_reader = LibReader(lib_file)
@@ -106,7 +109,7 @@ def run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list,
 
             counter += 1
 
-            if output == "unit_test":
+            if unit_test:
                 print(f"{blue_color}Generating test object for: {gds_cell_name} ...{reset_color}")
 
             multiple_exporting_dict[gds_cell_name] = []
@@ -149,7 +152,7 @@ def run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list,
                         if output == "reflection_over_cell":
                             gds_drawing.export_reflection_to_png_over_gds_cell(op_object, True, False)
 
-                        if def_file or output == "unit_test":
+                        if def_file or unit_test:
                             multiple_exporting_dict[gds_cell_name].append(copy.deepcopy(op_object))
 
                         state_counter += 1
@@ -167,8 +170,8 @@ def run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list,
     gds_drawing.write_output_log(start_time, end_time_log, filtered_cells=cell_name_list, state_counter=state_counter,
                                  error_cell_list=error_cell_list)
 
-    if output == "unit_test":
-        gds_drawing.unit_test(multiple_exporting_dict)
+    if unit_test:
+        gds_drawing.unit_test(multiple_exporting_dict, unit_test)
 
     if def_file:
         gds_drawing.benchmark(multiple_exporting_dict, def_extract, False)
