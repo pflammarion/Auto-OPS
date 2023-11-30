@@ -14,7 +14,7 @@ from controllers import gds_drawing
 from controllers.GDS_Object.op import Op
 from controllers.def_parser import get_gates_info_from_def_file
 from controllers.lib_reader import LibReader
-from controllers.main_controller import MainController
+#from controllers.main_controller import MainController
 
 
 def run_cli():
