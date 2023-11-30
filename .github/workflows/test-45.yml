@@ -22,5 +22,6 @@ jobs:
         run: | 
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+          sudo apt install python3-pyqt6
       - name: Run test scripts
-        run: sh test.sh
+        run: python ./main.py --std_file input/stdcells.gds --lib_file input/stdcells.lib --layer_list "[[1, 0], [5, 0], [9, 0], [10, 0], [11, 0], [11, 0]]" --output unit_test

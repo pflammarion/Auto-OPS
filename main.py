@@ -102,6 +102,9 @@ def run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list,
 
             counter += 1
 
+            if output == "unit_test":
+                print(f"{blue_color}Generating test object for: {gds_cell_name} ...{reset_color}")
+
             multiple_exporting_dict[gds_cell_name] = []
 
             # start progress bar

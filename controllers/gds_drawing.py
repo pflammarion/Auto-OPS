@@ -1,5 +1,4 @@
-import difflib
-import filecmp
+import pytest
 from datetime import datetime
 import json
 import re
@@ -518,6 +517,7 @@ def unit_test(processed_cells):
         print(f"------------------------------{reset_color}")
     else:
         print(f"\n{red_color}Test failure check logs{reset_color}")
+        pytest.fail("Test failure. Check logs for details.")
 
 
 def export_reflection_to_json(op_object) -> None:
