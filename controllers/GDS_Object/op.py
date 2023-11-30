@@ -78,11 +78,6 @@ class Op:
             if is_intersecting:
                 self.reflection_list.append(diffusion)
 
-        plt.show()
-
-        #for diffusion in self.reflection_list:
-        #    init_diffusion_zones(diffusion)
-
         for diffusion in self.reflection_list:
             connect_diffusion_to_metal(self.element_list, diffusion)
 
@@ -226,6 +221,8 @@ def merge_polygons(polygons) -> list[Polygon]:
 
 def init_diffusion_zones(diffusion) -> None:
     """
+    WARNING old function useless
+
     Function to create reflections zones from diffusion shapes and intersection with poly silicons.
 
     Extracting the left and right poly silicons intersections and create new zones on top of that.
