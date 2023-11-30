@@ -6,6 +6,8 @@ jobs:
   build:
 
     runs-on: ubuntu-latest
+    env:
+      ACTIONS_STEP_DEBUG: true
     strategy:
       matrix:
         os: [ubuntu-latest]
@@ -24,4 +26,4 @@ jobs:
           pip install -r requirements.txt
 
       - name: Run test scripts
-        run: python ./main.py --std_file input/stdcells.gds --lib_file input/stdcells.lib --layer_list "[[1, 0], [5, 0], [9, 0], [10, 0], [11, 0], [11, 0]]" --output unit_test
+        run: python -u ./main.py --std_file input/stdcells.gds --lib_file input/stdcells.lib --layer_list "[[1, 0], [5, 0], [9, 0], [10, 0], [11, 0], [11, 0]]" --output unit_test

@@ -64,7 +64,17 @@ def run_gui():
 
 
 def run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list, cell_name_list, output, verbose_mode):
+    blue_color = "\033[1;34m"
+    reset_color = "\033[0m"
+    orange_color = "\033[1;33m"
+    white_color = "\033[1;37m"
+    green_color = "\033[1;32m"
+    red_color = "\033[1;31m"
+
     start_time = time.time()
+
+    if output == "unit_test":
+        print(f"{blue_color}Reading GDS file ...{reset_color}")
 
     lib = gdspy.GdsLibrary()
     gds_cell_list = lib.read_gds(std_file).cells
@@ -74,20 +84,17 @@ def run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list,
         def_extract = get_gates_info_from_def_file(def_file)
         cell_name_list = def_extract[1].keys()
 
+    if output == "unit_test":
+        print(f"{blue_color}Reading lib file ...{reset_color}")
+
     lib_reader = LibReader(lib_file)
 
     if cell_name_list is None:
         cell_name_list = gds_cell_list.keys()
+
     error_cell_list = []
     counter = 0
     state_counter = 0
-
-    blue_color = "\033[1;34m"
-    reset_color = "\033[0m"
-    orange_color = "\033[1;33m"
-    white_color = "\033[1;37m"
-    green_color = "\033[1;32m"
-    red_color = "\033[1;31m"
 
     total_iterations = len(cell_name_list)
     multiple_exporting_dict = {}
