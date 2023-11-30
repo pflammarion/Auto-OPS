@@ -7,8 +7,8 @@ import argparse
 import traceback
 
 import gdspy
-#from PyQt6.QtGui import QIcon
-#from PyQt6.QtWidgets import QApplication
+from PyQt6.QtGui import QIcon
+from PyQt6.QtWidgets import QApplication
 
 from controllers import gds_drawing
 from controllers.GDS_Object.op import Op
