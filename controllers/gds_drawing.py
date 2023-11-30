@@ -513,9 +513,9 @@ def unit_test(processed_cells):
             print(f"{green_color}{test_counter}/{test_length} Test Passed for '{ref_key}'.{reset_color}")
 
     if not differences_found:
-        print(f"\n{green_color}------------------------------\n")
+        print(f"\n{green_color}------------------------------")
         print(f"Success: All tests passed !")
-        print(f" \n------------------------------{reset_color}")
+        print(f"------------------------------{reset_color}")
     else:
         print(f"\n{red_color}Test failure check logs{reset_color}")
 
