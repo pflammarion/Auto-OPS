@@ -29,7 +29,7 @@ def run_cli():
                         required=True)
     parser.add_argument('-c', '--cell_list', nargs='+', type=str,
                         help='Cell list for active regions extraction (empty for all cells)')
-    parser.add_argument('-o', '--output', help='Output type', choices=['reflection_over_cell'])
+    parser.add_argument('-o', '--output', help='Output type', choices=['reflection_over_cell', 'unit_test'])
     parser.add_argument('--gui', action='store_true', help='Start the gui')
     parser.add_argument('--verbose', action='store_true', help='Enable verbose mode')
 
@@ -137,7 +137,7 @@ def run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list,
                         if output == "reflection_over_cell":
                             gds_drawing.export_reflection_to_png_over_gds_cell(op_object, True, False)
 
-                        if def_file:
+                        if def_file or output == "unit_test":
                             multiple_exporting_dict[gds_cell_name].append(copy.deepcopy(op_object))
 
                         state_counter += 1
@@ -154,6 +154,10 @@ def run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list,
     end_time_log = time.time()
     gds_drawing.write_output_log(start_time, end_time_log, filtered_cells=cell_name_list, state_counter=state_counter,
                                  error_cell_list=error_cell_list)
+
+    if output == "unit_test":
+        gds_drawing.unit_test(multiple_exporting_dict)
+
     if def_file:
         gds_drawing.benchmark(multiple_exporting_dict, def_extract, False)
         end_time = time.time()
@@ -163,7 +167,7 @@ def run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list,
 if __name__ == "__main__":
     debug = False
     if debug:
-        run_auto_ops("Platforms/IHP-Open-PDK130nm/sg13g2_stdcell.gds", "Platforms/IHP-Open-PDK130nm/sg13g2_stdcell_typ_1p20V_25C.lib", "", "", [], [[1, 0], [31, 0], [5, 0], [6, 0], [8, 0], [8, 25]], ['sg13g2_nand2_1'], "",
+        run_auto_ops("Platforms/IHP-Open-PDK130nm/sg13g2_stdcell.gds", "Platforms/IHP-Open-PDK130nm/sg13g2_stdcell_typ_1p20V_25C.lib", "", "", [], [[1, 0], [31, 0], [5, 0], [6, 0], [8, 0], [8, 25]], ['sg13g2_nand2_1'], "unit_test",
                      True)
     else:
         run_cli()

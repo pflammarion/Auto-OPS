@@ -1,3 +1,5 @@
+import difflib
+import filecmp
 from datetime import datetime
 import json
 import re
@@ -462,6 +464,60 @@ def export_reflection_to_png_over_gds_cell(op_object, reflection_draw=False, wit
         plt.axis('off')
         plt.savefig(path_name, bbox_inches='tight', pad_inches=0, format='svg')
     plt.close()
+
+
+def unit_test(processed_cells):
+    json_test = {}
+
+    for cell_name, states_list in processed_cells.items():
+        json_test[cell_name] = []
+        for state_index, state in enumerate(states_list):
+            state_data = []
+            for reflection in state.reflection_list:
+                for zone in reflection.zone_list:
+                    coordinates = [(x, y) for x, y in zip(*zone.coordinates)]
+                    zone_type = str(zone.shape_type)
+                    zone_state = zone.state
+                    state_data.append({'type': zone_type, 'state': zone_state, 'coordinates': coordinates})
+            json_test[cell_name].append(state_data)
+
+    with open('test/tmp.json', 'w') as json_file:
+        json.dump(json_test, json_file, indent=4)
+
+    reference_file = 'test/test-30-09-23.json'
+    generated_file = 'test/tmp.json'
+
+    reset_color = "\033[0m"
+    green_color = "\033[1;32m"
+    red_color = "\033[1;31m"
+
+    with open(reference_file, 'r') as ref, open(generated_file, 'r') as gen:
+        ref_data = json.load(ref)
+        gen_data = json.load(gen)
+
+    differences_found = False
+    test_length = len(ref_data.keys())
+    test_counter = 0
+    for ref_key, ref_value in ref_data.items():
+        test_counter += 1
+        if ref_key not in gen_data:
+            print(f"{red_color}{test_counter}/{test_length} Failure: Key '{ref_key}' not found in generated file.{reset_color}")
+            differences_found = True
+            continue
+
+        if ref_value != gen_data[ref_key]:
+            print(f"{red_color}{test_counter}/{test_length} Failure: Objects under key '{ref_key}' are different.{reset_color}")
+            differences_found = True
+
+        if not differences_found:
+            print(f"{green_color}{test_counter}/{test_length} Test Passed for '{ref_key}'.{reset_color}")
+
+    if not differences_found:
+        print(f"\n{green_color}------------------------------\n")
+        print(f"Success: All tests passed !")
+        print(f" \n------------------------------{reset_color}")
+    else:
+        print(f"\n{red_color}Test failure check logs{reset_color}")
 
 
 def export_reflection_to_json(op_object) -> None:
