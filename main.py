@@ -4,17 +4,14 @@ import itertools
 import sys
 import time
 import argparse
-import traceback
 
 import gdspy
-from PyQt6.QtGui import QIcon
-from PyQt6.QtWidgets import QApplication
 
 from controllers import gds_drawing
 from controllers.GDS_Object.op import Op
 from controllers.def_parser import get_gates_info_from_def_file
 from controllers.lib_reader import LibReader
-#from controllers.main_controller import MainController
+#
 
 
 def run_cli():
@@ -52,7 +49,10 @@ def run_cli():
 
 
 def run_gui():
-    """
+    from PyQt6.QtGui import QIcon
+    from PyQt6.QtWidgets import QApplication
+    from controllers.main_controller import MainController
+
     app = QApplication(sys.argv)
     app.setApplicationName("CMOS-INV-GUI")
     app.setWindowIcon(QIcon('resources/app_logo.png'))
@@ -60,9 +60,6 @@ def run_gui():
     view = controller.get_view()
     view.show()
     sys.exit(app.exec())
-
-    :return:
-    """
 
 
 
