@@ -1,10 +1,14 @@
+from shapely.lib import difference
+import matplotlib.pyplot as plt
+
+from controllers import gds_drawing
 from controllers.GDS_Object.attribute import Attribute
 from controllers.GDS_Object.diffusion import Diffusion
 from controllers.GDS_Object.label import Label
 from controllers.GDS_Object.shape import Shape
 
-from shapely.geometry import Polygon, Point
-from shapely.ops import unary_union
+from shapely.geometry import Polygon, Point, MultiPolygon
+from shapely.ops import unary_union, cascaded_union
 
 from controllers.GDS_Object.type import ShapeType
 from controllers.GDS_Object.zone import Zone
@@ -74,8 +78,10 @@ class Op:
             if is_intersecting:
                 self.reflection_list.append(diffusion)
 
-        for diffusion in self.reflection_list:
-            init_diffusion_zones(diffusion)
+        plt.show()
+
+        #for diffusion in self.reflection_list:
+        #    init_diffusion_zones(diffusion)
 
         for diffusion in self.reflection_list:
             connect_diffusion_to_metal(self.element_list, diffusion)
@@ -440,21 +446,25 @@ def connect_diffusion_to_polygon(element_list, diffusion) -> bool:
         Any relevant exceptions that may occur.
     """
     # If a diffusion zone does not intersect any poly the
-    is_intersecting = False
+    poly_element_list = []
     for element in element_list:
-        if isinstance(element, Shape) and element.shape_type == ShapeType.POLYSILICON and \
-                element.polygon.intersects(diffusion.polygon):
+        if isinstance(element, Shape) and element.shape_type == ShapeType.POLYSILICON:
+            if element.polygon.intersects(diffusion.polygon):
+                intersections = diffusion.polygon.intersection(element.polygon)
+                if hasattr(intersections, "geoms"):
+                    for index, inter in enumerate(intersections.geoms):
+                        diffusion.set_zone(Zone(ShapeType.POLYSILICON, inter.exterior.xy, element))
+                else:
+                    diffusion.set_zone(Zone(ShapeType.POLYSILICON, intersections.exterior.xy, element))
 
-            intersections = diffusion.polygon.intersection(element.polygon)
-            if hasattr(intersections, "geoms"):
-                for index, inter in enumerate(intersections.geoms):
-                    diffusion.set_zone(Zone(ShapeType.POLYSILICON, inter.exterior.xy, element))
-            else:
-                diffusion.set_zone(Zone(ShapeType.POLYSILICON, intersections.exterior.xy, element))
+                poly_element_list.append(element.polygon)
 
-            is_intersecting = True
+    diffusion_zones = diffusion.polygon.difference(unary_union(poly_element_list))
+    if hasattr(diffusion_zones, "geoms"):
+        for index, inter in enumerate(diffusion_zones.geoms):
+            diffusion.set_zone(Zone(ShapeType.DIFFUSION, inter.exterior.xy))
 
-    return is_intersecting
+    return len(poly_element_list) > 0
 
 
 def connect_diffusion_to_metal(element_list, diffusion) -> None:
