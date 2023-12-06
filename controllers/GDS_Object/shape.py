@@ -39,11 +39,13 @@ class Shape(Element):
         self.connection_list = []
         self.shape_type = shape_type
         self.attribute = attribute
+        self.layer_level = 1
 
-    def set_shape_type(self, layer_list) -> None:
-        type_index = layer_list.index(self.layer)
-        if type_index is not None:
-            self.shape_type = ShapeType(type_index)
+    def set_shape_type(self, type_index) -> None:
+        self.shape_type = ShapeType(type_index)
+
+    def set_layer_level(self, layer_level) -> None:
+        self.layer_level = layer_level
 
     def set_attribute(self, attribute) -> None:
         self.attribute = attribute

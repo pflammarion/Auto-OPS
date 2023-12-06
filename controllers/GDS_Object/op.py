@@ -303,22 +303,35 @@ def element_extractor(gds_cell, layer_list) -> list:
     """
 
     element_list = []
+    label_index = 5
 
     for label in gds_cell.labels:
-        if label.layer == layer_list[5][0]:
+        if label.layer == layer_list[label_index][0]:
             founded_label = Label(label.text, label.position.tolist())
             element_list.append(founded_label)
 
     # extract polygons from GDS
     polygons = gds_cell.get_polygons(by_spec=True)
 
-    for layer in layer_list:
-        extracted_polygons = polygons.get((layer[0], layer[1]), [])
-        merged_polygons = merge_polygons(extracted_polygons)
-        for polygon in merged_polygons:
-            shape = Shape(None, polygon, polygon.exterior.xy, layer)
-            shape.set_shape_type(layer_list)
-            element_list.append(shape)
+    for layer_index, layer in enumerate(layer_list):
+        if layer_index == 3 or layer_index == 4:
+            for sublayer_index, sublayer in enumerate(layer):
+                layer_level = sublayer_index + 1
+                element_list = extract_and_merge_polygons(polygons, element_list, layer_index, sublayer, layer_level)
+        elif label_index != 5:
+            element_list = extract_and_merge_polygons(polygons, element_list, layer_index, layer)
+
+    return element_list
+
+
+def extract_and_merge_polygons(polygons, element_list, layer_index, layer, layer_level=1) -> list:
+    extracted_polygons = polygons.get((layer[0], layer[1]), [])
+    merged_polygons = merge_polygons(extracted_polygons)
+    for polygon in merged_polygons:
+        shape = Shape(None, polygon, polygon.exterior.xy, layer)
+        shape.set_shape_type(layer_index)
+        shape.set_layer_level(layer_level)
+        element_list.append(shape)
 
     return element_list
 
@@ -607,6 +620,7 @@ def set_zone_states(reflection_list) -> int:
                 state_counter += 1
 
     return state_counter
+
 
 def find_neighbor_state(diffusion, zone_index) -> bool:
     """
