@@ -143,7 +143,8 @@ def element_sorting(element_list, inputs, truthtable, voltage) -> list:
         if isinstance(element, Shape) and element.shape_type != ShapeType.VIA:
             for via in element_list:
                 if isinstance(via, Shape) and via.shape_type == ShapeType.VIA \
-                        and element.polygon.intersects(via.polygon):
+                        and element.polygon.intersects(via.polygon) and via.layer_level == element.layer_level:
+
                     element.add_via(via)
 
     for element in element_list:
@@ -503,10 +504,10 @@ def connect_diffusion_to_metal(element_list, diffusion) -> None:
     for zone in diffusion.zone_list:
         if zone.shape_type == ShapeType.DIFFUSION:
             for element in element_list:
-                if isinstance(element, Shape) and element.shape_type == ShapeType.METAL:
+                if isinstance(element, Shape) and element.shape_type == ShapeType.METAL and element.layer_level == 1:
                     zone_polygon = Polygon(Polygon(list(zip(zone.coordinates[0], zone.coordinates[1]))))
                     for connection_polygons in element.connection_list:
-                        if zone_polygon.intersects(connection_polygons):
+                        if connection_polygons.layer_level == 1 and zone_polygon.intersects(connection_polygons):
                             zone.set_connected_to(element)
 
                             break
@@ -583,6 +584,7 @@ def set_zone_states(reflection_list) -> int:
 
             if isinstance(zone.connected_to, Shape) and zone.connected_to.shape_type == ShapeType.METAL \
                     and not zone.wire and zone.connected_to.attribute is None:
+                # TODO in function to go higher level
 
                 found_state = None
                 for index, zone_to_find in enumerate(diffusion.zone_list):
