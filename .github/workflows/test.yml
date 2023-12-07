@@ -24,7 +24,7 @@ jobs:
           pip install -r requirements.txt
 
       - name: Run pre-test
-        run: python -u ./main.py --cell_list INV_X1 NAND2_X1 XOR2_X1 --std_file input/stdcells.gds --lib_file input/stdcells.lib --layer_list "[[1, 0], [5, 0], [9, 0], [[10, 0]], [[11, 0]], [11, 0]]" --unit_test 45
+        run: python -u ./main.py --cell_list INV_X1 NAND2_X1 XOR2_X1 --std_file input/stdcells.gds --lib_file input/stdcells.lib --layer_list "[[1, 0], [5, 0], [9, 0], [[10, 0]], [[11, 0]], [[11, 0]]]" --unit_test 45
 
   pretest-130:
     runs-on: ubuntu-latest
@@ -47,7 +47,7 @@ jobs:
           pip install -r requirements.txt
 
       - name: Run pre-test
-        run: python -u ./main.py --cell_list sg13g2_inv_1 sg13g2_nand2_1 sg13g2_xor2_1 --std_file Platforms/IHP-Open-PDK130nm/sg13g2_stdcell.gds --lib_file Platforms/IHP-Open-PDK130nm/sg13g2_stdcell_typ_1p20V_25C.lib  --layer_list "[[1, 0], [31, 0], [5, 0], [[6, 0], [19, 0]], [[8, 0], [10, 0]], [8, 25]]" --unit_test 130
+        run: python -u ./main.py --cell_list sg13g2_inv_1 sg13g2_nand2_1 sg13g2_xor2_1 --std_file Platforms/IHP-Open-PDK130nm/sg13g2_stdcell.gds --lib_file Platforms/IHP-Open-PDK130nm/sg13g2_stdcell_typ_1p20V_25C.lib  --layer_list "[[1, 0], [31, 0], [5, 0], [[6, 0], [19, 0]], [[8, 0], [10, 0]], [[8, 25], [10, 25]]]" --unit_test 130
 
   fulltest-45:
     runs-on: ubuntu-latest
@@ -70,7 +70,7 @@ jobs:
           pip install -r requirements.txt
 
       - name: Run full-test
-        run: python -u ./main.py --std_file input/stdcells.gds --lib_file input/stdcells.lib --layer_list "[[1, 0], [5, 0], [9, 0], [[10, 0]], [[11, 0]], [11, 0]]" --unit_test 45
+        run: python -u ./main.py --std_file input/stdcells.gds --lib_file input/stdcells.lib --layer_list "[[1, 0], [5, 0], [9, 0], [[10, 0]], [[11, 0]], [[11, 0]]]" --unit_test 45
 
   fulltest-130:
     runs-on: ubuntu-latest
@@ -93,4 +93,4 @@ jobs:
           pip install -r requirements.txt
 
       - name: Run full-test
-        run: python -u ./main.py --std_file Platforms/IHP-Open-PDK130nm/sg13g2_stdcell.gds --lib_file Platforms/IHP-Open-PDK130nm/sg13g2_stdcell_typ_1p20V_25C.lib  --layer_list "[[1, 0], [31, 0], [5, 0], [[6, 0], [19, 0]], [[8, 0], [10, 0]], [8, 25]]" --unit_test 130
+        run: python -u ./main.py --std_file Platforms/IHP-Open-PDK130nm/sg13g2_stdcell.gds --lib_file Platforms/IHP-Open-PDK130nm/sg13g2_stdcell_typ_1p20V_25C.lib  --layer_list "[[1, 0], [31, 0], [5, 0], [[6, 0], [19, 0]], [[8, 0], [10, 0]], [[8, 25], [10, 25]]]" --unit_test 130

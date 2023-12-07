@@ -308,9 +308,10 @@ def element_extractor(gds_cell, layer_list) -> list:
     label_index = 5
 
     for label in gds_cell.labels:
-        if label.layer == layer_list[label_index][0]:
-            founded_label = Label(label.text, label.position.tolist())
-            element_list.append(founded_label)
+        for i in range(len(layer_list[label_index])):
+            if label.layer == layer_list[label_index][i][0]:
+                founded_label = Label(label.text, label.position.tolist())
+                element_list.append(founded_label)
 
     # extract polygons from GDS
     polygons = gds_cell.get_polygons(by_spec=True)
@@ -534,13 +535,13 @@ def connect_diffusion_to_metal(element_list, diffusion) -> None:
 
 
 def add_connection_zone(element_list, element, zone):
-    # TODO recurcively
     for next_element in element_list:
-        if isinstance(next_element, Shape) and next_element.shape_type == ShapeType.METAL:
+        if isinstance(next_element, Shape) and next_element.shape_type == ShapeType.METAL and next_element not in zone.connected_to:
             for connection in element.connection_list:
                 for next_element_connection in next_element.connection_list:
                     if connection == next_element_connection:
                         zone.set_connected_to(next_element)
+                        add_connection_zone(element_list, next_element, zone)
 
 
 def set_zone_states(reflection_list) -> int:
@@ -607,7 +608,8 @@ def set_zone_states(reflection_list) -> int:
                             zone.set_state(0)
                             break
 
-                        elif connection.attribute.shape_type == ShapeType.OUTPUT:
+                        elif connection.attribute.shape_type == ShapeType.OUTPUT or \
+                                connection.attribute.shape_type == ShapeType.INPUT:
                             zone.set_state(connection.attribute.state)
                             break
 
