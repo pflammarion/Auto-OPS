@@ -396,7 +396,7 @@ def is_connected(element_list, inputs, truthtable, voltage, element) -> None:
 
     if element.shape_type == ShapeType.POLYSILICON or element.shape_type == ShapeType.DIFFUSION:
         for item in element_list:
-            if isinstance(item, Shape) and item.shape_type == ShapeType.METAL:
+            if isinstance(item, Shape) and item.shape_type == ShapeType.METAL and item.layer_level != element.layer_level:
                 for element_connection in element.connection_list:
                     if element_connection in item.connection_list:
                         element.set_attribute(item)
