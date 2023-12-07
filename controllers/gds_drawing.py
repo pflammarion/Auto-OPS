@@ -532,7 +532,7 @@ def unit_test(processed_cells, unit_test_technologie):
         print(f"Success: All tests passed !")
         print(f"------------------------------{reset_color}")
     else:
-        print(f"\n{red_color} {len(differences_list)}/{test_length} Test failure check logs{reset_color}")
+        print(f"\n{red_color} {len(differences_list)}/{test_length} Test failure check logs{reset_color}\n\n")
         pytest.fail("Test failure. Check logs for details.")
 
 
