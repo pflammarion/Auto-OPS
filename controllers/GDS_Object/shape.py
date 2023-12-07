@@ -39,7 +39,7 @@ class Shape(Element):
         self.connection_list = []
         self.shape_type = shape_type
         self.attribute = attribute
-        self.layer_level = 1
+        self.layer_level = 0
 
     def set_shape_type(self, type_index) -> None:
         self.shape_type = ShapeType(type_index)
@@ -51,7 +51,7 @@ class Shape(Element):
         self.attribute = attribute
 
     def add_via(self, via) -> None:
-        self.connection_list.append(via.polygon)
+        self.connection_list.append(via)
 
 
 

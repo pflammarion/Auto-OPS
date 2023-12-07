@@ -143,12 +143,13 @@ def element_sorting(element_list, inputs, truthtable, voltage) -> list:
         if isinstance(element, Shape) and element.shape_type != ShapeType.VIA:
             for via in element_list:
                 if isinstance(via, Shape) and via.shape_type == ShapeType.VIA \
-                        and element.polygon.intersects(via.polygon) and via.layer_level == element.layer_level:
-
+                        and element.polygon.intersects(via.polygon) and \
+                        (via.layer_level == element.layer_level or via.layer_level + 1 == element.layer_level):
                     element.add_via(via)
 
     for element in element_list:
-        if isinstance(element, Shape):
+        if isinstance(element, Shape) and element.attribute is None:
+            # TODO check why this loop is entering already defined attribut
             is_connected(element_list, inputs, truthtable, voltage, element)
 
     for element in element_list:
@@ -172,7 +173,6 @@ def element_sorting(element_list, inputs, truthtable, voltage) -> list:
                 diffusion.set_type(ShapeType.NMOS)
 
             reflection_list.append(diffusion)
-
     return reflection_list
 
 
@@ -318,14 +318,14 @@ def element_extractor(gds_cell, layer_list) -> list:
         if layer_index == 3 or layer_index == 4:
             for sublayer_index, sublayer in enumerate(layer):
                 layer_level = sublayer_index + 1
-                element_list = extract_and_merge_polygons(polygons, element_list, layer_index, sublayer, layer_level)
-        elif label_index != 5:
-            element_list = extract_and_merge_polygons(polygons, element_list, layer_index, layer)
+                extract_and_merge_polygons(polygons, element_list, layer_index, sublayer, layer_level)
+        elif layer_index != label_index:
+            extract_and_merge_polygons(polygons, element_list, layer_index, layer)
 
     return element_list
 
 
-def extract_and_merge_polygons(polygons, element_list, layer_index, layer, layer_level=1) -> list:
+def extract_and_merge_polygons(polygons, element_list, layer_index, layer, layer_level=1) -> None:
     extracted_polygons = polygons.get((layer[0], layer[1]), [])
     merged_polygons = merge_polygons(extracted_polygons)
     for polygon in merged_polygons:
@@ -333,8 +333,6 @@ def extract_and_merge_polygons(polygons, element_list, layer_index, layer, layer
         shape.set_shape_type(layer_index)
         shape.set_layer_level(layer_level)
         element_list.append(shape)
-
-    return element_list
 
 
 def is_connected(element_list, inputs, truthtable, voltage, element) -> None:
@@ -382,14 +380,29 @@ def is_connected(element_list, inputs, truthtable, voltage, element) -> None:
         elif "power" in volt["type"]:
             power_pin_name = volt["name"]
 
+    """
+        if element.shape_type == ShapeType.POLYSILICON or element.shape_type == ShapeType.DIFFUSION or element.shape_type == ShapeType.METAL:
+            if element.layer_level > 1:
+                print("lui")
+                raise Exception("lui")
+            for item in element_list:
+                if isinstance(item,
+                              Shape) and item.shape_type == ShapeType.METAL and item.layer_level != element.layer_level:
+                    for element_connection in element.connection_list:
+                        if element_connection in item.connection_list:
+                            element.set_attribute(item)
+                            break
+    """
+
     if element.shape_type == ShapeType.POLYSILICON or element.shape_type == ShapeType.DIFFUSION:
         for item in element_list:
             if isinstance(item, Shape) and item.shape_type == ShapeType.METAL:
                 for element_connection in element.connection_list:
                     if element_connection in item.connection_list:
                         element.set_attribute(item)
+                        break
 
-    elif element.shape_type == ShapeType.METAL:
+    elif element.shape_type == ShapeType.METAL and element.attribute is None:
         for label in element_list:
             if isinstance(label, Label):
                 if element.polygon.contains(Point(label.coordinates)):
@@ -507,7 +520,8 @@ def connect_diffusion_to_metal(element_list, diffusion) -> None:
                 if isinstance(element, Shape) and element.shape_type == ShapeType.METAL and element.layer_level == 1:
                     zone_polygon = Polygon(Polygon(list(zip(zone.coordinates[0], zone.coordinates[1]))))
                     for connection_polygons in element.connection_list:
-                        if connection_polygons.layer_level == 1 and zone_polygon.intersects(connection_polygons):
+                        if connection_polygons.layer_level == 1 and zone_polygon.intersects(
+                                connection_polygons.polygon):
                             zone.set_connected_to(element)
 
                             break
@@ -585,6 +599,7 @@ def set_zone_states(reflection_list) -> int:
             if isinstance(zone.connected_to, Shape) and zone.connected_to.shape_type == ShapeType.METAL \
                     and not zone.wire and zone.connected_to.attribute is None:
                 # TODO in function to go higher level
+                # zone.connected_to.attribute is None means it is a top level layer
 
                 found_state = None
                 for index, zone_to_find in enumerate(diffusion.zone_list):
@@ -606,6 +621,25 @@ def set_zone_states(reflection_list) -> int:
                                 if zone_to_apply.state is None:
                                     zone_to_apply.set_state(found_state)
                                     zone_to_apply.wire = True
+
+        """
+        # Wire Metal 2 loop
+        for zone in diffusion.zone_list:
+            if zone.state is not None:
+                continue
+
+            if isinstance(zone.connected_to, Shape) and zone.connected_to.shape_type == ShapeType.METAL \
+                    and isinstance(zone.connected_to.attribute, Shape) and isinstance(
+                zone.connected_to.attribute.attribute,
+                Shape) and zone.connected_to.attribute.attribute.shape_type == ShapeType.METAL \
+                    and zone.connected_to.attribute.attribute.layer_level == 2:
+                print("here is the point")
+                raise Exception("ok")
+
+                # TODO in function to go higher level
+                # zone.connected_to.attribute is None means it is a top level layer
+        """
+
 
         # Unknown loop
         for index, zone in enumerate(diffusion.zone_list):

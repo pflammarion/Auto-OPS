@@ -501,8 +501,6 @@ def unit_test(processed_cells, unit_test_technologie):
                     zone_type = str(zone.shape_type)
                     zone_state = zone.state
 
-                    print(zone_state)
-
                     if ref_data[cell_name][state_index][zone_counter]['state'] != zone_state or ref_data[cell_name][state_index][zone_counter]['type'] != zone_type:
                         differences_found = True
 
