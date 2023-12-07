@@ -492,8 +492,10 @@ def unit_test(processed_cells, unit_test_technologie):
             zone_counter = 0
 
             if len(state.reflection_list) == 0:
-                reflection_list = False
-                continue
+                # to ignore fill and antenna cells
+                if "fill" not in cell_name and "antenna" not in cell_name:
+                    reflection_list = False
+                    continue
 
             for ref_index, reflection in enumerate(state.reflection_list):
                 for zone_index, zone in enumerate(reflection.zone_list):
