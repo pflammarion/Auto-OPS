@@ -140,7 +140,8 @@ def element_sorting(element_list, inputs, truthtable, voltage) -> list:
     reflection_list = []
 
     for element in element_list:
-        if isinstance(element, Shape) and element.shape_type != ShapeType.VIA:
+        if isinstance(element, Shape) and (
+                element.shape_type == ShapeType.METAL or element.shape_type == ShapeType.DIFFUSION or element.shape_type == ShapeType.POLYSILICON):
             for via in element_list:
                 if isinstance(via, Shape) and via.shape_type == ShapeType.VIA \
                         and element.polygon.intersects(via.polygon) and \
@@ -396,7 +397,8 @@ def is_connected(element_list, inputs, truthtable, voltage, element) -> None:
 
     if element.shape_type == ShapeType.POLYSILICON or element.shape_type == ShapeType.DIFFUSION:
         for item in element_list:
-            if isinstance(item, Shape) and item.shape_type == ShapeType.METAL and item.layer_level != element.layer_level:
+            if isinstance(item,
+                          Shape) and item.shape_type == ShapeType.METAL and item.layer_level != element.layer_level:
                 for element_connection in element.connection_list:
                     if element_connection in item.connection_list:
                         element.set_attribute(item)
@@ -477,9 +479,9 @@ def connect_diffusion_to_polygon(element_list, diffusion) -> bool:
                 intersections = diffusion.polygon.intersection(element.polygon)
                 if hasattr(intersections, "geoms"):
                     for index, inter in enumerate(intersections.geoms):
-                        diffusion.set_zone(Zone(ShapeType.POLYSILICON, inter.exterior.xy, element))
+                        diffusion.set_zone(Zone(ShapeType.POLYSILICON, inter.exterior.xy, [element]))
                 else:
-                    diffusion.set_zone(Zone(ShapeType.POLYSILICON, intersections.exterior.xy, element))
+                    diffusion.set_zone(Zone(ShapeType.POLYSILICON, intersections.exterior.xy, [element]))
 
                 poly_element_list.append(element.polygon)
 
@@ -515,16 +517,30 @@ def connect_diffusion_to_metal(element_list, diffusion) -> None:
     """
 
     for zone in diffusion.zone_list:
-        if zone.shape_type == ShapeType.DIFFUSION:
-            for element in element_list:
-                if isinstance(element, Shape) and element.shape_type == ShapeType.METAL and element.layer_level == 1:
+        for element in element_list:
+            if isinstance(element, Shape) and element.shape_type == ShapeType.METAL and element.layer_level == 1:
+                if zone.shape_type == ShapeType.DIFFUSION:
                     zone_polygon = Polygon(Polygon(list(zip(zone.coordinates[0], zone.coordinates[1]))))
                     for connection_polygons in element.connection_list:
                         if connection_polygons.layer_level == 1 and zone_polygon.intersects(
                                 connection_polygons.polygon):
                             zone.set_connected_to(element)
+                            add_connection_zone(element_list, element, zone)
 
                             break
+
+                elif zone.shape_type == ShapeType.POLYSILICON:
+                    add_connection_zone(element_list, zone.connected_to[0], zone)
+
+
+def add_connection_zone(element_list, element, zone):
+    # TODO recurcively
+    for next_element in element_list:
+        if isinstance(next_element, Shape) and next_element.shape_type == ShapeType.METAL:
+            for connection in element.connection_list:
+                for next_element_connection in next_element.connection_list:
+                    if connection == next_element_connection:
+                        zone.set_connected_to(next_element)
 
 
 def set_zone_states(reflection_list) -> int:
@@ -566,32 +582,48 @@ def set_zone_states(reflection_list) -> int:
         # known state loop
         for zone in diffusion.zone_list:
             if zone.state is not None:
+                for connected_path in zone.connected_to:
+                    if connected_path.state is None:
+                        connected_path.set_state(zone.state)
                 continue
 
-            if zone.connected_to is not None:
-                if isinstance(zone.connected_to.attribute, Attribute):
-                    if zone.connected_to.attribute.shape_type == ShapeType.VDD:
-                        zone.set_state(1)
-                    elif zone.connected_to.attribute.shape_type == ShapeType.VSS:
-                        zone.set_state(0)
+            if len(zone.connected_to) > 0:
+                for connection in zone.connected_to:
 
-                    elif zone.connected_to.attribute.shape_type == ShapeType.OUTPUT:
-                        zone.set_state(zone.connected_to.attribute.state)
+                    # to apply the state in the all path for opti
+                    if connection.state is not None:
+                        zone.set_state(connection.state)
 
-                    elif zone.connected_to.attribute.shape_type == ShapeType.INPUT \
-                            and zone.connected_to.attribute.label == "GCK":
+                        for connected_path in zone.connected_to:
+                            connected_path.set_state(connection.state)
 
-                        raise AttributeError("Clock gates not working " + str(zone.connected_to.attribute.label))
+                        break
 
-                    else:
-                        raise AttributeError("Wrong attribut in " + str(zone.connected_to.shape_type))
+                    if isinstance(connection.attribute, Attribute):
+                        if connection.attribute.shape_type == ShapeType.VDD:
+                            zone.set_state(1)
+                            break
+                        elif connection.attribute.shape_type == ShapeType.VSS:
+                            zone.set_state(0)
+                            break
 
-                elif isinstance(zone.connected_to.attribute, Shape) and isinstance(
-                        zone.connected_to.attribute.attribute,
-                        Attribute) and zone.connected_to.attribute.attribute.shape_type == ShapeType.INPUT:
-                    zone.set_state(zone.connected_to.attribute.attribute.state)
+                        elif connection.attribute.shape_type == ShapeType.OUTPUT:
+                            zone.set_state(connection.attribute.state)
+                            break
+
+                        elif connection.attribute.shape_type == ShapeType.INPUT \
+                                and connection.attribute.label == "GCK":
+
+                            raise AttributeError("Clock gates not working " + str(connection.attribute.label))
+
+                    elif isinstance(connection.attribute, Shape) and isinstance(
+                            connection.attribute.attribute,
+                            Attribute) and connection.attribute.attribute.shape_type == ShapeType.INPUT:
+                        zone.set_state(connection.attribute.attribute.state)
+                        break
 
         # Wire unknown loop
+        """
         for zone in diffusion.zone_list:
             if zone.state is not None:
                 continue
@@ -621,7 +653,7 @@ def set_zone_states(reflection_list) -> int:
                                 if zone_to_apply.state is None:
                                     zone_to_apply.set_state(found_state)
                                     zone_to_apply.wire = True
-
+        """
         """
         # Wire Metal 2 loop
         for zone in diffusion.zone_list:
@@ -640,20 +672,22 @@ def set_zone_states(reflection_list) -> int:
                 # zone.connected_to.attribute is None means it is a top level layer
         """
 
-
         # Unknown loop
         for index, zone in enumerate(diffusion.zone_list):
-            if zone.state is not None:
+            if zone.state is not None or zone.shape_type == ShapeType.POLYSILICON:
                 continue
 
-            if zone.connected_to is None:
-                found_state = find_neighbor_state(diffusion, index)
-                if found_state is not None:
-                    zone.set_state(found_state)
+            found_state = find_neighbor_state(diffusion, index)
+            if found_state is not None:
+                zone.set_state(found_state)
 
         for zone in diffusion.zone_list:
             if zone.state is None:
                 state_counter += 1
+            else:
+                for connected_path in zone.connected_to:
+                    if connected_path.state is None:
+                        connected_path.set_state(zone.state)
 
     return state_counter
 
@@ -718,13 +752,7 @@ def find_neighbor_state(diffusion, zone_index) -> bool:
                         neighbor_index[index] = None
                         continue
 
-                elif (
-                        zone.connected_to is not None
-                        and zone.connected_to.shape_type == ShapeType.METAL
-                        and zone.state is not None
-                ) \
-                        or zone.state is not None:
-
+                elif zone.state is not None:
                     found_state = zone.state
                     stop_loop = True
                     break

@@ -40,6 +40,7 @@ class Shape(Element):
         self.shape_type = shape_type
         self.attribute = attribute
         self.layer_level = 0
+        self.state = None
 
     def set_shape_type(self, type_index) -> None:
         self.shape_type = ShapeType(type_index)
@@ -52,6 +53,14 @@ class Shape(Element):
 
     def add_via(self, via) -> None:
         self.connection_list.append(via)
+
+    def set_state(self, state) -> None:
+        if state is True or state == 1:
+            self.state = 1
+        elif state is False or state == 0:
+            self.state = 0
+        else:
+            raise ValueError("Invalid state input. Please provide a boolean or 0/1.")
 
 
 

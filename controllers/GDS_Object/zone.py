@@ -9,14 +9,14 @@ class Zone:
     Attributes:
         shape_type (ShapeType): The type of shape associated with the Zone object.
         coordinates (list[tuple(float), tuple(float)]): A polygone shape associated with the diffusion.
-        connected_to (Shape): A list that holds the zones object associated with the diffusion.
+        connected_to (list[Shape]): A list that holds the zones object associated with the diffusion.
 
     Methods:
         __init__(shape_type, coordinates: optional, connected_to: optional):
             Initializes a new instance of the Zone class with the provided:
                 - type (ShapeType),
                 - coordinates (list[tuple(float), tuple(float)]),
-                - connected element (Shape).
+                - connected element (list[Shape]).
 
         set_state(state):
             Append a founded state to the zone.
@@ -42,9 +42,13 @@ class Zone:
 
     Usage:
         # Creating an instance of the Diffusion class
-        my_zone = Zone(ShapeType.POLYSILICON, inter.exterior.xy, element))
+        my_zone = Zone(ShapeType.POLYSILICON, inter.exterior.xy, [element]))
     """
     def __init__(self, shape_type, coordinates=None, connected_to=None):
+
+        if connected_to is None:
+            connected_to = []
+
         self.shape_type = shape_type
         self.coordinates = coordinates
         self.state = None
@@ -60,7 +64,8 @@ class Zone:
             raise ValueError("Invalid state input. Please provide a boolean or 0/1.")
 
     def set_connected_to(self, shape) -> None:
-        self.connected_to = shape
+        if shape not in self.connected_to:
+            self.connected_to.append(shape)
 
     def get_min_x_coord(self) -> float:
         x_values = self.coordinates[0]

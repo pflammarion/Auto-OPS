@@ -503,7 +503,17 @@ def unit_test(processed_cells, unit_test_technologie):
                     zone_type = str(zone.shape_type)
                     zone_state = zone.state
 
-                    if ref_data[cell_name][state_index][zone_counter]['state'] != zone_state or ref_data[cell_name][state_index][zone_counter]['type'] != zone_type:
+                    if (
+                            cell_name in ref_data
+                            and state_index < len(ref_data[cell_name])
+                            and zone_counter < len(ref_data[cell_name][state_index])
+                            and 'state' in ref_data[cell_name][state_index][zone_counter]
+                            and 'type' in ref_data[cell_name][state_index][zone_counter]
+                            and (
+                            ref_data[cell_name][state_index][zone_counter]['state'] != zone_state
+                            or ref_data[cell_name][state_index][zone_counter]['type'] != zone_type
+                    )
+                    ):
                         differences_found = True
 
                     zone_counter += 1
@@ -522,7 +532,7 @@ def unit_test(processed_cells, unit_test_technologie):
         print(f"Success: All tests passed !")
         print(f"------------------------------{reset_color}")
     else:
-        print(f"\n{red_color}Test failure check logs{reset_color}")
+        print(f"\n{red_color} {len(differences_list)}/{test_length} Test failure check logs{reset_color}")
         pytest.fail("Test failure. Check logs for details.")
 
 
