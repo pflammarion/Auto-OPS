@@ -493,7 +493,7 @@ def unit_test(processed_cells, unit_test_technologie):
 
             if len(state.reflection_list) == 0:
                 # to ignore fill and antenna cells
-                if "fill" not in cell_name and "antenna" not in cell_name:
+                if "fill" not in cell_name.lower() and "antenna" not in cell_name.lower():
                     reflection_list = False
                     continue
 
