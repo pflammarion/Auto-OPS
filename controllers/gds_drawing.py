@@ -473,40 +473,51 @@ def unit_test(processed_cells, unit_test_technologie):
     test_length = len(processed_cells.keys())
     test_counter = 0
     reference_file = f'test/{str(unit_test_technologie)}nm.json'
-    differences_found = False
+    differences_list = []
 
     with open(reference_file, 'r') as ref:
         ref_data = json.load(ref)
 
     for cell_name, states_list in processed_cells.items():
         test_counter += 1
+
+        reflection_list = True
+        differences_found = False
+
         if cell_name not in ref_data:
             print(f"{red_color}{test_counter}/{test_length} Failure: Key '{cell_name}' not found in generated file.{reset_color}")
             differences_found = True
-            continue
 
         for state_index, state in enumerate(states_list):
             zone_counter = 0
+
+            if len(state.reflection_list) == 0:
+                reflection_list = False
+                continue
+
             for ref_index, reflection in enumerate(state.reflection_list):
                 for zone_index, zone in enumerate(reflection.zone_list):
                     coordinates = [(x, y) for x, y in zip(*zone.coordinates)]
                     zone_type = str(zone.shape_type)
                     zone_state = zone.state
 
+                    print(zone_state)
+
                     if ref_data[cell_name][state_index][zone_counter]['state'] != zone_state or ref_data[cell_name][state_index][zone_counter]['type'] != zone_type:
-                        differences_found = True
-                    if ref_data[cell_name][state_index][zone_counter]['type'] != zone_type:
-                        print(f"{red_color}{test_counter}/{test_length} Failure: Type mismatch for '{cell_name}'{reset_color}")
                         differences_found = True
 
                     zone_counter += 1
 
-        if not differences_found:
+        if not reflection_list:
+            print(f"{red_color}{test_counter}/{test_length} Failure: Reflection list empty for '{cell_name}'{reset_color}")
+            differences_list.append(cell_name)
+        elif not differences_found:
             print(f"{green_color}{test_counter}/{test_length} Test Passed for '{cell_name}'.{reset_color}")
         else:
             print(f"{red_color}{test_counter}/{test_length} Failure: Type or state mismatch for '{cell_name}'{reset_color}")
+            differences_list.append(cell_name)
 
-    if not differences_found:
+    if len(differences_list) == 0:
         print(f"\n{green_color}------------------------------")
         print(f"Success: All tests passed !")
         print(f"------------------------------{reset_color}")
