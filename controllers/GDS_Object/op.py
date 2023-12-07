@@ -144,7 +144,7 @@ def element_sorting(element_list, inputs, truthtable, voltage) -> list:
             for via in element_list:
                 if isinstance(via, Shape) and via.shape_type == ShapeType.VIA \
                         and element.polygon.intersects(via.polygon) and \
-                        (via.layer_level == element.layer_level or via.layer_level + 1 == element.layer_level):
+                        (via.layer_level == element.layer_level or via.layer_level == element.layer_level + 1):
                     element.add_via(via)
 
     for element in element_list:
@@ -325,7 +325,7 @@ def element_extractor(gds_cell, layer_list) -> list:
     return element_list
 
 
-def extract_and_merge_polygons(polygons, element_list, layer_index, layer, layer_level=1) -> None:
+def extract_and_merge_polygons(polygons, element_list, layer_index, layer, layer_level=0) -> None:
     extracted_polygons = polygons.get((layer[0], layer[1]), [])
     merged_polygons = merge_polygons(extracted_polygons)
     for polygon in merged_polygons:
