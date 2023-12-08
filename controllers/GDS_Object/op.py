@@ -1,3 +1,5 @@
+import time
+
 from shapely.lib import difference
 import matplotlib.pyplot as plt
 
@@ -382,19 +384,6 @@ def is_connected(element_list, inputs, truthtable, voltage, element) -> None:
         elif "power" in volt["type"]:
             power_pin_name = volt["name"]
 
-    """
-        if element.shape_type == ShapeType.POLYSILICON or element.shape_type == ShapeType.DIFFUSION or element.shape_type == ShapeType.METAL:
-            if element.layer_level > 1:
-                print("lui")
-                raise Exception("lui")
-            for item in element_list:
-                if isinstance(item,
-                              Shape) and item.shape_type == ShapeType.METAL and item.layer_level != element.layer_level:
-                    for element_connection in element.connection_list:
-                        if element_connection in item.connection_list:
-                            element.set_attribute(item)
-                            break
-    """
 
     if element.shape_type == ShapeType.POLYSILICON or element.shape_type == ShapeType.DIFFUSION:
         for item in element_list:
@@ -518,30 +507,38 @@ def connect_diffusion_to_metal(element_list, diffusion) -> None:
     """
 
     for zone in diffusion.zone_list:
-        for element in element_list:
-            if isinstance(element, Shape) and element.shape_type == ShapeType.METAL and element.layer_level == 1:
-                if zone.shape_type == ShapeType.DIFFUSION:
-                    zone_polygon = Polygon(Polygon(list(zip(zone.coordinates[0], zone.coordinates[1]))))
+        if zone.shape_type == ShapeType.DIFFUSION:
+            zone_polygon = Polygon(zip(zone.coordinates[0], zone.coordinates[1]))
+            for element in element_list:
+                if (
+                        isinstance(element, Shape)
+                        and element.shape_type == ShapeType.METAL
+                        and element.layer_level == 1
+                ):
                     for connection_polygons in element.connection_list:
-                        if connection_polygons.layer_level == 1 and zone_polygon.intersects(
-                                connection_polygons.polygon):
+                        if (
+                                connection_polygons.layer_level == 1
+                                and zone_polygon.intersects(connection_polygons.polygon)
+                        ):
                             zone.set_connected_to(element)
                             add_connection_zone(element_list, element, zone)
-
                             break
 
-                elif zone.shape_type == ShapeType.POLYSILICON:
-                    add_connection_zone(element_list, zone.connected_to[0], zone)
+        elif zone.shape_type == ShapeType.POLYSILICON:
+            add_connection_zone(element_list, zone.connected_to[0], zone)
 
 
 def add_connection_zone(element_list, element, zone):
     for next_element in element_list:
-        if isinstance(next_element, Shape) and next_element.shape_type == ShapeType.METAL and next_element not in zone.connected_to:
-            for connection in element.connection_list:
-                for next_element_connection in next_element.connection_list:
-                    if connection == next_element_connection:
-                        zone.set_connected_to(next_element)
-                        add_connection_zone(element_list, next_element, zone)
+        if (
+                isinstance(next_element, Shape)
+                and next_element.shape_type == ShapeType.METAL
+                and next_element not in zone.connected_to
+                and any(connection in next_element.connection_list for connection in element.connection_list)
+        ):
+            zone.set_connected_to(next_element)
+            add_connection_zone(element_list, next_element, zone)
+            return
 
 
 def set_zone_states(reflection_list) -> int:
@@ -623,56 +620,6 @@ def set_zone_states(reflection_list) -> int:
                             Attribute) and connection.attribute.attribute.shape_type == ShapeType.INPUT:
                         zone.set_state(connection.attribute.attribute.state)
                         break
-
-        # Wire unknown loop
-        """
-        for zone in diffusion.zone_list:
-            if zone.state is not None:
-                continue
-
-            if isinstance(zone.connected_to, Shape) and zone.connected_to.shape_type == ShapeType.METAL \
-                    and not zone.wire and zone.connected_to.attribute is None:
-                # TODO in function to go higher level
-                # zone.connected_to.attribute is None means it is a top level layer
-
-                found_state = None
-                for index, zone_to_find in enumerate(diffusion.zone_list):
-                    if zone_to_find.connected_to == zone.connected_to:
-                        if zone_to_find.state is not None:
-                            found_state = zone_to_find.state
-                        elif zone_to_find.connected_to.shape_type is not ShapeType.POLYSILICON:
-                            found_state = find_neighbor_state(diffusion, index)
-                        if found_state is not None:
-                            break
-
-                if found_state is not None:
-                    for diffusion_loop in reflection_list:
-                        # Find other zone connected to this wire branch
-                        for index, zone_to_apply in enumerate(diffusion_loop.zone_list):
-                            if zone_to_apply.connected_to == zone.connected_to or (
-                                    isinstance(zone_to_apply.connected_to, Shape) and
-                                    zone_to_apply.connected_to.attribute == zone.connected_to):
-                                if zone_to_apply.state is None:
-                                    zone_to_apply.set_state(found_state)
-                                    zone_to_apply.wire = True
-        """
-        """
-        # Wire Metal 2 loop
-        for zone in diffusion.zone_list:
-            if zone.state is not None:
-                continue
-
-            if isinstance(zone.connected_to, Shape) and zone.connected_to.shape_type == ShapeType.METAL \
-                    and isinstance(zone.connected_to.attribute, Shape) and isinstance(
-                zone.connected_to.attribute.attribute,
-                Shape) and zone.connected_to.attribute.attribute.shape_type == ShapeType.METAL \
-                    and zone.connected_to.attribute.attribute.layer_level == 2:
-                print("here is the point")
-                raise Exception("ok")
-
-                # TODO in function to go higher level
-                # zone.connected_to.attribute is None means it is a top level layer
-        """
 
         # Unknown loop
         for index, zone in enumerate(diffusion.zone_list):
