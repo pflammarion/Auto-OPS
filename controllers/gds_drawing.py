@@ -1,3 +1,4 @@
+import pytest
 from datetime import datetime
 import json
 import re
@@ -462,6 +463,96 @@ def export_reflection_to_png_over_gds_cell(op_object, reflection_draw=False, wit
         plt.axis('off')
         plt.savefig(path_name, bbox_inches='tight', pad_inches=0, format='svg')
     plt.close()
+
+
+def unit_test(processed_cells, unit_test_technologie):
+    reset_color = "\033[0m"
+    green_color = "\033[1;32m"
+    red_color = "\033[1;31m"
+
+    test_length = len(processed_cells.keys())
+    test_counter = 0
+    reference_file = f'test/{str(unit_test_technologie)}nm.json'
+    differences_list = []
+
+    with open(reference_file, 'r') as ref:
+        ref_data = json.load(ref)
+
+    for cell_name, states_list in processed_cells.items():
+        test_counter += 1
+
+        reflection_list = True
+        differences_found = False
+
+        if cell_name not in ref_data:
+            print(f"{red_color}{test_counter}/{test_length} Failure: Key '{cell_name}' not found in generated file.{reset_color}")
+            differences_found = True
+
+        for state_index, state in enumerate(states_list):
+            zone_counter = 0
+
+            if len(state.reflection_list) == 0:
+                # to ignore fill and antenna cells
+                if "fill" not in cell_name.lower() and "antenna" not in cell_name.lower():
+                    reflection_list = False
+                    continue
+
+            for ref_index, reflection in enumerate(state.reflection_list):
+                for zone_index, zone in enumerate(reflection.zone_list):
+                    coordinates = [(x, y) for x, y in zip(*zone.coordinates)]
+                    zone_type = str(zone.shape_type)
+                    zone_state = zone.state
+
+                    if (
+                            cell_name in ref_data
+                            and state_index < len(ref_data[cell_name])
+                            and zone_counter < len(ref_data[cell_name][state_index])
+                            and 'state' in ref_data[cell_name][state_index][zone_counter]
+                            and 'type' in ref_data[cell_name][state_index][zone_counter]
+                            and (
+                            ref_data[cell_name][state_index][zone_counter]['state'] != zone_state
+                            or ref_data[cell_name][state_index][zone_counter]['type'] != zone_type
+                    )
+                    ):
+                        differences_found = True
+
+                    zone_counter += 1
+
+        if not reflection_list:
+            print(f"{red_color}{test_counter}/{test_length} Failure: Reflection list empty for '{cell_name}'{reset_color}")
+            differences_list.append(cell_name)
+        elif not differences_found:
+            print(f"{green_color}{test_counter}/{test_length} Test Passed for '{cell_name}'.{reset_color}")
+        else:
+            print(f"{red_color}{test_counter}/{test_length} Failure: Type or state mismatch for '{cell_name}'{reset_color}")
+            differences_list.append(cell_name)
+
+    if len(differences_list) == 0:
+        print(f"\n{green_color}------------------------------")
+        print(f"Success: All tests passed !")
+        print(f"------------------------------{reset_color}")
+    else:
+        print(f"\n{red_color} {len(differences_list)}/{test_length} Test failure check logs{reset_color}\n\n")
+        pytest.fail("Test failure. Check logs for details.")
+
+
+def unit_test_generator(processed_cells):
+    json_test = {}
+
+    for cell_name, states_list in processed_cells.items():
+        json_test[cell_name] = []
+        for state_index, state in enumerate(states_list):
+            state_data = []
+            for reflection in state.reflection_list:
+                for zone in reflection.zone_list:
+                    coordinates = [(x, y) for x, y in zip(*zone.coordinates)]
+                    zone_type = str(zone.shape_type)
+                    zone_state = zone.state
+                    state_data.append({'type': zone_type, 'state': zone_state, 'coordinates': coordinates})
+            json_test[cell_name].append(state_data)
+
+    with open('test/tmp.json', 'w') as json_file:
+        json.dump(json_test, json_file, indent=4)
 
 
 def export_reflection_to_json(op_object) -> None:
