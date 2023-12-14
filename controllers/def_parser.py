@@ -26,21 +26,21 @@ def get_gates_info_from_def_file(file_path) -> list:
         dif_size["ll_y"] = ll_y
 
 
-    components = re.findall(r'-\s(?!.*SOURCE DIST).+?(\w+)\s\+\sPLACED\s\(\s(\d+)\s(\d+)\s\)\s([A-Z]+)', data)
+    components = re.findall(r'-\s(\w+)\s(\w+)\s\+\sPLACED\s\(\s(\d+)\s(\d+)\s\)\s([A-Z]+)', data)
 
     gate_dict = {}
 
     for component in components:
-        gate_name = component[0]
-        x_coord = int(component[1])
-        y_coord = int(component[2])
-        orientation = component[3]
+        gate_id = component[0]
+        gate_name = component[1]
+        x_coord = int(component[2])
+        y_coord = int(component[3])
+        orientation = component[4]
 
         if gate_name in gate_dict:
-            gate_dict[gate_name].append({'Coordinates': (x_coord, y_coord), 'Orientation': orientation})
+            gate_dict[gate_name].append({'GateID': gate_id, 'Coordinates': (x_coord, y_coord), 'Orientation': orientation})
         else:
-            gate_dict[gate_name] = [{'Coordinates': (x_coord, y_coord), 'Orientation': orientation}]
-
+            gate_dict[gate_name] = [{'GateID': gate_id, 'Coordinates': (x_coord, y_coord), 'Orientation': orientation}]
 
 
     dif_extraction = [dif_size, gate_dict]

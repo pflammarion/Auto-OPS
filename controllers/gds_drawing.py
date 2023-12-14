@@ -8,6 +8,7 @@ import numpy as np
 
 from controllers.GDS_Object.attribute import Attribute
 from controllers.GDS_Object.label import Label
+from controllers.GDS_Object.op import Op
 from controllers.GDS_Object.shape import Shape
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -172,7 +173,7 @@ def count_unknown_states(op_object) -> None:
     print(f"\033[1;33m \n {op_object.name}, {op_object.inputs}, None states = {state_counter}, Loop counter = {op_object.loop_counter}")
 
 
-def benchmark(object_list, def_extract, plot, plot_realtime=50) -> None:
+def benchmark(object_list, def_extract, plot, vpi_extraction=None, area=None, plot_realtime=50) -> None:
     ur_x = def_extract[0]["ur_x"]
     ll_x = def_extract[0]["ll_x"]
     ur_y = def_extract[0]["ur_y"]
@@ -184,36 +185,57 @@ def benchmark(object_list, def_extract, plot, plot_realtime=50) -> None:
     #plt.figure(figsize=(8, 8))
 
     if plot:
-        plt.xlim(min(ll_x, ur_x) - 1, max(ll_x, ur_x) + 1)
-        plt.ylim(min(ll_y, ur_y) - 1, max(ll_y, ur_y) + 1)
         plt.gca().set_facecolor('black')
         plt.gca().set_aspect('equal', adjustable='box')
+
+        if area:
+            plt.xlim(area[0], area[1])
+            plt.ylim(area[2], area[3])
+        else:
+            plt.xlim(min(ll_x, ur_x) - 1, max(ll_x, ur_x) + 1)
+            plt.ylim(min(ll_y, ur_y) - 1, max(ll_y, ur_y) + 1)
 
     draw_counter = 0
     for cell_name, cell_place in def_extract[1].items():
         if cell_name in object_list.keys():
-            op_object = object_list[cell_name][0]
             for position in cell_place:
-                draw_counter += 1
-                for zone in op_object.orientation_list[position['Orientation']]:
-
-
-                    x, y = zone["coords"]
-                    x_adder, y_adder = position['Coordinates']
-                    x = tuple([element + x_adder/micron for element in x])
-                    y = tuple([element + y_adder/micron for element in y])
-
-                    state = zone["state"]
-
-                    if zone["diff_type"] == ShapeType.PMOS:
-                        if state is None:
-                            reflect = False
-                        else:
-                            reflect = not state
+                if area:
+                    x_check, y_check = position['Coordinates']
+                    # area [x_min, x_max, y_min, y_max]
+                    if area[0] < x_check/micron < area[1] and area[2] < y_check/micron < area[3]:
+                        is_used = True
                     else:
-                        reflect = state
-                    if bool(reflect) and plot:
-                        plt.fill(x, y, facecolor='white', alpha=1)
+                        is_used = False
+                else:
+                    is_used = True
+
+                if is_used:
+                    draw_counter += 1
+                    if vpi_extraction:
+                        op_object = vpi_object_extractor(object_list[cell_name], cell_name, vpi_extraction, position)
+                    else:
+                        key = list(object_list[cell_name].keys())[0]
+                        op_object = object_list[cell_name][key]
+
+                    for zone in op_object.orientation_list[position['Orientation']]:
+                        x, y = zone["coords"]
+                        x_adder, y_adder = position['Coordinates']
+                        x = tuple([element + x_adder/micron for element in x])
+                        y = tuple([element + y_adder/micron for element in y])
+
+
+
+                        state = zone["state"]
+
+                        if zone["diff_type"] == ShapeType.PMOS:
+                            if state is None:
+                                reflect = False
+                            else:
+                                reflect = not state
+                        else:
+                            reflect = state
+                        if bool(reflect) and plot:
+                            plt.fill(x, y, facecolor='white', alpha=1)
 
                 if plot_realtime and draw_counter > plot_realtime:
                     plt.pause(0.0001)
@@ -223,6 +245,25 @@ def benchmark(object_list, def_extract, plot, plot_realtime=50) -> None:
     if plot:
         plt.show()
 
+
+def vpi_object_extractor(cell_object, cell_name, vpi_extraction, position) -> Op:
+    try:
+        input_combination = vpi_extraction[position['GateID']]
+        op_object = cell_object[input_combination]
+    except KeyError as key_error:
+        key = list(cell_object.keys())[0]
+        op_object = cell_object[key]
+        print(f"KeyError: {key_error}. Default gate applied for {cell_name}, {position['Coordinates']}")
+    except IndexError as index_error:
+        key = list(cell_object.keys())[0]
+        op_object = cell_object[key]
+        print(f"IndexError: {index_error}. Default gate applied for {cell_name}, {position['Coordinates']}")
+    except Exception as e:
+        key = list(cell_object.keys())[0]
+        op_object = cell_object[key]
+        print(f"An unexpected error occurred: {e}. Default gate applied for {cell_name}, {position['Coordinates']}")
+
+    return op_object
 
 
 def benchmark_export_data(def_extract, ex_time, def_name):
