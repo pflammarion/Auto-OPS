@@ -21,6 +21,7 @@ def run_cli():
     parser.add_argument('-l', '--lib_file', type=str, help='Input lib file', required=True)
     parser.add_argument('-g', '--gds_file', help='Input GDS design file')
     parser.add_argument('-d', '--def_file', help='Input DEF design file')
+    parser.add_argument('-vpi', '--vpi_file', help='Input VPI output file')
     parser.add_argument('-i', '--input', nargs='+', type=int, help='Input pattern list applied as A-Z/0-9 order')
     parser.add_argument('-la', '--layer_list', type=str, help='Diffusion, ... [1, 5, 9, 10, 11]',
                         required=True)
@@ -37,6 +38,7 @@ def run_cli():
     lib_file = args.lib_file
     gds_file = args.gds_file
     def_file = args.def_file
+    vpi_file = args.vpi_file
     cell_input = args.input
     layer_list = ast.literal_eval(args.layer_list)
     cell_list = args.cell_list
@@ -48,7 +50,7 @@ def run_cli():
     if args.gui:
         run_gui()
     else:
-        run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list, cell_list, output, verbose_mode, unit_test)
+        run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list, cell_list, output, verbose_mode, unit_test, vpi_file)
 
 
 def run_gui():
@@ -66,7 +68,7 @@ def run_gui():
 
 
 
-def run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list, cell_name_list, output, verbose_mode, unit_test):
+def run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list, cell_name_list, output, verbose_mode, unit_test, vpi_file):
     blue_color = "\033[1;34m"
     reset_color = "\033[0m"
     orange_color = "\033[1;33m"
@@ -81,6 +83,14 @@ def run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list,
 
     lib = gdspy.GdsLibrary()
     gds_cell_list = lib.read_gds(std_file).cells
+
+    vpi_extraction = None
+    if vpi_file:
+        vpi_extraction = {}
+        with open(vpi_file, 'r') as file:
+            for line in file:
+                key, value = line.strip().split(',')
+                vpi_extraction[key] = value
 
     def_extract = []
     if def_file:
@@ -143,6 +153,7 @@ def run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list,
 
                 else:
                     combinations = list(itertools.product([0, 1], repeat=len(input_names)))
+                    multiple_exporting_dict[gds_cell_name] = {}
                     for combination in combinations:
                         for index, inp in enumerate(input_names):
                             draw_inputs[inp] = combination[index]
@@ -153,7 +164,8 @@ def run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list,
                             gds_drawing.export_reflection_to_png_over_gds_cell(op_object, True, False)
 
                         if def_file or unit_test:
-                            multiple_exporting_dict[gds_cell_name].append(copy.deepcopy(op_object))
+                            key = ''.join(map(str, combination))
+                            multiple_exporting_dict[gds_cell_name][key] = copy.deepcopy(op_object)
 
                         state_counter += 1
 
@@ -174,7 +186,7 @@ def run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list,
         gds_drawing.unit_test(multiple_exporting_dict, unit_test)
 
     if def_file:
-        gds_drawing.benchmark(multiple_exporting_dict, def_extract, False)
+        gds_drawing.benchmark(multiple_exporting_dict, def_extract, True, vpi_extraction)
         end_time = time.time()
         gds_drawing.benchmark_export_data(def_extract, end_time - start_time, def_file)
 
@@ -182,7 +194,7 @@ def run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list,
 if __name__ == "__main__":
     debug = False
     if debug:
-        run_auto_ops("Platforms/IHP-Open-PDK130nm/sg13g2_stdcell.gds", "Platforms/IHP-Open-PDK130nm/sg13g2_stdcell_typ_1p20V_25C.lib", "", "", [], [[1, 0], [31, 0], [5, 0], [6, 0], [8, 0], [8, 25]], ['sg13g2_nand2_1'], "unit_test",
-                     True)
+        #run_auto_ops("Platforms/IHP-Open-PDK130nm/sg13g2_stdcell.gds", "Platforms/IHP-Open-PDK130nm/sg13g2_stdcell_typ_1p20V_25C.lib", "", "", [], [[1, 0], [31, 0], [5, 0], [6, 0], [8, 0], [8, 25]], ['sg13g2_nand2_1'], "unit_test", True)
+        run_auto_ops("input/stdcells.gds", "input/stdcells.lib", "", "benchmarks/Benchmarks_ISCAS85/GDS-II/Benchmarks/c17/c17.def", [], [[1, 0], [5, 0], [9, 0], [[10, 0]], [[11, 0]], [[11, 0]]], [], "", True, False, "input/new_vpi_output")
     else:
         run_cli()
