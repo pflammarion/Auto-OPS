@@ -275,8 +275,6 @@ library (sg13g2_stdcell_typ_1p20V_25C) {
     fanout_resistance (10000, 76.9);
   }
   wire_load_selection ("4_metls_routing") {
-    wire_load_from_area (0, 635, 0_1k);
-    wire_load_from_area (635, 3175, 0_5k);
     wire_load_from_area (3175, 6350, 1k);
     wire_load_from_area (6350, 12701, 2k);
     wire_load_from_area (12701, 31752, 5k);
