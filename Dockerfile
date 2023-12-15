@@ -10,6 +10,9 @@ RUN apt-get update && \
 RUN mkdir -p ./tmp
 
 COPY requirements.txt .
+COPY controllers .
+COPY start.sh .
+COPY main.py .
 
 # Install Python dependencies
 RUN python3 -m pip install --upgrade pip && \

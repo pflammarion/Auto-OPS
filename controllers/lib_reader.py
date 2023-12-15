@@ -89,10 +89,12 @@ class LibReader:
             for symbol, value in input_values.items():
                 eval_expression = eval_expression.replace(symbol, str(value))
 
-            eval_expression = eval_expression.replace("!", " not ").replace("&", " and ").replace("*", " and ").replace("+", " or ")
-
             # Evaluate the expression two time to convert it from a string to a result
-            result = eval(eval(eval_expression))
+            eval_expression = eval_expression.replace('"', '')
+            eval_expression = parse_boolean_function(eval_expression)
+            eval_expression = str(format_boolean_function(eval_expression))
+            eval_expression = eval_expression.replace("!", " not ").replace("&", " and ").replace("*", " and ").replace("+", " or ")
+            result = eval(eval_expression)
 
             if not isinstance(result, bool):
                 raise ValueError("Truthtable result is not of type bool")
