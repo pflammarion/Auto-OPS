@@ -1,12 +1,12 @@
-#!/bin/zsh
+#!/bin/bash
 source venv/bin/activate
 
 python3 ./main.py\
                 --std_file input/stdcells.gds \
                 --lib_file input/stdcells.lib \
-                --layer_list 1 5 9 10 11 \
+                --cell_list INV_X1 \
+                --layer_list "[[1, 0], [5, 0], [9, 0], [[10, 0]], [[11, 0]], [[11, 0]]]" \
                 --input 1 0 \
-                --cell_list XOR2_X1\
                 --output reflection_over_cell\
                 --verbose
 : <<'END_COMMENT'
