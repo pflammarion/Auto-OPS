@@ -3,7 +3,7 @@ import os
 import threading
 import time
 
-from PyQt6.QtWidgets import QFileDialog
+from PyQt5.QtWidgets import QFileDialog
 import cv2
 import numpy as np
 import pandas as pd
