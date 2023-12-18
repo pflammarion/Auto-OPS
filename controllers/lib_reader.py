@@ -72,10 +72,10 @@ class LibReader:
         return output_truth_table, voltage, input_names
 
 
-
     def calculateOutputFunction(self, function, pin_name, input_names):
 
         if "CK" in input_names:
+            print("flipflop")
             input_symbols = input_names
         else:
             input_symbols = re.findall(r'\w+', function)
@@ -90,26 +90,24 @@ class LibReader:
             input_values = {symbol: value for symbol, value in zip(input_symbols, inputs)}
 
             if "CK" in input_names:
-                if "N" in pin_name:
-                    eval_expression = f"!({input_symbols[0]} & {input_symbols[1]})"
-                else:
-                    eval_expression = f"({input_symbols[0]} & {input_symbols[1]})"
+                truth_table.append((input_values, {pin_name: None}))
+
             else:
                 eval_expression = function
 
-            for symbol, value in input_values.items():
-                eval_expression = eval_expression.replace(symbol, str(value))
+                for symbol, value in input_values.items():
+                    eval_expression = eval_expression.replace(symbol, str(value))
 
-            eval_expression = eval_expression.replace('"', '')
-            eval_expression = parse_boolean_function(eval_expression)
-            eval_expression = str(format_boolean_function(eval_expression))
-            eval_expression = eval_expression.replace("!", " not ").replace("&", " and ").replace("*", " and ").replace("+", " or ")
-            result = eval(eval_expression)
+                eval_expression = eval_expression.replace('"', '')
+                eval_expression = parse_boolean_function(eval_expression)
+                eval_expression = str(format_boolean_function(eval_expression))
+                eval_expression = eval_expression.replace("!", " not ").replace("&", " and ").replace("*", " and ").replace("+", " or ")
+                result = eval(eval_expression)
 
-            if not isinstance(result, bool):
-                raise ValueError("Truthtable result is not of type bool")
+                if not isinstance(result, bool):
+                    raise ValueError("Truthtable result is not of type bool")
 
-            truth_table.append((input_values, {pin_name: result}))
+                truth_table.append((input_values, {pin_name: result}))
 
         return truth_table
 

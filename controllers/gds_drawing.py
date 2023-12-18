@@ -360,7 +360,7 @@ def export_reflection_to_png(op_object) -> None:
     plt.close()
 
 
-def export_reflection_to_png_over_gds_cell(op_object, reflection_draw=False, with_axes=True) -> None:
+def export_reflection_to_png_over_gds_cell(op_object, reflection_draw=False, with_axes=True, flip_flop=None) -> None:
     plt.figure(figsize=(6, 8))
 
     for element in op_object.element_list:
@@ -405,7 +405,14 @@ def export_reflection_to_png_over_gds_cell(op_object, reflection_draw=False, wit
                 for outputs in op_object.truthtable:
                     for truthtable_inputs, output in op_object.truthtable[outputs]:
                         if element.name in output and truthtable_inputs == op_object.inputs:
-                            text = str(element.name) + " = " + str(int(output[element.name]))
+                            if "CK" in list(op_object.inputs.keys()):
+                                if "N" in list(output.keys())[0]:
+                                    value = int(bool(not flip_flop))
+                                else:
+                                    value = int(bool(flip_flop))
+                                text = str(element.name) + " = " + str(value)
+                            else:
+                                text = str(element.name) + " = " + str(int(output[element.name]))
                             edge_color = 'lightblue'
                             background_color = (228 / 255, 239 / 255, 255 / 255)
 

@@ -4,6 +4,7 @@ import itertools
 import sys
 import time
 import argparse
+import traceback
 
 import gdspy
 
@@ -30,6 +31,7 @@ def run_cli():
     parser.add_argument('--gui', action='store_true', help='Start the gui')
     parser.add_argument('--unit_test', help='Do cell technologie unit test')
     parser.add_argument('--verbose', action='store_true', help='Enable verbose mode')
+    parser.add_argument('-f', '--flip_flop', type=int, help='Flip Flop output Q')
 
     args = parser.parse_args()
 
@@ -42,13 +44,14 @@ def run_cli():
     cell_list = args.cell_list
     output = args.output
     verbose_mode = args.verbose
+    flip_flop = args.flip_flop
 
     unit_test = args.unit_test
 
     if args.gui:
         run_gui()
     else:
-        run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list, cell_list, output, verbose_mode, unit_test)
+        run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list, cell_list, output, verbose_mode, unit_test, flip_flop)
 
 
 def run_gui():
@@ -66,7 +69,7 @@ def run_gui():
 
 
 
-def run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list, cell_name_list, output, verbose_mode, unit_test):
+def run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list, cell_name_list, output, verbose_mode, unit_test, flip_flop):
     blue_color = "\033[1;34m"
     reset_color = "\033[0m"
     orange_color = "\033[1;33m"
@@ -134,10 +137,10 @@ def run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list,
                     for index, inp in enumerate(input_names):
                         draw_inputs[inp] = cell_input[index]
 
-                    op_object = Op(gds_cell_name, gds_cell, layer_list, truth_table, voltage, draw_inputs)
+                    op_object = Op(gds_cell_name, gds_cell, layer_list, truth_table, voltage, draw_inputs, flip_flop)
 
                     if output == "reflection_over_cell":
-                        gds_drawing.export_reflection_to_png_over_gds_cell(op_object, True, False)
+                        gds_drawing.export_reflection_to_png_over_gds_cell(op_object, True, False, flip_flop)
 
                     state_counter += 1
 
@@ -147,10 +150,10 @@ def run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list,
                         for index, inp in enumerate(input_names):
                             draw_inputs[inp] = combination[index]
 
-                        op_object = Op(gds_cell_name, gds_cell, layer_list, truth_table, voltage, draw_inputs)
+                        op_object = Op(gds_cell_name, gds_cell, layer_list, truth_table, voltage, draw_inputs, flip_flop)
 
                         if output == "reflection_over_cell":
-                            gds_drawing.export_reflection_to_png_over_gds_cell(op_object, True, False)
+                            gds_drawing.export_reflection_to_png_over_gds_cell(op_object, True, False, flip_flop)
 
                         if def_file or unit_test:
                             multiple_exporting_dict[gds_cell_name].append(copy.deepcopy(op_object))
@@ -160,7 +163,7 @@ def run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list,
             except Exception as e:
                 if verbose_mode:
                     print(f"{red_color}An error occurred: {e}{reset_color}")
-                    #traceback.print_exc()
+                    traceback.print_exc()
                     error_cell_list.append(gds_cell_name)
 
         if verbose_mode:
@@ -182,7 +185,7 @@ def run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list,
 if __name__ == "__main__":
     debug = False
     if debug:
-        run_auto_ops("Platforms/IHP-Open-PDK130nm/sg13g2_stdcell.gds", "Platforms/IHP-Open-PDK130nm/sg13g2_stdcell_typ_1p20V_25C.lib", "", "", [], [[1, 0], [31, 0], [5, 0], [6, 0], [8, 0], [8, 25]], ['sg13g2_nand2_1'], "unit_test",
-                     True)
+        #run_auto_ops("Platforms/IHP-Open-PDK130nm/sg13g2_stdcell.gds", "Platforms/IHP-Open-PDK130nm/sg13g2_stdcell_typ_1p20V_25C.lib", "", "", [], [[1, 0], [31, 0], [5, 0], [6, 0], [8, 0], [8, 25]], ['sg13g2_nand2_1'], "unit_test", True)
+        run_auto_ops("input/stdcells.gds", "input/stdcells.lib", "", "", [0, 1], [[1, 0], [5, 0], [9, 0], [[10, 0]], [[11, 0]], [[11, 0]]], ['DFF_X1'], "", True, False)
     else:
         run_cli()

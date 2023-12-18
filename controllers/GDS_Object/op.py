@@ -47,13 +47,14 @@ class Op:
         >>>         {'ZN': [({'A': True}, {'ZN': False}), ({'A': False}, {'ZN': True})]},
         >>>         [{'name': 'VDD', 'type': 'primary_power'}, {'name': 'VSS', 'type': 'primary_ground'}],
         >>>         {'A1': 1, 'A2': 1}
+        >>>         1
         >>>     )
 
     This class create an object from a GDS input and store information as the optical state of each gate,
      depending on the position and gates states.
     """
 
-    def __init__(self, cell_name, gds_cell, layer_list, truthtable, voltage, inputs):
+    def __init__(self, cell_name, gds_cell, layer_list, truthtable, voltage, inputs, flip_flop):
         self.name = cell_name
         self.inputs = inputs
         self.truthtable = truthtable
@@ -62,10 +63,14 @@ class Op:
         self.element_list = element_extractor(gds_cell, layer_list)
         self.reflection_list = []
 
+        if flip_flop is None:
+            flip_flop = 0
+
         # list without the filtering of unused diffusion zones
-        temp_reflection_list = element_sorting(self.element_list, inputs, truthtable, voltage)
+        temp_reflection_list = element_sorting(self.element_list, inputs, truthtable, voltage, flip_flop)
 
         elements_to_keep = []
+
 
         for element in self.element_list:
             if isinstance(element, Shape) and element.shape_type == ShapeType.VIA:
@@ -108,7 +113,7 @@ class Op:
         return min_y + max_y
 
 
-def element_sorting(element_list, inputs, truthtable, voltage) -> list:
+def element_sorting(element_list, inputs, truthtable, voltage, flip_flop) -> list:
     """
     This function is to categorize the different shapes based on their shape type.
     It is also to append to every shapes the affiliated via to determine the connections.
@@ -153,7 +158,7 @@ def element_sorting(element_list, inputs, truthtable, voltage) -> list:
     for element in element_list:
         if isinstance(element, Shape) and element.attribute is None:
             # TODO check why this loop is entering already defined attribut
-            is_connected(element_list, inputs, truthtable, voltage, element)
+            is_connected(element_list, inputs, truthtable, voltage, element, flip_flop)
 
     for element in element_list:
         # To set up diffusion number if connected to at least one metal
@@ -339,7 +344,7 @@ def extract_and_merge_polygons(polygons, element_list, layer_index, layer, layer
         element_list.append(shape)
 
 
-def is_connected(element_list, inputs, truthtable, voltage, element) -> None:
+def is_connected(element_list, inputs, truthtable, voltage, element, flip_flop) -> None:
     """
     This function is to link element together.
 
@@ -407,9 +412,18 @@ def is_connected(element_list, inputs, truthtable, voltage, element) -> None:
                             for truthtable_inputs, output in truthtable[outputs]:
                                 if label.name in outputs and label.name in output.keys():
                                     if truthtable_inputs == inputs:
-                                        element.set_attribute(
-                                            Attribute(ShapeType.OUTPUT, label.name, output[label.name])
-                                        )
+                                        if "CK" in list(inputs.keys()):
+                                            if "N" in list(output.keys())[0]:
+                                                value = bool(not flip_flop)
+                                            else:
+                                                value = bool(flip_flop)
+                                            element.set_attribute(
+                                                Attribute(ShapeType.OUTPUT, label.name, value)
+                                            )
+                                        else:
+                                            element.set_attribute(
+                                                Attribute(ShapeType.OUTPUT, label.name, output[label.name])
+                                            )
                         break
 
                     elif label.name.lower() == "vss":
@@ -578,7 +592,7 @@ def set_zone_states(reflection_list) -> int:
         diffusion.zone_list = sorted(diffusion.zone_list, key=lambda selected_zone: selected_zone.get_min_x_coord())
 
         # known state loop
-        for zone in diffusion.zone_list:
+        for zone_index, zone in enumerate(diffusion.zone_list):
             if zone.state is not None:
                 for connected_path in zone.connected_to:
                     if connected_path.state is None:
@@ -608,12 +622,8 @@ def set_zone_states(reflection_list) -> int:
                         elif connection.attribute.shape_type == ShapeType.OUTPUT or \
                                 connection.attribute.shape_type == ShapeType.INPUT:
                             zone.set_state(connection.attribute.state)
+
                             break
-
-                        elif connection.attribute.shape_type == ShapeType.INPUT \
-                                and connection.attribute.label == "GCK":
-
-                            raise AttributeError("Clock gates not working " + str(connection.attribute.label))
 
                     elif isinstance(connection.attribute, Shape) and isinstance(
                             connection.attribute.attribute,
@@ -623,7 +633,11 @@ def set_zone_states(reflection_list) -> int:
 
         # Unknown loop
         for index, zone in enumerate(diffusion.zone_list):
-            if zone.state is not None or zone.shape_type == ShapeType.POLYSILICON:
+            if zone.state is not None:
+                continue
+
+            elif zone.state is None and zone.shape_type == ShapeType.POLYSILICON:
+                find_incoherent_states(diffusion, index, zone)
                 continue
 
             found_state = find_neighbor_state(diffusion, index)
@@ -639,6 +653,28 @@ def set_zone_states(reflection_list) -> int:
                         connected_path.set_state(zone.state)
 
     return state_counter
+
+
+def find_incoherent_states(diffusion, zone_index, zone) -> None:
+    if 1 <= zone_index < len(diffusion.zone_list) - 1:
+        left_neighbor_state = diffusion.zone_list[zone_index - 1].state
+        right_neighbor_state = diffusion.zone_list[zone_index + 1].state
+        if left_neighbor_state is not None and right_neighbor_state is not None:
+            if left_neighbor_state == right_neighbor_state:
+                if diffusion.shape_type == ShapeType.NMOS:
+                    state = 1
+                else:
+                    state = 0
+            else:
+                if diffusion.shape_type == ShapeType.NMOS:
+                    state = 0
+                else:
+                    state = 1
+
+            zone.set_state(state)
+            for connected_path in zone.connected_to:
+                if connected_path.state is None:
+                    connected_path.set_state(state)
 
 
 def find_neighbor_state(diffusion, zone_index) -> bool:
