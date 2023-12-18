@@ -1,17 +1,11 @@
-FROM ubuntu:latest
+FROM python:3.9
 
 LABEL image.name="autoops"
 
 WORKDIR /app
 
-RUN apt-get update && \
-    apt-get install -y python3.9 python3-pip
-
 COPY requirements.txt .
 
-# Install Python dependencies
-RUN python3 -m pip install --upgrade pip && \
-    pip3 install -r requirements.txt
+RUN pip install -r requirements.txt
 
 CMD ["sh"]
-
