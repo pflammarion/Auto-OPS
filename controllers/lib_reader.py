@@ -67,15 +67,19 @@ class LibReader:
 
         output_truth_table = {}
         for output_key in output_function:
-            output_truth_table[output_key] = self.calculateOutputFunction(output_function[output_key], output_key)
+            output_truth_table[output_key] = self.calculateOutputFunction(output_function[output_key], output_key, input_names)
 
         return output_truth_table, voltage, input_names
 
 
 
-    def calculateOutputFunction(self, function, pin_name):
-        # Use regular expression to find input symbols with letters and numbers
-        input_symbols = re.findall(r'\w+', function)
+    def calculateOutputFunction(self, function, pin_name, input_names):
+
+        if "CK" in input_names:
+            input_symbols = input_names
+        else:
+            input_symbols = re.findall(r'\w+', function)
+
         input_symbols = sorted(set(input_symbols))
 
         input_combinations = list(itertools.product([True, False], repeat=len(input_symbols)))
@@ -85,14 +89,22 @@ class LibReader:
         for inputs in input_combinations:
             input_values = {symbol: value for symbol, value in zip(input_symbols, inputs)}
 
-            eval_expression = function
+            if "CK" in input_names:
+                if "N" in pin_name:
+                    eval_expression = f"!({input_symbols[0]} & {input_symbols[1]})"
+                else:
+                    eval_expression = f"({input_symbols[0]} & {input_symbols[1]})"
+            else:
+                eval_expression = function
+
             for symbol, value in input_values.items():
                 eval_expression = eval_expression.replace(symbol, str(value))
 
+            eval_expression = eval_expression.replace('"', '')
+            eval_expression = parse_boolean_function(eval_expression)
+            eval_expression = str(format_boolean_function(eval_expression))
             eval_expression = eval_expression.replace("!", " not ").replace("&", " and ").replace("*", " and ").replace("+", " or ")
-
-            # Evaluate the expression two time to convert it from a string to a result
-            result = eval(eval(eval_expression))
+            result = eval(eval_expression)
 
             if not isinstance(result, bool):
                 raise ValueError("Truthtable result is not of type bool")
