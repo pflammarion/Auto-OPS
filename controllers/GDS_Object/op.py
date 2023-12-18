@@ -405,7 +405,7 @@ def is_connected(element_list, inputs, truthtable, voltage, element) -> None:
                     elif label.name in truthtable.keys():
                         for outputs in truthtable:
                             for truthtable_inputs, output in truthtable[outputs]:
-                                if label.name in outputs:
+                                if label.name in outputs and label.name in output.keys():
                                     if truthtable_inputs == inputs:
                                         element.set_attribute(
                                             Attribute(ShapeType.OUTPUT, label.name, output[label.name])
