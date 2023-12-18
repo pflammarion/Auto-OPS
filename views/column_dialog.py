@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import QDialog, QLabel, QComboBox, QPushButton, QVBoxLayout
+from PyQt5.QtWidgets import QDialog, QLabel, QComboBox, QPushButton, QVBoxLayout
 
 
 class ColumnSelectionDialog(QDialog):
