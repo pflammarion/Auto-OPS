@@ -163,7 +163,7 @@ def run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list,
             except Exception as e:
                 if verbose_mode:
                     print(f"{red_color}An error occurred: {e}{reset_color}")
-                    traceback.print_exc()
+                    # traceback.print_exc()
                     error_cell_list.append(gds_cell_name)
 
         if verbose_mode:
