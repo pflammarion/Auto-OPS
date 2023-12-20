@@ -54,23 +54,20 @@ class Op:
      depending on the position and gates states.
     """
 
-    def __init__(self, cell_name, gds_cell, layer_list, truthtable, voltage, inputs, flip_flop):
+    def __init__(self, cell_name, gds_cell, layer_list, truthtable, voltage, inputs_list):
         self.name = cell_name
-        self.inputs = inputs
         self.truthtable = truthtable
         self.via_element_list = []
+
+        self.inputs = {}
 
         self.element_list = element_extractor(gds_cell, layer_list)
         self.reflection_list = []
 
-        if flip_flop is None:
-            flip_flop = 0
-
         # list without the filtering of unused diffusion zones
-        temp_reflection_list = element_sorting(self.element_list, inputs, truthtable, voltage, flip_flop)
+        temp_reflection_list = element_sorting(self.element_list, inputs_list, truthtable, voltage)
 
         elements_to_keep = []
-
 
         for element in self.element_list:
             if isinstance(element, Shape) and element.shape_type == ShapeType.VIA:
@@ -88,18 +85,6 @@ class Op:
         for diffusion in self.reflection_list:
             connect_diffusion_to_metal(self.element_list, diffusion)
 
-        none_counter = 0
-        none_loop_counter = 0
-        while True:
-            new_none_counter = set_zone_states(self.reflection_list)
-
-            if none_counter == new_none_counter:
-                break
-            else:
-                none_counter = new_none_counter
-
-            none_loop_counter += 1
-
     def get_height(self):
         min_y = float("inf")
         max_y = 0
@@ -112,8 +97,55 @@ class Op:
 
         return min_y + max_y
 
+    def apply_state(self, inputs, flip_flop):
 
-def element_sorting(element_list, inputs, truthtable, voltage, flip_flop) -> list:
+        self.inputs = inputs
+
+        if flip_flop is None:
+            flip_flop = 0
+
+        for element in self.element_list:
+            if isinstance(element, Shape) and element.attribute is not None and isinstance(element.attribute, Attribute):
+                if element.attribute.shape_type == ShapeType.INPUT:
+                    if element.attribute.label in inputs.keys():
+                        element.attribute.set_state(inputs[element.attribute.label])
+
+                elif element.attribute.shape_type == ShapeType.OUTPUT:
+                    for outputs in self.truthtable:
+                        for truthtable_inputs, output in self.truthtable[outputs]:
+                            if element.attribute.label in outputs and element.attribute.label in output.keys():
+                                is_equal = False
+                                for truthtable_inputs_value, truthtable_inputs_key in enumerate(truthtable_inputs):
+                                    if truthtable_inputs_key not in inputs or inputs[truthtable_inputs_key] != truthtable_inputs[truthtable_inputs_key]:
+                                        is_equal = False
+                                        break
+                                    else:
+                                        is_equal = True
+
+                                if is_equal:
+                                    if any("CK" in name or "RESET" in name or "GATE" in name or "CLK" in name for name in list(inputs.keys())) or "Q" in outputs:
+                                        if "N" in list(output.keys())[0]:
+                                            value = bool(not flip_flop)
+                                        else:
+                                            value = bool(flip_flop)
+                                        element.attribute.set_state(value)
+                                    else:
+                                        element.attribute.set_state(output[element.attribute.label])
+
+        none_counter = 0
+        none_loop_counter = 0
+        while True:
+            new_none_counter = set_zone_states(self.reflection_list)
+
+            if none_counter == new_none_counter:
+                break
+            else:
+                none_counter = new_none_counter
+
+            none_loop_counter += 1
+
+
+def element_sorting(element_list, inputs_list, truthtable, voltage) -> list:
     """
     This function is to categorize the different shapes based on their shape type.
     It is also to append to every shapes the affiliated via to determine the connections.
@@ -158,7 +190,7 @@ def element_sorting(element_list, inputs, truthtable, voltage, flip_flop) -> lis
     for element in element_list:
         if isinstance(element, Shape) and element.attribute is None:
             # TODO check why this loop is entering already defined attribut
-            is_connected(element_list, inputs, truthtable, voltage, element, flip_flop)
+            is_connected(element_list, inputs_list, truthtable, voltage, element)
 
     for element in element_list:
         # To set up diffusion number if connected to at least one metal
@@ -344,7 +376,7 @@ def extract_and_merge_polygons(polygons, element_list, layer_index, layer, layer
         element_list.append(shape)
 
 
-def is_connected(element_list, inputs, truthtable, voltage, element, flip_flop) -> None:
+def is_connected(element_list, inputs_list, truthtable, voltage, element) -> None:
     """
     This function is to link element together.
 
@@ -403,27 +435,12 @@ def is_connected(element_list, inputs, truthtable, voltage, element, flip_flop) 
         for label in element_list:
             if isinstance(label, Label):
                 if element.polygon.contains(Point(label.coordinates)):
-                    if label.name in inputs.keys():
-                        element.set_attribute(Attribute(ShapeType.INPUT, label.name, inputs[label.name]))
+                    if label.name in inputs_list:
+                        element.set_attribute(Attribute(ShapeType.INPUT, label.name))
                         break
 
                     elif label.name in truthtable.keys():
-                        for outputs in truthtable:
-                            for truthtable_inputs, output in truthtable[outputs]:
-                                if label.name in outputs and label.name in output.keys():
-                                    if truthtable_inputs == inputs:
-                                        if any("CK" in name or "RESET" in name or "GATE" in name or "CLK" in name for name in list(inputs.keys())):
-                                            if "N" in list(output.keys())[0]:
-                                                value = bool(not flip_flop)
-                                            else:
-                                                value = bool(flip_flop)
-                                            element.set_attribute(
-                                                Attribute(ShapeType.OUTPUT, label.name, value)
-                                            )
-                                        else:
-                                            element.set_attribute(
-                                                Attribute(ShapeType.OUTPUT, label.name, output[label.name])
-                                            )
+                        element.set_attribute(Attribute(ShapeType.OUTPUT, label.name))
                         break
 
                     elif label.name.lower() == "vss":
@@ -665,7 +682,7 @@ def find_incoherent_states(diffusion, zone_index, zone) -> None:
                     state = 1
 
                 if zone.state is not None and zone.state != state:
-                    raise Exception("State missmatch")
+                    Exception("State missmatch")
 
                 else:
                     zone.set_state(state)

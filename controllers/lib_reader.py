@@ -73,8 +73,7 @@ class LibReader:
 
 
     def calculateOutputFunction(self, function, pin_name, input_names):
-
-        if any("CK" in name or "RESET" in name or "GATE" in name or "CLK" in name for name in input_names):
+        if any("CK" in name or "RESET" in name or "GATE" in name or "CLK" in name for name in input_names) or "Q" in pin_name:
             input_symbols = input_names
         else:
             input_symbols = re.findall(r'\w+', function)
@@ -88,7 +87,7 @@ class LibReader:
         for inputs in input_combinations:
             input_values = {symbol: value for symbol, value in zip(input_symbols, inputs)}
 
-            if any("CK" in name or "RESET" in name or "GATE" in name or "CLK" in name for name in input_names):
+            if any("CK" in name or "RESET" in name or "GATE" in name or "CLK" in name for name in input_names) or "Q" in pin_name:
                 truth_table.append((input_values, {pin_name: None}))
 
             else:

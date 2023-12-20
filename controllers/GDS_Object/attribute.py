@@ -20,3 +20,13 @@ class Attribute:
         self.shape_type = shape_type
         self.label = label
         self.state = state
+
+    def set_state(self, state) -> None:
+        if state is True or state == 1:
+            self.state = 1
+        elif state is False or state == 0:
+            self.state = 0
+        else:
+            raise ValueError("Invalid state input. Please provide a boolean or 0/1.")
+
+

@@ -1,4 +1,5 @@
 import ast
+import cProfile
 import copy
 import itertools
 import sys
@@ -131,6 +132,7 @@ def run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list,
 
             try:
                 truth_table, voltage, input_names = lib_reader.extract_truth_table(gds_cell_name)
+                op_master = Op(gds_cell_name, gds_cell, layer_list, truth_table, voltage, input_names)
 
                 draw_inputs = {}
 
@@ -138,7 +140,8 @@ def run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list,
                     for index, inp in enumerate(input_names):
                         draw_inputs[inp] = cell_input[index]
 
-                    op_object = Op(gds_cell_name, gds_cell, layer_list, truth_table, voltage, draw_inputs, flip_flop)
+                    op_object = copy.deepcopy(op_master)
+                    op_object.apply_state(draw_inputs, flip_flop)
 
                     if output == "reflection_over_cell":
                         gds_drawing.export_reflection_to_png_over_gds_cell(op_object, True, False, flip_flop)
@@ -151,7 +154,8 @@ def run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list,
                         for index, inp in enumerate(input_names):
                             draw_inputs[inp] = combination[index]
                         try:
-                            op_object = Op(gds_cell_name, gds_cell, layer_list, truth_table, voltage, draw_inputs, flip_flop)
+                            op_object = copy.deepcopy(op_master)
+                            op_object.apply_state(draw_inputs, flip_flop)
 
                             if output == "reflection_over_cell":
                                 gds_drawing.export_reflection_to_png_over_gds_cell(op_object, True, False, flip_flop)
@@ -179,7 +183,7 @@ def run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list,
             except Exception as e:
                 if verbose_mode:
                     print(f"{red_color}An error occurred: {e}{reset_color}")
-                    # traceback.print_exc()
+                    traceback.print_exc()
                     error_cell_list.append(gds_cell_name)
 
     end_time_log = time.time()
@@ -199,6 +203,6 @@ if __name__ == "__main__":
     debug = False
     if debug:
         #run_auto_ops("Platforms/IHP-Open-PDK130nm/sg13g2_stdcell.gds", "Platforms/IHP-Open-PDK130nm/sg13g2_stdcell_typ_1p20V_25C.lib", "", "", [], [[1, 0], [31, 0], [5, 0], [6, 0], [8, 0], [8, 25]], ['sg13g2_nand2_1'], "unit_test", True)
-        run_auto_ops("input/stdcells.gds", "input/stdcells.lib", "", "", [0, 1], [[1, 0], [5, 0], [9, 0], [[10, 0]], [[11, 0]], [[11, 0]]], ['DFF_X1'], "", True, False)
+        run_auto_ops("input/stdcells.gds", "input/stdcells.lib", "", "", [], [[1, 0], [5, 0], [9, 0], [[10, 0]], [[11, 0]], [[11, 0]]], ['DFF_X1'], "reflection_over_cell", True, False, None)
     else:
         run_cli()
