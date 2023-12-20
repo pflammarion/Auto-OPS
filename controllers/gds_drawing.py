@@ -172,7 +172,7 @@ def count_unknown_states(op_object) -> None:
     print(f"\033[1;33m \n {op_object.name}, {op_object.inputs}, None states = {state_counter}, Loop counter = {op_object.loop_counter}")
 
 
-def benchmark(object_list, def_extract, plot) -> None:
+def benchmark(object_list, def_extract, plot, plot_realtime=50) -> None:
     ur_x = def_extract[0]["ur_x"]
     ll_x = def_extract[0]["ll_x"]
     ur_y = def_extract[0]["ur_y"]
@@ -186,12 +186,18 @@ def benchmark(object_list, def_extract, plot) -> None:
     if plot:
         plt.xlim(min(ll_x, ur_x) - 1, max(ll_x, ur_x) + 1)
         plt.ylim(min(ll_y, ur_y) - 1, max(ll_y, ur_y) + 1)
+        plt.gca().set_facecolor('black')
+        plt.gca().set_aspect('equal', adjustable='box')
 
+    draw_counter = 0
     for cell_name, cell_place in def_extract[1].items():
         if cell_name in object_list.keys():
             op_object = object_list[cell_name][0]
             for position in cell_place:
+                draw_counter += 1
                 for zone in op_object.orientation_list[position['Orientation']]:
+
+
                     x, y = zone["coords"]
                     x_adder, y_adder = position['Coordinates']
                     x = tuple([element + x_adder/micron for element in x])
@@ -209,9 +215,12 @@ def benchmark(object_list, def_extract, plot) -> None:
                     if bool(reflect) and plot:
                         plt.fill(x, y, facecolor='white', alpha=1)
 
+                if plot_realtime and draw_counter > plot_realtime:
+                    plt.pause(0.0001)
+                    plt.draw()
+                    draw_counter = 0
+
     if plot:
-        plt.gca().set_facecolor('black')
-        plt.gca().set_aspect('equal', adjustable='box')
         plt.show()
 
 
