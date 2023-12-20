@@ -184,6 +184,7 @@ def benchmark(object_list, def_extract, plot) -> None:
     #plt.figure(figsize=(8, 8))
 
     if plot:
+        plt.ion()
         plt.xlim(min(ll_x, ur_x) - 1, max(ll_x, ur_x) + 1)
         plt.ylim(min(ll_y, ur_y) - 1, max(ll_y, ur_y) + 1)
 
@@ -191,29 +192,29 @@ def benchmark(object_list, def_extract, plot) -> None:
         if cell_name in object_list.keys():
             op_object = object_list[cell_name][0]
             for position in cell_place:
-                for reflection in op_object.reflection_list:
-                    for zone in reflection.zone_list:
-                        x, y = apply_transformation(zone.coordinates, position['Orientation'], reflection.get_diff_width(), op_object.get_height())
-                        x_adder, y_adder = position['Coordinates']
-                        x = tuple([element + x_adder/micron for element in x])
-                        y = tuple([element + y_adder/micron for element in y])
+                for zone in op_object.orientation_list[position['Orientation']]:
+                    x, y = zone["coords"]
+                    x_adder, y_adder = position['Coordinates']
+                    x = tuple([element + x_adder/micron for element in x])
+                    y = tuple([element + y_adder/micron for element in y])
 
-                        state = zone.state
-                        if reflection.shape_type == ShapeType.PMOS:
+                    state = zone["state"]
 
-                            if state is None:
-                                reflect = False
-                            else:
-                                reflect = not state
+                    if zone["diff_type"] == ShapeType.PMOS:
+                        if state is None:
+                            reflect = False
                         else:
-                            reflect = state
-
-                        if bool(reflect) and plot:
-                            plt.fill(x, y, facecolor='white', alpha=1)
+                            reflect = not state
+                    else:
+                        reflect = state
+                    if bool(reflect) and plot:
+                        plt.fill(x, y, facecolor='white', alpha=1)
+                        plt.draw()
 
     if plot:
         plt.gca().set_facecolor('black')
         plt.gca().set_aspect('equal', adjustable='box')
+        plt.ioff()
         plt.show()
 
 
@@ -240,22 +241,21 @@ def test_orientation(op_object):
     orientation_list = ["N", "FN", "E", "FE", "S", "FS", "W", "FW"]
     #orientation_list = ["S", "FS"]
     for orientation in orientation_list:
-        for reflection in op_object.reflection_list:
-            for zone in reflection.zone_list:
-                x, y = apply_transformation(zone.coordinates, orientation, reflection.get_diff_width(), op_object.get_height())
-                state = zone.state
-                if reflection.shape_type == ShapeType.PMOS:
-                    if state is None:
-                        reflect = False
-                    else:
-                        reflect = not state
+        for zone in op_object.orientation_list[orientation]:
+            x, y = zone["coords"]
+            state = zone["state"]
+            if zone["diff_type"] == ShapeType.PMOS:
+                if state is None:
+                    reflect = False
                 else:
-                    reflect = state
+                    reflect = not state
+            else:
+                reflect = state
 
-                if bool(reflect):
-                    plt.fill(x, y, facecolor="black", alpha=1, edgecolor='grey', linewidth=1)
-                else:
-                    plt.fill(x, y, facecolor="grey", alpha=1, edgecolor='grey', linewidth=1)
+            if bool(reflect):
+                plt.fill(x, y, facecolor="black", alpha=1, edgecolor='grey', linewidth=1)
+            else:
+                plt.fill(x, y, facecolor="grey", alpha=1, edgecolor='grey', linewidth=1)
 
 
         file_name = str(op_object.name) + "__" + orientation
@@ -264,47 +264,6 @@ def test_orientation(op_object):
         plt.savefig(path_name, format='svg')
         plt.close()
 
-def apply_transformation(coordinates, transformation, width, height):
-
-    x, y = coordinates
-
-
-    if transformation == 'N':
-        # No transformation for North
-        x = x
-        y = y
-    elif transformation == 'FN':
-        # Flip the coordinates along the x-axis
-        x = tuple((xi * - 1) + width for xi in reversed(x))
-        y = tuple(yi for yi in reversed(y))
-
-    elif transformation == 'E':
-        # Rotate 90 degrees clockwise: swap x and y coordinates, and negate the new x coordinate
-        x, y = tuple(yi for yi in y), tuple((xi * -1) + width for xi in x)
-    elif transformation == 'FE':
-        # Flip the coordinates along the y-axis and rotate 90 degrees clockwise (same as MY90)
-        x, y = tuple(yi for yi in reversed(y)), tuple(xi for xi in reversed(x))
-
-    elif transformation == 'S':
-        # Rotate 180 degrees: reverse both x and y coordinates
-        x = tuple((xi * -1) + width for xi in reversed(x))
-        y = tuple((yi * -1) + height for yi in reversed(y))
-    elif transformation == 'FS':
-        # Flip the coordinates along the x-axis
-        x = tuple(xi for xi in x)
-        y = tuple((yi * -1) + height for yi in y)
-
-    elif transformation == 'W':
-        # Rotate 270 degrees clockwise: swap x and y coordinates, and negate the new y coordinate
-        x, y = tuple((yi * -1) + height for yi in reversed(y)), tuple(xi for xi in reversed(x))
-    elif transformation == 'FW':
-        # Flip the coordinates along the y-axis and rotate 270 degrees clockwise (same as MY270)
-        x, y = tuple((yi * -1) + height for yi in y), tuple((xi * -1) + width for xi in x)
-
-    else:
-        raise ValueError("Invalid transformation provided.")
-
-    return x, y
 
 def export_reflection_to_png(op_object) -> None:
     """

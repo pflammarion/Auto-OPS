@@ -58,6 +58,7 @@ class Op:
         self.name = cell_name
         self.truthtable = truthtable
         self.via_element_list = []
+        self.orientation_list = {}
 
         self.inputs = {}
 
@@ -96,6 +97,20 @@ class Op:
                 min_y = min(y_coords)
 
         return min_y + max_y
+
+    def calculate_orientations(self):
+        orientation_side = ["N", "FN", "E", "FE", "S", "FS", "W", "FW"]
+
+        cell_height = self.get_height()
+
+        for orientation in orientation_side:
+            self.orientation_list[orientation] = []
+            for reflection in self.reflection_list:
+                for zone in reflection.zone_list:
+                    x, y = apply_transformation(zone.coordinates, orientation, reflection.get_diff_width(), cell_height)
+                    self.orientation_list[orientation].append(
+                        {'coords': [x, y], 'state': zone.state, "diff_type": reflection.shape_type}
+                    )
 
     def apply_state(self, inputs, flip_flop):
 
@@ -143,6 +158,48 @@ class Op:
                 none_counter = new_none_counter
 
             none_loop_counter += 1
+
+
+def apply_transformation(coordinates, transformation, width, height):
+
+    x, y = coordinates
+
+    if transformation == 'N':
+        # No transformation for North
+        x = x
+        y = y
+    elif transformation == 'FN':
+        # Flip the coordinates along the x-axis
+        x = tuple((xi * - 1) + width for xi in reversed(x))
+        y = tuple(yi for yi in reversed(y))
+
+    elif transformation == 'E':
+        # Rotate 90 degrees clockwise: swap x and y coordinates, and negate the new x coordinate
+        x, y = tuple(yi for yi in y), tuple((xi * -1) + width for xi in x)
+    elif transformation == 'FE':
+        # Flip the coordinates along the y-axis and rotate 90 degrees clockwise (same as MY90)
+        x, y = tuple(yi for yi in reversed(y)), tuple(xi for xi in reversed(x))
+
+    elif transformation == 'S':
+        # Rotate 180 degrees: reverse both x and y coordinates
+        x = tuple((xi * -1) + width for xi in reversed(x))
+        y = tuple((yi * -1) + height for yi in reversed(y))
+    elif transformation == 'FS':
+        # Flip the coordinates along the x-axis
+        x = tuple(xi for xi in x)
+        y = tuple((yi * -1) + height for yi in y)
+
+    elif transformation == 'W':
+        # Rotate 270 degrees clockwise: swap x and y coordinates, and negate the new y coordinate
+        x, y = tuple((yi * -1) + height for yi in reversed(y)), tuple(xi for xi in reversed(x))
+    elif transformation == 'FW':
+        # Flip the coordinates along the y-axis and rotate 270 degrees clockwise (same as MY270)
+        x, y = tuple((yi * -1) + height for yi in y), tuple((xi * -1) + width for xi in x)
+
+    else:
+        raise ValueError("Invalid transformation provided.")
+
+    return x, y
 
 
 def element_sorting(element_list, inputs_list, truthtable, voltage) -> list:

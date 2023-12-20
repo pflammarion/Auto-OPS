@@ -160,7 +160,11 @@ def run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list,
                             if output == "reflection_over_cell":
                                 gds_drawing.export_reflection_to_png_over_gds_cell(op_object, True, False, flip_flop)
 
-                            if def_file or unit_test:
+                            if def_file:
+                                op_object.calculate_orientations()
+                                multiple_exporting_dict[gds_cell_name].append(copy.deepcopy(op_object))
+
+                            if unit_test:
                                 multiple_exporting_dict[gds_cell_name].append(copy.deepcopy(op_object))
 
                             state_counter += 1
@@ -194,7 +198,7 @@ def run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list,
         gds_drawing.unit_test(multiple_exporting_dict, unit_test)
 
     if def_file:
-        gds_drawing.benchmark(multiple_exporting_dict, def_extract, False)
+        gds_drawing.benchmark(multiple_exporting_dict, def_extract, True)
         end_time = time.time()
         gds_drawing.benchmark_export_data(def_extract, end_time - start_time, def_file)
 
@@ -203,6 +207,6 @@ if __name__ == "__main__":
     debug = False
     if debug:
         #run_auto_ops("Platforms/IHP-Open-PDK130nm/sg13g2_stdcell.gds", "Platforms/IHP-Open-PDK130nm/sg13g2_stdcell_typ_1p20V_25C.lib", "", "", [], [[1, 0], [31, 0], [5, 0], [6, 0], [8, 0], [8, 25]], ['sg13g2_nand2_1'], "unit_test", True)
-        run_auto_ops("input/stdcells.gds", "input/stdcells.lib", "", "", [], [[1, 0], [5, 0], [9, 0], [[10, 0]], [[11, 0]], [[11, 0]]], ['DFF_X1'], "reflection_over_cell", True, False, None)
+        run_auto_ops("input/stdcells.gds", "input/stdcells.lib", "", "/Users/paul/IdeaProjects/CMOS-INV-GUI/benchmarks/EPFL/Hyp/Par/top.def", [], [[1, 0], [5, 0], [9, 0], [[10, 0]], [[11, 0]], [[11, 0]]], [], "", True, False, None)
     else:
         run_cli()
