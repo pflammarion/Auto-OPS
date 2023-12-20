@@ -111,6 +111,7 @@ def run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list,
                 continue
 
             counter += 1
+            internal_state_error = 0
 
             if unit_test:
                 print(f"{blue_color}Generating test object for: {gds_cell_name} ...{reset_color}")
@@ -149,25 +150,37 @@ def run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list,
                     for combination in combinations:
                         for index, inp in enumerate(input_names):
                             draw_inputs[inp] = combination[index]
+                        try:
+                            op_object = Op(gds_cell_name, gds_cell, layer_list, truth_table, voltage, draw_inputs, flip_flop)
 
-                        op_object = Op(gds_cell_name, gds_cell, layer_list, truth_table, voltage, draw_inputs, flip_flop)
+                            if output == "reflection_over_cell":
+                                gds_drawing.export_reflection_to_png_over_gds_cell(op_object, True, False, flip_flop)
 
-                        if output == "reflection_over_cell":
-                            gds_drawing.export_reflection_to_png_over_gds_cell(op_object, True, False, flip_flop)
+                            if def_file or unit_test:
+                                multiple_exporting_dict[gds_cell_name].append(copy.deepcopy(op_object))
 
-                        if def_file or unit_test:
-                            multiple_exporting_dict[gds_cell_name].append(copy.deepcopy(op_object))
+                            state_counter += 1
 
-                        state_counter += 1
+                        except Exception as e:
+                            internal_state_error += 1
+                            if verbose_mode:
+                                print(f"{orange_color}\nCell processing error {draw_inputs} \nType : {e}{reset_color}")
+                                # traceback.print_exc()
+                                if gds_cell_name not in error_cell_list:
+                                    error_cell_list.append(gds_cell_name)
+
+                if verbose_mode:
+                    if internal_state_error > 0:
+                        state_length = pow(2, len(input_names))
+                        print(f"{red_color}\n{internal_state_error}/{state_length} processes failed{reset_color}")
+                    else:
+                        print(f'\n{green_color}Processing complete.{reset_color}')
 
             except Exception as e:
                 if verbose_mode:
                     print(f"{red_color}An error occurred: {e}{reset_color}")
                     # traceback.print_exc()
                     error_cell_list.append(gds_cell_name)
-
-        if verbose_mode:
-            print(f'\n{green_color}Processing complete.{reset_color}')
 
     end_time_log = time.time()
     gds_drawing.write_output_log(start_time, end_time_log, filtered_cells=cell_name_list, state_counter=state_counter,
