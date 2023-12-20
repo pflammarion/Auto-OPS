@@ -184,7 +184,6 @@ def benchmark(object_list, def_extract, plot) -> None:
     #plt.figure(figsize=(8, 8))
 
     if plot:
-        plt.ion()
         plt.xlim(min(ll_x, ur_x) - 1, max(ll_x, ur_x) + 1)
         plt.ylim(min(ll_y, ur_y) - 1, max(ll_y, ur_y) + 1)
 
@@ -209,12 +208,10 @@ def benchmark(object_list, def_extract, plot) -> None:
                         reflect = state
                     if bool(reflect) and plot:
                         plt.fill(x, y, facecolor='white', alpha=1)
-                        plt.draw()
 
     if plot:
         plt.gca().set_facecolor('black')
         plt.gca().set_aspect('equal', adjustable='box')
-        plt.ioff()
         plt.show()
 
 
