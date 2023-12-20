@@ -405,7 +405,7 @@ def export_reflection_to_png_over_gds_cell(op_object, reflection_draw=False, wit
                 for outputs in op_object.truthtable:
                     for truthtable_inputs, output in op_object.truthtable[outputs]:
                         if element.name in output and truthtable_inputs == op_object.inputs:
-                            if "CK" in list(op_object.inputs.keys()):
+                            if any("CK" in name or "RESET" in name or "GATE" in name or "CLK" in name for name in list(op_object.inputs.keys())):
                                 if "N" in str(element.name):
                                     # if None this will be 1 and the else 0
                                     value = int(bool(not flip_flop))

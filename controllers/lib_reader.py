@@ -59,7 +59,7 @@ class LibReader:
         output_function = {}
         for pin_group in cell.get_groups('pin'):
             pin_name = pin_group.args[0]
-            if pin_group['function']:
+            if pin_group['direction'] == "output" or pin_group['function']:
                 str_function = str(pin_group['function'])
                 output_function[pin_name] = str_function
             else:
@@ -74,7 +74,7 @@ class LibReader:
 
     def calculateOutputFunction(self, function, pin_name, input_names):
 
-        if "CK" in input_names:
+        if any("CK" in name or "RESET" in name or "GATE" in name or "CLK" in name for name in input_names):
             input_symbols = input_names
         else:
             input_symbols = re.findall(r'\w+', function)
@@ -88,7 +88,7 @@ class LibReader:
         for inputs in input_combinations:
             input_values = {symbol: value for symbol, value in zip(input_symbols, inputs)}
 
-            if "CK" in input_names:
+            if any("CK" in name or "RESET" in name or "GATE" in name or "CLK" in name for name in input_names):
                 truth_table.append((input_values, {pin_name: None}))
 
             else:

@@ -412,7 +412,7 @@ def is_connected(element_list, inputs, truthtable, voltage, element, flip_flop) 
                             for truthtable_inputs, output in truthtable[outputs]:
                                 if label.name in outputs and label.name in output.keys():
                                     if truthtable_inputs == inputs:
-                                        if "CK" in list(inputs.keys()):
+                                        if any("CK" in name or "RESET" in name or "GATE" in name or "CLK" in name for name in list(inputs.keys())):
                                             if "N" in list(output.keys())[0]:
                                                 value = bool(not flip_flop)
                                             else:
