@@ -1,9 +1,11 @@
 import ast
+import cProfile
 import copy
 import itertools
 import sys
 import time
 import argparse
+import traceback
 
 import gdspy
 
@@ -30,6 +32,7 @@ def run_cli():
     parser.add_argument('--gui', action='store_true', help='Start the gui')
     parser.add_argument('--unit_test', help='Do cell technologie unit test')
     parser.add_argument('--verbose', action='store_true', help='Enable verbose mode')
+    parser.add_argument('-f', '--flip_flop', type=int, help='Flip Flop output Q')
 
     args = parser.parse_args()
 
@@ -42,13 +45,14 @@ def run_cli():
     cell_list = args.cell_list
     output = args.output
     verbose_mode = args.verbose
+    flip_flop = args.flip_flop
 
     unit_test = args.unit_test
 
     if args.gui:
         run_gui()
     else:
-        run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list, cell_list, output, verbose_mode, unit_test)
+        run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list, cell_list, output, verbose_mode, unit_test, flip_flop)
 
 
 def run_gui():
@@ -66,7 +70,7 @@ def run_gui():
 
 
 
-def run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list, cell_name_list, output, verbose_mode, unit_test):
+def run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list, cell_name_list, output, verbose_mode, unit_test, flip_flop):
     blue_color = "\033[1;34m"
     reset_color = "\033[0m"
     orange_color = "\033[1;33m"
@@ -108,6 +112,7 @@ def run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list,
                 continue
 
             counter += 1
+            internal_state_error = 0
 
             if unit_test:
                 print(f"{blue_color}Generating test object for: {gds_cell_name} ...{reset_color}")
@@ -127,6 +132,7 @@ def run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list,
 
             try:
                 truth_table, voltage, input_names = lib_reader.extract_truth_table(gds_cell_name)
+                op_master = Op(gds_cell_name, gds_cell, layer_list, truth_table, voltage, input_names)
 
                 draw_inputs = {}
 
@@ -134,10 +140,11 @@ def run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list,
                     for index, inp in enumerate(input_names):
                         draw_inputs[inp] = cell_input[index]
 
-                    op_object = Op(gds_cell_name, gds_cell, layer_list, truth_table, voltage, draw_inputs)
+                    op_object = copy.deepcopy(op_master)
+                    op_object.apply_state(draw_inputs, flip_flop)
 
                     if output == "reflection_over_cell":
-                        gds_drawing.export_reflection_to_png_over_gds_cell(op_object, True, False)
+                        gds_drawing.export_reflection_to_png_over_gds_cell(op_object, True, False, flip_flop)
 
                     state_counter += 1
 
@@ -146,25 +153,42 @@ def run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list,
                     for combination in combinations:
                         for index, inp in enumerate(input_names):
                             draw_inputs[inp] = combination[index]
+                        try:
+                            op_object = copy.deepcopy(op_master)
+                            op_object.apply_state(draw_inputs, flip_flop)
 
-                        op_object = Op(gds_cell_name, gds_cell, layer_list, truth_table, voltage, draw_inputs)
+                            if output == "reflection_over_cell":
+                                gds_drawing.export_reflection_to_png_over_gds_cell(op_object, True, False, flip_flop)
 
-                        if output == "reflection_over_cell":
-                            gds_drawing.export_reflection_to_png_over_gds_cell(op_object, True, False)
+                            if def_file:
+                                op_object.calculate_orientations()
+                                multiple_exporting_dict[gds_cell_name].append(copy.deepcopy(op_object))
 
-                        if def_file or unit_test:
-                            multiple_exporting_dict[gds_cell_name].append(copy.deepcopy(op_object))
+                            if unit_test:
+                                multiple_exporting_dict[gds_cell_name].append(copy.deepcopy(op_object))
 
-                        state_counter += 1
+                            state_counter += 1
+
+                        except Exception as e:
+                            internal_state_error += 1
+                            if verbose_mode:
+                                print(f"{orange_color}\nCell processing error {draw_inputs} \nType : {e}{reset_color}")
+                                # traceback.print_exc()
+                                if gds_cell_name not in error_cell_list:
+                                    error_cell_list.append(gds_cell_name)
+
+                if verbose_mode:
+                    if internal_state_error > 0:
+                        state_length = pow(2, len(input_names))
+                        print(f"{red_color}\n{internal_state_error}/{state_length} processes failed{reset_color}")
+                    else:
+                        print(f'\n{green_color}Processing complete.{reset_color}')
 
             except Exception as e:
                 if verbose_mode:
                     print(f"{red_color}An error occurred: {e}{reset_color}")
-                    #traceback.print_exc()
+                    traceback.print_exc()
                     error_cell_list.append(gds_cell_name)
-
-        if verbose_mode:
-            print(f'\n{green_color}Processing complete.{reset_color}')
 
     end_time_log = time.time()
     gds_drawing.write_output_log(start_time, end_time_log, filtered_cells=cell_name_list, state_counter=state_counter,
@@ -174,7 +198,7 @@ def run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list,
         gds_drawing.unit_test(multiple_exporting_dict, unit_test)
 
     if def_file:
-        gds_drawing.benchmark(multiple_exporting_dict, def_extract, False)
+        gds_drawing.benchmark(multiple_exporting_dict, def_extract, True)
         end_time = time.time()
         gds_drawing.benchmark_export_data(def_extract, end_time - start_time, def_file)
 
@@ -182,7 +206,7 @@ def run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list,
 if __name__ == "__main__":
     debug = False
     if debug:
-        run_auto_ops("Platforms/IHP-Open-PDK130nm/sg13g2_stdcell.gds", "Platforms/IHP-Open-PDK130nm/sg13g2_stdcell_typ_1p20V_25C.lib", "", "", [], [[1, 0], [31, 0], [5, 0], [6, 0], [8, 0], [8, 25]], ['sg13g2_nand2_1'], "unit_test",
-                     True)
+        #run_auto_ops("Platforms/IHP-Open-PDK130nm/sg13g2_stdcell.gds", "Platforms/IHP-Open-PDK130nm/sg13g2_stdcell_typ_1p20V_25C.lib", "", "", [], [[1, 0], [31, 0], [5, 0], [6, 0], [8, 0], [8, 25]], ['sg13g2_nand2_1'], "unit_test", True)
+        run_auto_ops("input/stdcells.gds", "input/stdcells.lib", "", "/Users/paul/IdeaProjects/CMOS-INV-GUI/benchmarks/EPFL/Hyp/Par/top.def", [], [[1, 0], [5, 0], [9, 0], [[10, 0]], [[11, 0]], [[11, 0]]], [], "", True, False, None)
     else:
         run_cli()

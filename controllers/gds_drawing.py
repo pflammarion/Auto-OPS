@@ -172,7 +172,7 @@ def count_unknown_states(op_object) -> None:
     print(f"\033[1;33m \n {op_object.name}, {op_object.inputs}, None states = {state_counter}, Loop counter = {op_object.loop_counter}")
 
 
-def benchmark(object_list, def_extract, plot) -> None:
+def benchmark(object_list, def_extract, plot, plot_realtime=50) -> None:
     ur_x = def_extract[0]["ur_x"]
     ll_x = def_extract[0]["ll_x"]
     ur_y = def_extract[0]["ur_y"]
@@ -186,34 +186,41 @@ def benchmark(object_list, def_extract, plot) -> None:
     if plot:
         plt.xlim(min(ll_x, ur_x) - 1, max(ll_x, ur_x) + 1)
         plt.ylim(min(ll_y, ur_y) - 1, max(ll_y, ur_y) + 1)
+        plt.gca().set_facecolor('black')
+        plt.gca().set_aspect('equal', adjustable='box')
 
+    draw_counter = 0
     for cell_name, cell_place in def_extract[1].items():
         if cell_name in object_list.keys():
             op_object = object_list[cell_name][0]
             for position in cell_place:
-                for reflection in op_object.reflection_list:
-                    for zone in reflection.zone_list:
-                        x, y = apply_transformation(zone.coordinates, position['Orientation'], reflection.get_diff_width(), op_object.get_height())
-                        x_adder, y_adder = position['Coordinates']
-                        x = tuple([element + x_adder/micron for element in x])
-                        y = tuple([element + y_adder/micron for element in y])
+                draw_counter += 1
+                for zone in op_object.orientation_list[position['Orientation']]:
 
-                        state = zone.state
-                        if reflection.shape_type == ShapeType.PMOS:
 
-                            if state is None:
-                                reflect = False
-                            else:
-                                reflect = not state
+                    x, y = zone["coords"]
+                    x_adder, y_adder = position['Coordinates']
+                    x = tuple([element + x_adder/micron for element in x])
+                    y = tuple([element + y_adder/micron for element in y])
+
+                    state = zone["state"]
+
+                    if zone["diff_type"] == ShapeType.PMOS:
+                        if state is None:
+                            reflect = False
                         else:
-                            reflect = state
+                            reflect = not state
+                    else:
+                        reflect = state
+                    if bool(reflect) and plot:
+                        plt.fill(x, y, facecolor='white', alpha=1)
 
-                        if bool(reflect) and plot:
-                            plt.fill(x, y, facecolor='white', alpha=1)
+                if plot_realtime and draw_counter > plot_realtime:
+                    plt.pause(0.0001)
+                    plt.draw()
+                    draw_counter = 0
 
     if plot:
-        plt.gca().set_facecolor('black')
-        plt.gca().set_aspect('equal', adjustable='box')
         plt.show()
 
 
@@ -240,22 +247,21 @@ def test_orientation(op_object):
     orientation_list = ["N", "FN", "E", "FE", "S", "FS", "W", "FW"]
     #orientation_list = ["S", "FS"]
     for orientation in orientation_list:
-        for reflection in op_object.reflection_list:
-            for zone in reflection.zone_list:
-                x, y = apply_transformation(zone.coordinates, orientation, reflection.get_diff_width(), op_object.get_height())
-                state = zone.state
-                if reflection.shape_type == ShapeType.PMOS:
-                    if state is None:
-                        reflect = False
-                    else:
-                        reflect = not state
+        for zone in op_object.orientation_list[orientation]:
+            x, y = zone["coords"]
+            state = zone["state"]
+            if zone["diff_type"] == ShapeType.PMOS:
+                if state is None:
+                    reflect = False
                 else:
-                    reflect = state
+                    reflect = not state
+            else:
+                reflect = state
 
-                if bool(reflect):
-                    plt.fill(x, y, facecolor="black", alpha=1, edgecolor='grey', linewidth=1)
-                else:
-                    plt.fill(x, y, facecolor="grey", alpha=1, edgecolor='grey', linewidth=1)
+            if bool(reflect):
+                plt.fill(x, y, facecolor="black", alpha=1, edgecolor='grey', linewidth=1)
+            else:
+                plt.fill(x, y, facecolor="grey", alpha=1, edgecolor='grey', linewidth=1)
 
 
         file_name = str(op_object.name) + "__" + orientation
@@ -264,47 +270,6 @@ def test_orientation(op_object):
         plt.savefig(path_name, format='svg')
         plt.close()
 
-def apply_transformation(coordinates, transformation, width, height):
-
-    x, y = coordinates
-
-
-    if transformation == 'N':
-        # No transformation for North
-        x = x
-        y = y
-    elif transformation == 'FN':
-        # Flip the coordinates along the x-axis
-        x = tuple((xi * - 1) + width for xi in reversed(x))
-        y = tuple(yi for yi in reversed(y))
-
-    elif transformation == 'E':
-        # Rotate 90 degrees clockwise: swap x and y coordinates, and negate the new x coordinate
-        x, y = tuple(yi for yi in y), tuple((xi * -1) + width for xi in x)
-    elif transformation == 'FE':
-        # Flip the coordinates along the y-axis and rotate 90 degrees clockwise (same as MY90)
-        x, y = tuple(yi for yi in reversed(y)), tuple(xi for xi in reversed(x))
-
-    elif transformation == 'S':
-        # Rotate 180 degrees: reverse both x and y coordinates
-        x = tuple((xi * -1) + width for xi in reversed(x))
-        y = tuple((yi * -1) + height for yi in reversed(y))
-    elif transformation == 'FS':
-        # Flip the coordinates along the x-axis
-        x = tuple(xi for xi in x)
-        y = tuple((yi * -1) + height for yi in y)
-
-    elif transformation == 'W':
-        # Rotate 270 degrees clockwise: swap x and y coordinates, and negate the new y coordinate
-        x, y = tuple((yi * -1) + height for yi in reversed(y)), tuple(xi for xi in reversed(x))
-    elif transformation == 'FW':
-        # Flip the coordinates along the y-axis and rotate 270 degrees clockwise (same as MY270)
-        x, y = tuple((yi * -1) + height for yi in y), tuple((xi * -1) + width for xi in x)
-
-    else:
-        raise ValueError("Invalid transformation provided.")
-
-    return x, y
 
 def export_reflection_to_png(op_object) -> None:
     """
@@ -360,7 +325,7 @@ def export_reflection_to_png(op_object) -> None:
     plt.close()
 
 
-def export_reflection_to_png_over_gds_cell(op_object, reflection_draw=False, with_axes=True) -> None:
+def export_reflection_to_png_over_gds_cell(op_object, reflection_draw=False, with_axes=True, flip_flop=None) -> None:
     plt.figure(figsize=(6, 8))
 
     for element in op_object.element_list:
@@ -405,7 +370,15 @@ def export_reflection_to_png_over_gds_cell(op_object, reflection_draw=False, wit
                 for outputs in op_object.truthtable:
                     for truthtable_inputs, output in op_object.truthtable[outputs]:
                         if element.name in output and truthtable_inputs == op_object.inputs:
-                            text = str(element.name) + " = " + str(int(output[element.name]))
+                            if any("CK" in name or "RESET" in name or "GATE" in name or "CLK" in name for name in list(op_object.inputs.keys())) or "Q" in outputs:
+                                if "N" in str(element.name):
+                                    # if None this will be 1 and the else 0
+                                    value = int(bool(not flip_flop))
+                                else:
+                                    value = int(bool(flip_flop))
+                                text = str(element.name) + " = " + str(value)
+                            else:
+                                text = str(element.name) + " = " + str(int(output[element.name]))
                             edge_color = 'lightblue'
                             background_color = (228 / 255, 239 / 255, 255 / 255)
 
@@ -453,6 +426,8 @@ def export_reflection_to_png_over_gds_cell(op_object, reflection_draw=False, wit
 
     string_list = [f"{key}_{value}" for key, value in sorted(op_object.inputs.items())]
     result_string = "_".join(string_list)
+    if flip_flop is not None:
+        result_string += "_" + "Q_" + str(flip_flop)
     file_name = str(op_object.name) + "_overlay__" + result_string + ".svg"
     path_name = "tmp/" + file_name
 
@@ -685,6 +660,7 @@ def data_export_csv(cell_name, time_extraction, cumulative_time_op, op_object, h
     df.to_csv(filename, index=False)
 
     print(f"Data successfully exported to {filename}.")
+
 
 def write_output_log(start_time, end_time, state_counter=1, filtered_cells=None, time_counter_ex=None, time_counter_op=None, error_cell_list=[]):
     with open('output.log', 'a') as f:

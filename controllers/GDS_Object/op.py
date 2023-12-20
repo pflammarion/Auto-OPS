@@ -47,23 +47,26 @@ class Op:
         >>>         {'ZN': [({'A': True}, {'ZN': False}), ({'A': False}, {'ZN': True})]},
         >>>         [{'name': 'VDD', 'type': 'primary_power'}, {'name': 'VSS', 'type': 'primary_ground'}],
         >>>         {'A1': 1, 'A2': 1}
+        >>>         1
         >>>     )
 
     This class create an object from a GDS input and store information as the optical state of each gate,
      depending on the position and gates states.
     """
 
-    def __init__(self, cell_name, gds_cell, layer_list, truthtable, voltage, inputs):
+    def __init__(self, cell_name, gds_cell, layer_list, truthtable, voltage, inputs_list):
         self.name = cell_name
-        self.inputs = inputs
         self.truthtable = truthtable
         self.via_element_list = []
+        self.orientation_list = {}
+
+        self.inputs = {}
 
         self.element_list = element_extractor(gds_cell, layer_list)
         self.reflection_list = []
 
         # list without the filtering of unused diffusion zones
-        temp_reflection_list = element_sorting(self.element_list, inputs, truthtable, voltage)
+        temp_reflection_list = element_sorting(self.element_list, inputs_list, truthtable, voltage)
 
         elements_to_keep = []
 
@@ -83,18 +86,6 @@ class Op:
         for diffusion in self.reflection_list:
             connect_diffusion_to_metal(self.element_list, diffusion)
 
-        none_counter = 0
-        none_loop_counter = 0
-        while True:
-            new_none_counter = set_zone_states(self.reflection_list)
-
-            if none_counter == new_none_counter:
-                break
-            else:
-                none_counter = new_none_counter
-
-            none_loop_counter += 1
-
     def get_height(self):
         min_y = float("inf")
         max_y = 0
@@ -107,8 +98,111 @@ class Op:
 
         return min_y + max_y
 
+    def calculate_orientations(self):
+        orientation_side = ["N", "FN", "E", "FE", "S", "FS", "W", "FW"]
 
-def element_sorting(element_list, inputs, truthtable, voltage) -> list:
+        cell_height = self.get_height()
+
+        for orientation in orientation_side:
+            self.orientation_list[orientation] = []
+            for reflection in self.reflection_list:
+                for zone in reflection.zone_list:
+                    x, y = apply_transformation(zone.coordinates, orientation, reflection.get_diff_width(), cell_height)
+                    self.orientation_list[orientation].append(
+                        {'coords': [x, y], 'state': zone.state, "diff_type": reflection.shape_type}
+                    )
+
+    def apply_state(self, inputs, flip_flop):
+
+        self.inputs = inputs
+
+        if flip_flop is None:
+            flip_flop = 0
+
+        for element in self.element_list:
+            if isinstance(element, Shape) and element.attribute is not None and isinstance(element.attribute, Attribute):
+                if element.attribute.shape_type == ShapeType.INPUT:
+                    if element.attribute.label in inputs.keys():
+                        element.attribute.set_state(inputs[element.attribute.label])
+
+                elif element.attribute.shape_type == ShapeType.OUTPUT:
+                    for outputs in self.truthtable:
+                        for truthtable_inputs, output in self.truthtable[outputs]:
+                            if element.attribute.label in outputs and element.attribute.label in output.keys():
+                                is_equal = False
+                                for truthtable_inputs_value, truthtable_inputs_key in enumerate(truthtable_inputs):
+                                    if truthtable_inputs_key not in inputs or inputs[truthtable_inputs_key] != truthtable_inputs[truthtable_inputs_key]:
+                                        is_equal = False
+                                        break
+                                    else:
+                                        is_equal = True
+
+                                if is_equal:
+                                    if any("CK" in name or "RESET" in name or "GATE" in name or "CLK" in name for name in list(inputs.keys())) or "Q" in outputs:
+                                        if "N" in list(output.keys())[0]:
+                                            value = bool(not flip_flop)
+                                        else:
+                                            value = bool(flip_flop)
+                                        element.attribute.set_state(value)
+                                    else:
+                                        element.attribute.set_state(output[element.attribute.label])
+
+        none_counter = 0
+        none_loop_counter = 0
+        while True:
+            new_none_counter = set_zone_states(self.reflection_list)
+
+            if none_counter == new_none_counter:
+                break
+            else:
+                none_counter = new_none_counter
+
+            none_loop_counter += 1
+
+
+def apply_transformation(coordinates, transformation, width, height):
+
+    x, y = coordinates
+
+    if transformation == 'N':
+        # No transformation for North
+        x = x
+        y = y
+    elif transformation == 'FN':
+        # Flip the coordinates along the x-axis
+        x = tuple((xi * - 1) + width for xi in reversed(x))
+        y = tuple(yi for yi in reversed(y))
+
+    elif transformation == 'E':
+        # Rotate 90 degrees clockwise: swap x and y coordinates, and negate the new x coordinate
+        x, y = tuple(yi for yi in y), tuple((xi * -1) + width for xi in x)
+    elif transformation == 'FE':
+        # Flip the coordinates along the y-axis and rotate 90 degrees clockwise (same as MY90)
+        x, y = tuple(yi for yi in reversed(y)), tuple(xi for xi in reversed(x))
+
+    elif transformation == 'S':
+        # Rotate 180 degrees: reverse both x and y coordinates
+        x = tuple((xi * -1) + width for xi in reversed(x))
+        y = tuple((yi * -1) + height for yi in reversed(y))
+    elif transformation == 'FS':
+        # Flip the coordinates along the x-axis
+        x = tuple(xi for xi in x)
+        y = tuple((yi * -1) + height for yi in y)
+
+    elif transformation == 'W':
+        # Rotate 270 degrees clockwise: swap x and y coordinates, and negate the new y coordinate
+        x, y = tuple((yi * -1) + height for yi in reversed(y)), tuple(xi for xi in reversed(x))
+    elif transformation == 'FW':
+        # Flip the coordinates along the y-axis and rotate 270 degrees clockwise (same as MY270)
+        x, y = tuple((yi * -1) + height for yi in y), tuple((xi * -1) + width for xi in x)
+
+    else:
+        raise ValueError("Invalid transformation provided.")
+
+    return x, y
+
+
+def element_sorting(element_list, inputs_list, truthtable, voltage) -> list:
     """
     This function is to categorize the different shapes based on their shape type.
     It is also to append to every shapes the affiliated via to determine the connections.
@@ -153,7 +247,7 @@ def element_sorting(element_list, inputs, truthtable, voltage) -> list:
     for element in element_list:
         if isinstance(element, Shape) and element.attribute is None:
             # TODO check why this loop is entering already defined attribut
-            is_connected(element_list, inputs, truthtable, voltage, element)
+            is_connected(element_list, inputs_list, truthtable, voltage, element)
 
     for element in element_list:
         # To set up diffusion number if connected to at least one metal
@@ -339,7 +433,7 @@ def extract_and_merge_polygons(polygons, element_list, layer_index, layer, layer
         element_list.append(shape)
 
 
-def is_connected(element_list, inputs, truthtable, voltage, element) -> None:
+def is_connected(element_list, inputs_list, truthtable, voltage, element) -> None:
     """
     This function is to link element together.
 
@@ -398,18 +492,12 @@ def is_connected(element_list, inputs, truthtable, voltage, element) -> None:
         for label in element_list:
             if isinstance(label, Label):
                 if element.polygon.contains(Point(label.coordinates)):
-                    if label.name in inputs.keys():
-                        element.set_attribute(Attribute(ShapeType.INPUT, label.name, inputs[label.name]))
+                    if label.name in inputs_list:
+                        element.set_attribute(Attribute(ShapeType.INPUT, label.name))
                         break
 
                     elif label.name in truthtable.keys():
-                        for outputs in truthtable:
-                            for truthtable_inputs, output in truthtable[outputs]:
-                                if label.name in outputs:
-                                    if truthtable_inputs == inputs:
-                                        element.set_attribute(
-                                            Attribute(ShapeType.OUTPUT, label.name, output[label.name])
-                                        )
+                        element.set_attribute(Attribute(ShapeType.OUTPUT, label.name))
                         break
 
                     elif label.name.lower() == "vss":
@@ -578,11 +666,10 @@ def set_zone_states(reflection_list) -> int:
         diffusion.zone_list = sorted(diffusion.zone_list, key=lambda selected_zone: selected_zone.get_min_x_coord())
 
         # known state loop
-        for zone in diffusion.zone_list:
+        for zone_index, zone in enumerate(diffusion.zone_list):
             if zone.state is not None:
                 for connected_path in zone.connected_to:
-                    if connected_path.state is None:
-                        connected_path.set_state(zone.state)
+                    connected_path.set_state(zone.state)
                 continue
 
             if len(zone.connected_to) > 0:
@@ -608,12 +695,8 @@ def set_zone_states(reflection_list) -> int:
                         elif connection.attribute.shape_type == ShapeType.OUTPUT or \
                                 connection.attribute.shape_type == ShapeType.INPUT:
                             zone.set_state(connection.attribute.state)
+
                             break
-
-                        elif connection.attribute.shape_type == ShapeType.INPUT \
-                                and connection.attribute.label == "GCK":
-
-                            raise AttributeError("Clock gates not working " + str(connection.attribute.label))
 
                     elif isinstance(connection.attribute, Shape) and isinstance(
                             connection.attribute.attribute,
@@ -623,7 +706,11 @@ def set_zone_states(reflection_list) -> int:
 
         # Unknown loop
         for index, zone in enumerate(diffusion.zone_list):
-            if zone.state is not None or zone.shape_type == ShapeType.POLYSILICON:
+            if zone.shape_type == ShapeType.POLYSILICON:
+                find_incoherent_states(diffusion, index, zone)
+                continue
+
+            elif zone.state is not None:
                 continue
 
             found_state = find_neighbor_state(diffusion, index)
@@ -635,10 +722,29 @@ def set_zone_states(reflection_list) -> int:
                 state_counter += 1
             else:
                 for connected_path in zone.connected_to:
-                    if connected_path.state is None:
-                        connected_path.set_state(zone.state)
+                    connected_path.set_state(zone.state)
 
     return state_counter
+
+
+def find_incoherent_states(diffusion, zone_index, zone) -> None:
+    if 1 <= zone_index < len(diffusion.zone_list) - 1:
+        left_neighbor_state = diffusion.zone_list[zone_index - 1].state
+        right_neighbor_state = diffusion.zone_list[zone_index + 1].state
+        if left_neighbor_state is not None and right_neighbor_state is not None:
+            if left_neighbor_state != right_neighbor_state:
+                if diffusion.shape_type == ShapeType.NMOS:
+                    state = 0
+                else:
+                    state = 1
+
+                if zone.state is not None and zone.state != state:
+                    Exception("State missmatch")
+
+                else:
+                    zone.set_state(state)
+                    for connected_path in zone.connected_to:
+                        connected_path.set_state(state)
 
 
 def find_neighbor_state(diffusion, zone_index) -> bool:

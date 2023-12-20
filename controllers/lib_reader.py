@@ -59,7 +59,7 @@ class LibReader:
         output_function = {}
         for pin_group in cell.get_groups('pin'):
             pin_name = pin_group.args[0]
-            if pin_group['function']:
+            if pin_group['direction'] == "output" or pin_group['function']:
                 str_function = str(pin_group['function'])
                 output_function[pin_name] = str_function
             else:
@@ -67,15 +67,17 @@ class LibReader:
 
         output_truth_table = {}
         for output_key in output_function:
-            output_truth_table[output_key] = self.calculateOutputFunction(output_function[output_key], output_key)
+            output_truth_table[output_key] = self.calculateOutputFunction(output_function[output_key], output_key, input_names)
 
         return output_truth_table, voltage, input_names
 
 
+    def calculateOutputFunction(self, function, pin_name, input_names):
+        if any("CK" in name or "RESET" in name or "GATE" in name or "CLK" in name for name in input_names) or "Q" in pin_name:
+            input_symbols = input_names
+        else:
+            input_symbols = re.findall(r'\w+', function)
 
-    def calculateOutputFunction(self, function, pin_name):
-        # Use regular expression to find input symbols with letters and numbers
-        input_symbols = re.findall(r'\w+', function)
         input_symbols = sorted(set(input_symbols))
 
         input_combinations = list(itertools.product([True, False], repeat=len(input_symbols)))
@@ -85,19 +87,28 @@ class LibReader:
         for inputs in input_combinations:
             input_values = {symbol: value for symbol, value in zip(input_symbols, inputs)}
 
-            eval_expression = function
-            for symbol, value in input_values.items():
-                eval_expression = eval_expression.replace(symbol, str(value))
+            if any("CK" in name or "RESET" in name or "GATE" in name or "CLK" in name for name in input_names) or "Q" in pin_name:
+                truth_table.append((input_values, {pin_name: None}))
 
-            eval_expression = eval_expression.replace("!", " not ").replace("&", " and ").replace("*", " and ").replace("+", " or ")
+            else:
+                eval_expression = function
 
-            # Evaluate the expression two time to convert it from a string to a result
-            result = eval(eval(eval_expression))
+                for symbol, value in input_values.items():
+                    eval_expression = eval_expression.replace(symbol, str(value))
 
-            if not isinstance(result, bool):
-                raise ValueError("Truthtable result is not of type bool")
+                eval_expression = eval_expression.replace('"', '')
+                eval_expression = parse_boolean_function(eval_expression)
+                eval_expression = str(format_boolean_function(eval_expression))
+                eval_expression = eval_expression.replace("!", " not ").replace("&", " and ").replace("*", " and ").replace("+", " or ")
+                result = eval(eval_expression)
+                # Hot fix problem of xor
+                if result == 0 or result == 1:
+                    result = bool(result)
 
-            truth_table.append((input_values, {pin_name: result}))
+                if not isinstance(result, bool):
+                    raise ValueError("Truthtable result is not of type bool")
+
+                truth_table.append((input_values, {pin_name: result}))
 
         return truth_table
 
