@@ -102,6 +102,9 @@ class LibReader:
                 eval_expression = str(format_boolean_function(eval_expression))
                 eval_expression = eval_expression.replace("!", " not ").replace("&", " and ").replace("*", " and ").replace("+", " or ")
                 result = eval(eval_expression)
+                # Hot fix problem of xor
+                if result == 0 or result == 1:
+                    result = bool(result)
 
                 if not isinstance(result, bool):
                     raise ValueError("Truthtable result is not of type bool")

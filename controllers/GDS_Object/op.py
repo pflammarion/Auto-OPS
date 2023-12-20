@@ -595,8 +595,7 @@ def set_zone_states(reflection_list) -> int:
         for zone_index, zone in enumerate(diffusion.zone_list):
             if zone.state is not None:
                 for connected_path in zone.connected_to:
-                    if connected_path.state is None:
-                        connected_path.set_state(zone.state)
+                    connected_path.set_state(zone.state)
                 continue
 
             if len(zone.connected_to) > 0:
@@ -633,11 +632,11 @@ def set_zone_states(reflection_list) -> int:
 
         # Unknown loop
         for index, zone in enumerate(diffusion.zone_list):
-            if zone.state is not None:
+            if zone.shape_type == ShapeType.POLYSILICON:
+                find_incoherent_states(diffusion, index, zone)
                 continue
 
-            elif zone.state is None and zone.shape_type == ShapeType.POLYSILICON:
-                find_incoherent_states(diffusion, index, zone)
+            elif zone.state is not None:
                 continue
 
             found_state = find_neighbor_state(diffusion, index)
@@ -649,8 +648,7 @@ def set_zone_states(reflection_list) -> int:
                 state_counter += 1
             else:
                 for connected_path in zone.connected_to:
-                    if connected_path.state is None:
-                        connected_path.set_state(zone.state)
+                    connected_path.set_state(zone.state)
 
     return state_counter
 
@@ -660,21 +658,19 @@ def find_incoherent_states(diffusion, zone_index, zone) -> None:
         left_neighbor_state = diffusion.zone_list[zone_index - 1].state
         right_neighbor_state = diffusion.zone_list[zone_index + 1].state
         if left_neighbor_state is not None and right_neighbor_state is not None:
-            if left_neighbor_state == right_neighbor_state:
-                if diffusion.shape_type == ShapeType.NMOS:
-                    state = 1
-                else:
-                    state = 0
-            else:
+            if left_neighbor_state != right_neighbor_state:
                 if diffusion.shape_type == ShapeType.NMOS:
                     state = 0
                 else:
                     state = 1
 
-            zone.set_state(state)
-            for connected_path in zone.connected_to:
-                if connected_path.state is None:
-                    connected_path.set_state(state)
+                if zone.state is not None and zone.state != state:
+                    raise Exception("State missmatch")
+
+                else:
+                    zone.set_state(state)
+                    for connected_path in zone.connected_to:
+                        connected_path.set_state(state)
 
 
 def find_neighbor_state(diffusion, zone_index) -> bool:
