@@ -460,6 +460,8 @@ def export_reflection_to_png_over_gds_cell(op_object, reflection_draw=False, wit
 
     string_list = [f"{key}_{value}" for key, value in sorted(op_object.inputs.items())]
     result_string = "_".join(string_list)
+    if flip_flop is not None:
+        result_string += "_" + "Q_" + str(flip_flop)
     file_name = str(op_object.name) + "_overlay__" + result_string + ".svg"
     path_name = "tmp/" + file_name
 
@@ -692,6 +694,7 @@ def data_export_csv(cell_name, time_extraction, cumulative_time_op, op_object, h
     df.to_csv(filename, index=False)
 
     print(f"Data successfully exported to {filename}.")
+
 
 def write_output_log(start_time, end_time, state_counter=1, filtered_cells=None, time_counter_ex=None, time_counter_op=None, error_cell_list=[]):
     with open('output.log', 'a') as f:
