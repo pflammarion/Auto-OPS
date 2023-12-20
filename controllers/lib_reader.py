@@ -75,7 +75,6 @@ class LibReader:
     def calculateOutputFunction(self, function, pin_name, input_names):
 
         if "CK" in input_names:
-            print("flipflop")
             input_symbols = input_names
         else:
             input_symbols = re.findall(r'\w+', function)
