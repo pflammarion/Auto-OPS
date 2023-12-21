@@ -30,7 +30,7 @@ do
         --std_file input/stdcells.gds \
         --lib_file input/stdcells.lib \
         --def_file "$def_path" \
-        --layer_list 1 5 9 10 11
+        --layer_list "[[1, 0], [5, 0], [9, 0], [[10, 0]], [[11, 0]], [[11, 0]]]"
 done
 
 : <<'END_COMMENT'

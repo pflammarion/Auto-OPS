@@ -173,7 +173,7 @@ def count_unknown_states(op_object) -> None:
     print(f"\033[1;33m \n {op_object.name}, {op_object.inputs}, None states = {state_counter}, Loop counter = {op_object.loop_counter}")
 
 
-def benchmark(object_list, def_extract, plot, vpi_extraction=None, area=None, plot_realtime=50) -> None:
+def benchmark(object_list, def_extract, plot, vpi_extraction=None, area=None, plot_realtime=None) -> None:
     ur_x = def_extract[0]["ur_x"]
     ll_x = def_extract[0]["ll_x"]
     ur_y = def_extract[0]["ur_y"]
@@ -222,8 +222,6 @@ def benchmark(object_list, def_extract, plot, vpi_extraction=None, area=None, pl
                         x_adder, y_adder = position['Coordinates']
                         x = tuple([element + x_adder/micron for element in x])
                         y = tuple([element + y_adder/micron for element in y])
-
-
 
                         state = zone["state"]
 
@@ -284,6 +282,7 @@ def benchmark_export_data(def_extract, ex_time, def_name):
         f.write(f"& {def_name} & & & {len(def_extract[1].keys())} & {number_op_coord} & {area_square_meters} & {execution_time} \\\\ \cline{{2-8}} \n")
         #f.write(f"{def_name} & {execution_time} \\\\ \cline{{2-8}} \n")
 
+
 def test_orientation(op_object):
     orientation_list = ["N", "FN", "E", "FE", "S", "FS", "W", "FW"]
     #orientation_list = ["S", "FS"]
@@ -303,7 +302,6 @@ def test_orientation(op_object):
                 plt.fill(x, y, facecolor="black", alpha=1, edgecolor='grey', linewidth=1)
             else:
                 plt.fill(x, y, facecolor="grey", alpha=1, edgecolor='grey', linewidth=1)
-
 
         file_name = str(op_object.name) + "__" + orientation
         path_name = "tmp/" + file_name + ".svg"
@@ -464,7 +462,6 @@ def export_reflection_to_png_over_gds_cell(op_object, reflection_draw=False, wit
 
                 if reflect is None:
                     plt.fill(x, y, facecolor="none", edgecolor="red", hatch='////', alpha=0.8)
-
 
     string_list = [f"{key}_{value}" for key, value in sorted(op_object.inputs.items())]
     result_string = "_".join(string_list)
