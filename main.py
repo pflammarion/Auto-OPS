@@ -171,6 +171,8 @@ def run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list,
 
                             if def_file:
                                 op_object.calculate_orientations()
+                                key = ''.join(map(str, combination))
+                                multiple_exporting_dict[gds_cell_name][key] = copy.deepcopy(op_object)
 
                             if unit_test:
                                 key = ''.join(map(str, combination))
