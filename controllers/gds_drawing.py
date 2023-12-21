@@ -1,3 +1,5 @@
+import random
+
 import pytest
 from datetime import datetime
 import json
@@ -371,18 +373,29 @@ def benchmark_matrix(object_list, def_extract, G1, G2, vpi_extraction=None, area
 
     micron = def_extract[0]["micron"]
 
-    scale_up = 500
-
-    origin_x = ll_x
-    origin_y = ll_y
-    print(origin_x, origin_y)
-
     if area:
-        width = int((area[1]-area[0]) * scale_up)
-        height = int((area[3]-area[2]) * scale_up)
+        width = area[1]-area[0]
+        height = area[3]-area[2]
+        origin_x = area[0]
+        origin_y = area[2]
     else:
-        width = int((max(ll_x, ur_x) - min(ll_x, ur_x)) * scale_up)
-        height = int((max(ll_y, ur_y) - min(ll_y, ur_y)) * scale_up)
+        width = max(ll_x, ur_x) - min(ll_x, ur_x)
+        height = max(ll_y, ur_y) - min(ll_y, ur_y)
+        origin_x = ll_x
+        origin_y = ll_y
+
+    scale_up = int(3000/max(width, height))
+
+    if scale_up < 200:
+        print(f"Previous scale_up = {scale_up}")
+        forced_area = 200/scale_up
+        width = width/forced_area
+        height = height/forced_area
+        area = [origin_x, origin_x+width, origin_y, origin_y+height]
+        scale_up = 200
+
+    width = int(width*scale_up)
+    height = int(height*scale_up)
 
     if width > 3000:
         width = 3000
@@ -392,11 +405,9 @@ def benchmark_matrix(object_list, def_extract, G1, G2, vpi_extraction=None, area
 
     x_m, y_m = np.meshgrid(np.arange(width), np.arange(height))
     layout = np.zeros((height, width))
-
     for cell_name, cell_place in def_extract[1].items():
         if cell_name in object_list.keys():
             for position in cell_place:
-
                 if area:
                     x_check, y_check = position['Coordinates']
                     # area [x_min, x_max, y_min, y_max]
@@ -411,16 +422,15 @@ def benchmark_matrix(object_list, def_extract, G1, G2, vpi_extraction=None, area
                     if vpi_extraction:
                         op_object = vpi_object_extractor(object_list[cell_name], cell_name, vpi_extraction, position)
                     else:
-                        key = list(object_list[cell_name].keys())[0]
+                        key_list = list(object_list[cell_name].keys())
+                        key = random.choice(key_list)
                         op_object = object_list[cell_name][key]
 
                     for zone in op_object.orientation_list[position['Orientation']]:
                         x, y = zone["coords"]
                         x_adder, y_adder = position['Coordinates']
-                        print(y)
                         x = tuple([int(((element + x_adder/micron)-origin_x)*scale_up) for element in x])
                         y = tuple([int(((element + y_adder/micron)-origin_y)*scale_up) for element in y])
-
 
                         state = zone["state"]
 
@@ -437,7 +447,6 @@ def benchmark_matrix(object_list, def_extract, G1, G2, vpi_extraction=None, area
                         if value is not None:
                             mask = (x_m >= min(x)) & (x_m <= max(x)) & (y_m >= min(y)) & (y_m <= max(y))
                             layout[mask] = value
-
 
     large_matrix_rows, large_matrix_columns = 3000, 3000
     large_matrix = np.zeros((large_matrix_rows, large_matrix_columns))
