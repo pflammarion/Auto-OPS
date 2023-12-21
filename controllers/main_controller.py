@@ -11,10 +11,15 @@ from scipy.signal import fftconvolve
 
 from views.column_dialog import ColumnSelectionDialog
 from views.main import MainView
+from views.technology_dialog import TechnologySelectionDialog
 
 
 class MainController:
     def __init__(self):
+
+        technology_dialog = TechnologySelectionDialog()
+        if technology_dialog.exec():
+            self.selected_technology = technology_dialog.get_selected_technology()
 
         self.imported_image = False
 
