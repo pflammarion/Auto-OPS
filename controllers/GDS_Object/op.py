@@ -57,6 +57,7 @@ class Op:
     def __init__(self, cell_name, gds_cell, layer_list, truthtable, voltage, inputs_list):
         self.name = cell_name
         self.truthtable = truthtable
+        self.inputs_list = inputs_list
         self.via_element_list = []
         self.orientation_list = {}
 
@@ -98,6 +99,18 @@ class Op:
 
         return min_y + max_y
 
+    def get_width(self):
+        min_x = float("inf")
+        max_x = 0
+        for diff in self.reflection_list:
+            x_coords = [point[0] for point in diff.polygon.exterior.coords]
+            if max(x_coords) > max_x:
+                max_x = max(x_coords)
+            if min(x_coords) < min_x:
+                min_x = min(x_coords)
+
+        return min_x + max_x
+
     def calculate_orientations(self):
         orientation_side = ["N", "FN", "E", "FE", "S", "FS", "W", "FW"]
 
@@ -112,7 +125,7 @@ class Op:
                         {'coords': [x, y], 'state': zone.state, "diff_type": reflection.shape_type}
                     )
 
-    def apply_state(self, inputs, flip_flop):
+    def apply_state(self, inputs, flip_flop=0):
 
         self.inputs = inputs
 

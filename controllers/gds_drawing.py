@@ -363,6 +363,43 @@ def export_reflection_to_png(op_object) -> None:
     plt.savefig(path_name)
     plt.close()
 
+def export_matrix_reflection(op_object, G1, G2):
+    width = int(op_object.get_width()*500)
+    height = int(op_object.get_height()*500)
+    layout = np.zeros((height, width))
+    x_m, y_m = np.meshgrid(np.arange(width), np.arange(height))
+
+    for reflection in op_object.reflection_list:
+        for zone in reflection.zone_list:
+            x, y = zone.coordinates
+
+            x = tuple([int(element * 500) for element in x])
+            y = tuple([int(element * 500) for element in y])
+
+            state = zone.state
+            value = None
+            if state is None:
+                state = False
+            if reflection.shape_type == ShapeType.PMOS:
+                if not state:
+                    value = G2
+            else:
+                if state:
+                    value = G1
+
+            if value is not None:
+                mask = (x_m >= min(x)) & (x_m <= max(x)) & (y_m >= min(y)) & (y_m <= max(y))
+                layout[mask] = value
+
+    large_matrix_rows, large_matrix_columns = 3000, 3000
+    large_matrix = np.zeros((large_matrix_rows, large_matrix_columns))
+    start_row = (large_matrix_rows - height) // 2
+    start_col = (large_matrix_columns - width) // 2
+    large_matrix[start_row:start_row + height, start_col:start_col + width] = layout
+
+    return large_matrix
+
+
 
 def export_reflection_to_png_over_gds_cell(op_object, reflection_draw=False, with_axes=True, flip_flop=None) -> None:
     plt.figure(figsize=(6, 8))
