@@ -51,7 +51,7 @@ class MainController:
 
         self.view = MainView(self)
 
-        self.view.set_technologie_label("Technologie: " + str(self.technology_value) + " nm")
+        self.view.set_technology_label("Technology: " + str(self.technology_value) + " nm")
 
         self._running = True
 
@@ -231,7 +231,7 @@ class MainController:
                 self.view.popup_window("JSON Import Successful", "JSON settings imported successfully")
 
     def update_view_input(self):
-        self.view.set_technologie_label("Technologie: " + str(self.technology_value) + " nm")
+        self.view.set_technology_label("Technology: " + str(self.technology_value) + " nm")
 
         self.view.set_input_Kn(str(self.Kn_value))
         self.view.set_input_Kp(str(self.Kp_value))

@@ -479,14 +479,14 @@ def export_reflection_to_png_over_gds_cell(op_object, reflection_draw=False, wit
     plt.close()
 
 
-def unit_test(processed_cells, unit_test_technologie):
+def unit_test(processed_cells, unit_test_technology):
     reset_color = "\033[0m"
     green_color = "\033[1;32m"
     red_color = "\033[1;31m"
 
     test_length = len(processed_cells.keys())
     test_counter = 0
-    reference_file = f'test/{str(unit_test_technologie)}nm.json'
+    reference_file = f'test/{str(unit_test_technology)}nm.json'
     differences_list = []
 
     with open(reference_file, 'r') as ref:

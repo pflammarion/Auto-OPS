@@ -61,9 +61,9 @@ class MainView(QMainWindow):
         self.footer_label.setObjectName("footer")
         self.footer_label.setAlignment(Qt.AlignmentFlag.AlignRight)
 
-        self.technologie_label = QLabel()
-        self.technologie_label.setObjectName("footer")
-        self.technologie_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
+        self.technology_label = QLabel()
+        self.technology_label.setObjectName("footer")
+        self.technology_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
 
         self.buttons = []
 
@@ -128,7 +128,7 @@ class MainView(QMainWindow):
         footer_widget = QWidget()
         footer_layout = QGridLayout(footer_widget)
         footer_layout.addWidget(self.footer_label, 0, 1)
-        footer_layout.addWidget(self.technologie_label, 0, 0)
+        footer_layout.addWidget(self.technology_label, 0, 0)
         footer_widget.setMaximumHeight(50)
         footer_widget.setMinimumHeight(50)
 
@@ -605,8 +605,8 @@ class MainView(QMainWindow):
     def set_input_confocal(self, value):
         self.selector_input_confocal.setChecked(value)
 
-    def set_technologie_label(self, text):
-        self.technologie_label.setText(text)
+    def set_technology_label(self, text):
+        self.technology_label.setText(text)
 
     def set_footer_label(self, text):
         self.footer_label.setText(text)

@@ -29,7 +29,7 @@ def run_cli():
                         help='Cell list for active regions extraction (empty for all cells)')
     parser.add_argument('-o', '--output', help='Output type', choices=['reflection_over_cell'])
     parser.add_argument('--gui', action='store_true', help='Start the gui')
-    parser.add_argument('--unit_test', help='Do cell technologie unit test')
+    parser.add_argument('--unit_test', help='Do cell technology unit test')
     parser.add_argument('--verbose', action='store_true', help='Enable verbose mode')
     parser.add_argument('-f', '--flip_flop', type=int, help='Flip Flop output Q')
     parser.add_argument('--plot_realtime', type=int, help='Number of zone calculated before plotting during benchmarks')
@@ -230,4 +230,4 @@ if __name__ == "__main__":
         #run_auto_ops("Platforms/IHP-Open-PDK130nm/sg13g2_stdcell.gds", "Platforms/IHP-Open-PDK130nm/sg13g2_stdcell_typ_1p20V_25C.lib", "", "", [], [[1, 0], [31, 0], [5, 0], [6, 0], [8, 0], [8, 25]], ['sg13g2_nand2_1'], "unit_test", True)
         run_auto_ops("input/stdcells.gds", "input/stdcells.lib", "", "/Users/paul/IdeaProjects/CMOS-INV-GUI/benchmarks/EPFL/Hyp/Par/top.def", [], [[1, 0], [5, 0], [9, 0], [[10, 0]], [[11, 0]], [[11, 0]]], [], "", True, False, None)
     else:
-        run_cli()
+        run_gui()
