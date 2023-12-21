@@ -158,7 +158,12 @@ def run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list,
 
                 else:
                     combinations = list(itertools.product([0, 1], repeat=len(input_names)))
-                    multiple_exporting_dict[gds_cell_name] = {}
+
+                    if unit_test:
+                        multiple_exporting_dict[gds_cell_name] = []
+                    else:
+                        multiple_exporting_dict[gds_cell_name] = {}
+
                     for combination in combinations:
                         for index, inp in enumerate(input_names):
                             draw_inputs[inp] = combination[index]
@@ -175,8 +180,7 @@ def run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list,
                                 multiple_exporting_dict[gds_cell_name][key] = copy.deepcopy(op_object)
 
                             if unit_test:
-                                key = ''.join(map(str, combination))
-                                multiple_exporting_dict[gds_cell_name][key] = copy.deepcopy(op_object)
+                                multiple_exporting_dict[gds_cell_name].append(copy.deepcopy(op_object))
 
                             state_counter += 1
 
