@@ -29,7 +29,7 @@ def run_cli():
                         help='Cell list for active regions extraction (empty for all cells)')
     parser.add_argument('-o', '--output', help='Output type', choices=['reflection_over_cell'])
     parser.add_argument('--gui', action='store_true', help='Start the gui')
-    parser.add_argument('--unit_test', action='store_true', help='Do cell technologie unit test')
+    parser.add_argument('--unit_test', help='Do cell technologie unit test')
     parser.add_argument('--verbose', action='store_true', help='Enable verbose mode')
     parser.add_argument('-f', '--flip_flop', type=int, help='Flip Flop output Q')
     parser.add_argument('--plot_realtime', type=int, help='Number of zone calculated before plotting during benchmarks')
