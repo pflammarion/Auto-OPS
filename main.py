@@ -56,8 +56,8 @@ def run_cli():
 
 
 def run_gui():
-    from PyQt6.QtGui import QIcon
-    from PyQt6.QtWidgets import QApplication
+    from PyQt5.QtGui import QIcon
+    from PyQt5.QtWidgets import QApplication
     from controllers.main_controller import MainController
 
     app = QApplication(sys.argv)

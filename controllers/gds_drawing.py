@@ -397,7 +397,8 @@ def export_reflection_to_png_over_gds_cell(op_object, reflection_draw=False, wit
                     text = element.name
 
             plt.annotate(text, (x, y), bbox=dict(facecolor=background_color, edgecolor=edge_color, boxstyle='round,pad=0.2', linewidth=2),
-                         color='black', fontsize=18, fontname='Times New Roman')
+                         color='black', fontsize=18)
+            #, fontname='Times New Roman'
 
     for via in op_object.via_element_list:
         x, y = via.coordinates
