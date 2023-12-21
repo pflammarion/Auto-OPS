@@ -5,3 +5,4 @@ CMOS-INV-GUI.iml
 /try
 /tmp
 /documentation/_build
+/__pycache__
