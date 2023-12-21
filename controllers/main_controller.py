@@ -29,6 +29,7 @@ class MainController:
         self.selected_layer = None
         self.op_master = None
         self.def_file = None
+        self.vpi_extraction = None
 
         self.state_list = "1"
         self.cell_name = "INV_X1"
@@ -98,7 +99,7 @@ class MainController:
             lam, G1, G2, Gap = self.parameters_init(self.Kn_value, self.Kp_value, self.voltage_value, self.beta_value, self.Pl_value)
             if self.op_master is not None:
                 if self.def_file is not None:
-                    self.image_matrix = gds_drawing.benchmark_matrix(self.object_storage_list, self.def_file, G1, G2)
+                    self.image_matrix = gds_drawing.benchmark_matrix(self.object_storage_list, self.def_file, G1, G2, self.vpi_extraction)
                 else:
                     if self.cell_name not in self.object_storage_list.keys():
                         self.extract_op_cell(self.cell_name)
@@ -169,11 +170,19 @@ class MainController:
                     std_file = data["op_config"]["std_file"]
                     lib_file = data["op_config"]["lib_file"]
                     def_file = data["op_config"]["def_file"]
+                    vpi_file = data["op_config"]["vpi_file"]
                     lib = gdspy.GdsLibrary()
 
                     self.gds_cell_list = lib.read_gds(std_file).cells
                     self.lib_reader = LibReader(lib_file)
                     self.selected_layer = data["op_config"]["layer_list"]
+
+                    if vpi_file is not None and vpi_file != "":
+                        self.vpi_extraction = {}
+                        with open(vpi_file, 'r') as file:
+                            for line in file:
+                                key, value = line.strip().split(',')
+                                self.vpi_extraction[key] = value
 
                     if def_file is not None and def_file != "":
                         self.def_file = def_parser.get_gates_info_from_def_file(def_file)
