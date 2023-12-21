@@ -1,4 +1,5 @@
 import copy
+import itertools
 import json
 import os
 import threading
@@ -11,7 +12,7 @@ import numpy as np
 import pandas as pd
 from scipy.signal import fftconvolve
 
-from controllers import gds_drawing
+from controllers import gds_drawing, def_parser
 from controllers.GDS_Object.op import Op
 from controllers.lib_reader import LibReader
 from views.column_dialog import ColumnSelectionDialog
@@ -27,6 +28,7 @@ class MainController:
         self.lib_reader = None
         self.selected_layer = None
         self.op_master = None
+        self.def_file = None
 
         self.state_list = "1"
         self.cell_name = "INV_X1"
@@ -60,7 +62,8 @@ class MainController:
         if self.gds_cell_list is None or self.lib_reader is None or self.selected_layer is None:
             self.init_op_object()
 
-        self.extract_op_cell()
+        if self.def_file is None:
+            self.extract_op_cell(self.cell_name)
 
         self.dataframe = None
 
@@ -94,15 +97,17 @@ class MainController:
         if self.app_state != 4 and not self.imported_image:
             lam, G1, G2, Gap = self.parameters_init(self.Kn_value, self.Kp_value, self.voltage_value, self.beta_value, self.Pl_value)
             if self.op_master is not None:
-                if self.cell_name not in self.object_storage_list.keys():
-                    self.extract_op_cell()
-                    self.apply_state_op(self.state_list, G1, G2)
+                if self.def_file is not None:
+                    self.image_matrix = gds_drawing.benchmark_matrix(self.object_storage_list, self.def_file, G1, G2)
                 else:
-                    if self.state_list in self.object_storage_list[self.cell_name].keys():
-                        op_object = self.object_storage_list[self.cell_name][self.state_list]
-                        self.image_matrix = gds_drawing.export_matrix_reflection(op_object, G1, G2)
-                    else:
-                        self.apply_state_op(self.state_list, G1, G2)
+                    if self.cell_name not in self.object_storage_list.keys():
+                        self.extract_op_cell(self.cell_name)
+
+                    if self.state_list not in self.object_storage_list[self.cell_name].keys():
+                        self.apply_state_op(self.state_list)
+
+                    op_object = self.object_storage_list[self.cell_name][self.state_list]
+                    self.image_matrix = gds_drawing.export_matrix_reflection(op_object, G1, G2)
 
             else:
                 self.image_matrix = self.draw_layout(lam, G1, G2, Gap)
@@ -163,11 +168,22 @@ class MainController:
                 if "op_config" in data:
                     std_file = data["op_config"]["std_file"]
                     lib_file = data["op_config"]["lib_file"]
+                    def_file = data["op_config"]["def_file"]
                     lib = gdspy.GdsLibrary()
 
                     self.gds_cell_list = lib.read_gds(std_file).cells
                     self.lib_reader = LibReader(lib_file)
                     self.selected_layer = data["op_config"]["layer_list"]
+
+                    if def_file is not None and def_file != "":
+                        self.def_file = def_parser.get_gates_info_from_def_file(def_file)
+                        cell_name_list = self.def_file[1].keys()
+                        for cell_name in cell_name_list:
+                            self.extract_op_cell(cell_name)
+                            combinations = list(itertools.product([0, 1], repeat=len(self.op_master.inputs_list)))
+                            for input_combination in combinations:
+                                input_str = ''.join(map(str, input_combination))
+                                self.apply_state_op(input_str)
 
                 return data
 
@@ -638,11 +654,11 @@ class MainController:
         layer_dialog = LayerSelectionDialog()
         if layer_dialog.exec():
             self.selected_layer = layer_dialog.get_selected_layers()
-            self.extract_op_cell()
+            self.extract_op_cell(self.cell_name)
 
-    def extract_op_cell(self):
+    def extract_op_cell(self, cell_name):
         for gds_cell_name, gds_cell in self.gds_cell_list.items():
-            if gds_cell_name != self.cell_name:
+            if gds_cell_name != cell_name:
                 continue
 
             try:
@@ -654,7 +670,7 @@ class MainController:
             except Exception as e:
                 print(f"Error {e}")
 
-    def apply_state_op(self, cell_input_string, G1, G2):
+    def apply_state_op(self, cell_input_string):
         draw_inputs = {}
         inputs_list = self.op_master.inputs_list
 
@@ -664,12 +680,10 @@ class MainController:
             for index, inp in enumerate(inputs_list):
                 draw_inputs[inp] = cell_input[index]
 
-
             op_object = copy.deepcopy(self.op_master)
             op_object.apply_state(draw_inputs)
 
+            if self.def_file is not None:
+                op_object.calculate_orientations()
+
             self.object_storage_list[self.op_master.name][cell_input_string] = copy.deepcopy(op_object)
-
-            self.image_matrix = gds_drawing.export_matrix_reflection(op_object, G1, G2)
-
-

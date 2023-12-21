@@ -363,9 +363,96 @@ def export_reflection_to_png(op_object) -> None:
     plt.savefig(path_name)
     plt.close()
 
+def benchmark_matrix(object_list, def_extract, G1, G2, vpi_extraction=None, area=None):
+    ur_x = def_extract[0]["ur_x"]
+    ll_x = def_extract[0]["ll_x"]
+    ur_y = def_extract[0]["ur_y"]
+    ll_y = def_extract[0]["ll_y"]
+
+    micron = def_extract[0]["micron"]
+
+    scale_up = 500
+
+    origin_x = ll_x
+    origin_y = ll_y
+    print(origin_x, origin_y)
+
+    if area:
+        width = int((area[1]-area[0]) * scale_up)
+        height = int((area[3]-area[2]) * scale_up)
+    else:
+        width = int((max(ll_x, ur_x) - min(ll_x, ur_x)) * scale_up)
+        height = int((max(ll_y, ur_y) - min(ll_y, ur_y)) * scale_up)
+
+    if width > 3000:
+        width = 3000
+
+    if height > 3000:
+        height = 3000
+
+    x_m, y_m = np.meshgrid(np.arange(width), np.arange(height))
+    layout = np.zeros((height, width))
+
+    for cell_name, cell_place in def_extract[1].items():
+        if cell_name in object_list.keys():
+            for position in cell_place:
+
+                if area:
+                    x_check, y_check = position['Coordinates']
+                    # area [x_min, x_max, y_min, y_max]
+                    if area[0] < x_check/micron < area[1] and area[2] < y_check/micron < area[3]:
+                        is_used = True
+                    else:
+                        is_used = False
+                else:
+                    is_used = True
+
+                if is_used:
+                    if vpi_extraction:
+                        op_object = vpi_object_extractor(object_list[cell_name], cell_name, vpi_extraction, position)
+                    else:
+                        key = list(object_list[cell_name].keys())[0]
+                        op_object = object_list[cell_name][key]
+
+                    for zone in op_object.orientation_list[position['Orientation']]:
+                        x, y = zone["coords"]
+                        x_adder, y_adder = position['Coordinates']
+                        print(y)
+                        x = tuple([int(((element + x_adder/micron)-origin_x)*scale_up) for element in x])
+                        y = tuple([int(((element + y_adder/micron)-origin_y)*scale_up) for element in y])
+
+
+                        state = zone["state"]
+
+                        value = None
+                        if state is None:
+                            state = False
+                        if zone["diff_type"] == ShapeType.PMOS:
+                            if not state:
+                                value = G2
+                        else:
+                            if state:
+                                value = G1
+
+                        if value is not None:
+                            mask = (x_m >= min(x)) & (x_m <= max(x)) & (y_m >= min(y)) & (y_m <= max(y))
+                            layout[mask] = value
+
+
+    large_matrix_rows, large_matrix_columns = 3000, 3000
+    large_matrix = np.zeros((large_matrix_rows, large_matrix_columns))
+    start_row = (large_matrix_rows - height) // 2
+    start_col = (large_matrix_columns - width) // 2
+    large_matrix[start_row:start_row + height, start_col:start_col + width] = layout
+
+    return large_matrix
+
+
+
 def export_matrix_reflection(op_object, G1, G2):
-    width = int(op_object.get_width()*500)
-    height = int(op_object.get_height()*500)
+    scale_up = 500
+    width = int(op_object.get_width()*scale_up)
+    height = int(op_object.get_height()*scale_up)
     layout = np.zeros((height, width))
     x_m, y_m = np.meshgrid(np.arange(width), np.arange(height))
 
@@ -373,8 +460,8 @@ def export_matrix_reflection(op_object, G1, G2):
         for zone in reflection.zone_list:
             x, y = zone.coordinates
 
-            x = tuple([int(element * 500) for element in x])
-            y = tuple([int(element * 500) for element in y])
+            x = tuple([int(element * scale_up) for element in x])
+            y = tuple([int(element * scale_up) for element in y])
 
             state = zone.state
             value = None
