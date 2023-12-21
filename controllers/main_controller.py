@@ -28,6 +28,11 @@ class MainController:
         self.selected_layer = None
         self.op_master = None
 
+        self.state_list = "1"
+        self.cell_name = "INV_X1"
+
+        self.object_storage_list = {}
+
         self.imported_image = False
 
         # init all class variables
@@ -89,7 +94,16 @@ class MainController:
         if self.app_state != 4 and not self.imported_image:
             lam, G1, G2, Gap = self.parameters_init(self.Kn_value, self.Kp_value, self.voltage_value, self.beta_value, self.Pl_value)
             if self.op_master is not None:
-                self.apply_state_op([1], G1, G2)
+                if self.cell_name not in self.object_storage_list.keys():
+                    self.extract_op_cell()
+                    self.apply_state_op(self.state_list, G1, G2)
+                else:
+                    if self.state_list in self.object_storage_list[self.cell_name].keys():
+                        op_object = self.object_storage_list[self.cell_name][self.state_list]
+                        self.image_matrix = gds_drawing.export_matrix_reflection(op_object, G1, G2)
+                    else:
+                        self.apply_state_op(self.state_list, G1, G2)
+
             else:
                 self.image_matrix = self.draw_layout(lam, G1, G2, Gap)
 
@@ -277,6 +291,9 @@ class MainController:
         self.view.set_input_NA(str(self.NA_value))
         self.view.set_input_confocal(self.is_confocal)
 
+        self.view.set_cell_name(str(self.cell_name))
+        self.view.set_state_list(str(self.state_list))
+
     def upload_csv(self):
         file_dialog = QFileDialog()
         file_dialog.setFileMode(QFileDialog.FileMode.ExistingFiles)
@@ -390,6 +407,22 @@ class MainController:
         amp_rel = amp_abs / num_pix_under_laser
 
         return amp_rel
+
+    def update_cell_values(self):
+        cell_name_value = self.view.get_cell_name()
+        state_list_value = self.view.get_state_list()
+
+        if cell_name_value is not None and cell_name_value != "":
+            self.cell_name = cell_name_value
+        else:
+            self.cell_name = "INV_X1"
+
+        if state_list_value is not None and state_list_value != "":
+            self.state_list = state_list_value
+        else:
+            self.state_list = "1"
+
+        self.reload_view()
 
     def update_physics_values(self):
 
@@ -608,31 +641,35 @@ class MainController:
             self.extract_op_cell()
 
     def extract_op_cell(self):
-        # TODO put it dynamically
-        cell_name_list = ['INV_X1']
+        for gds_cell_name, gds_cell in self.gds_cell_list.items():
+            if gds_cell_name != self.cell_name:
+                continue
 
-        for input_cell_name in cell_name_list:
-            for gds_cell_name, gds_cell in self.gds_cell_list.items():
-                if gds_cell_name != input_cell_name:
-                    continue
+            try:
+                truth_table, voltage, input_names = self.lib_reader.extract_truth_table(gds_cell_name)
+                self.op_master = Op(gds_cell_name, gds_cell, self.selected_layer, truth_table, voltage, input_names)
 
-                try:
-                    truth_table, voltage, input_names = self.lib_reader.extract_truth_table(gds_cell_name)
-                    self.op_master = Op(gds_cell_name, gds_cell, self.selected_layer, truth_table, voltage, input_names)
+                self.object_storage_list[gds_cell_name] = {}
 
-                except Exception as e:
-                    print(f"Error {e}")
+            except Exception as e:
+                print(f"Error {e}")
 
-    def apply_state_op(self, cell_input, G1, G2):
+    def apply_state_op(self, cell_input_string, G1, G2):
         draw_inputs = {}
         inputs_list = self.op_master.inputs_list
+
+        cell_input = [int(char) for char in cell_input_string]
 
         if cell_input and len(cell_input) == len(inputs_list):
             for index, inp in enumerate(inputs_list):
                 draw_inputs[inp] = cell_input[index]
 
+
             op_object = copy.deepcopy(self.op_master)
             op_object.apply_state(draw_inputs)
 
+            self.object_storage_list[self.op_master.name][cell_input_string] = copy.deepcopy(op_object)
+
             self.image_matrix = gds_drawing.export_matrix_reflection(op_object, G1, G2)
+
 

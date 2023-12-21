@@ -22,6 +22,16 @@ class MainView(QMainWindow):
         self.info_input_voltage = QLineEdit(self)
         self.noise_pourcentage = QLineEdit(self)
 
+        self.cell_name = QLineEdit(self)
+        self.state_list = QLineEdit(self)
+
+        # fill cell from controller
+
+        self.cell_name.setText(str(self.controller.cell_name))
+        self.cell_name.setPlaceholderText(str(self.controller.cell_name))
+        self.state_list.setText(str(self.controller.state_list))
+        self.state_list.setPlaceholderText(str(self.controller.state_list))
+
         # fill infos from controller
         self.info_input_Kn.setText(str(self.controller.Kn_value))
         self.info_input_Kn.setPlaceholderText(str(self.controller.Kn_value))
@@ -107,6 +117,10 @@ class MainView(QMainWindow):
 
         info_widget = self.init_physic_info_widget()
 
+        # Creating cell widget
+
+        cell_widget = self.init_cell_widget()
+
         # Creating the laser widget
 
         laser_widget = self.init_laser_widget()
@@ -137,6 +151,7 @@ class MainView(QMainWindow):
         left_layout.addWidget(laser_widget, 0, 0)
         left_layout.addWidget(preview_widget, 2, 0)
         right_widget_layout.addWidget(info_widget, 0, 0)
+        right_widget_layout.addWidget(cell_widget, 1, 0)
         main_central_layout.addWidget(plot_container_widget, 0, 0)
 
         central_layout.addWidget(left_widget, 0, 0)
@@ -300,6 +315,33 @@ class MainView(QMainWindow):
         self.preview_canvas.hide()
 
         return self.preview_canvas
+
+    def init_cell_widget(self) -> QWidget:
+        cell_widget = QWidget()
+        cell_name_label = QLabel("Cell name:", self)
+        state_list_label = QLabel("State list:", self)
+        cell_button = QPushButton("Update cell", self)
+        cell_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        cell_button.clicked.connect(self.controller.update_cell_values)
+
+        line1 = QHBoxLayout()
+        line1.addWidget(cell_name_label)
+        line1.addWidget(self.cell_name)
+
+        line2 = QHBoxLayout()
+        line2.addWidget(state_list_label)
+        line2.addWidget(self.state_list)
+
+        cell_layout = QVBoxLayout(cell_widget)
+        cell_layout.addLayout(line1)
+        cell_layout.addLayout(line2)
+
+        cell_layout.addWidget(cell_button)
+
+        cell_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        cell_layout.setSpacing(20)
+
+        return cell_widget
 
     def init_physic_info_widget(self) -> QWidget:
         info_widget = QWidget()
@@ -534,6 +576,20 @@ class MainView(QMainWindow):
             self.second_figure.savefig('export/plots/' + title + '.svg', format='svg')
 
         self.controller.stop_thread()
+
+    def get_cell_name(self):
+        return self.cell_name.text()
+
+    def set_cell_name(self, value):
+        if self.cell_name is not None:
+            self.cell_name.setText(value)
+
+    def get_state_list(self):
+        return self.state_list.text()
+
+    def set_state_list(self, value):
+        if self.state_list is not None:
+            self.state_list.setText(value)
 
     def get_input_Kn(self):
         return self.info_input_Kn.text()
