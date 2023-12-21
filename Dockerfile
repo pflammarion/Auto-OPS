@@ -12,8 +12,15 @@ RUN apt-get update && \
 COPY requirements.txt .
 
 RUN python3 -m pip install --upgrade pip && \
-    pip3 install -r requirements.txt \
+    pip3 install -r requirements.txt
 
-COPY . .
+COPY main.py .
+COPY controllers controllers
+COPY views views
+COPY input input
+COPY config config
+COPY resources resources
+
+RUN mkdir tmp
 
 CMD ["sh"]
