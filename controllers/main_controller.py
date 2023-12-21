@@ -10,6 +10,7 @@ import pandas as pd
 from scipy.signal import fftconvolve
 
 from views.column_dialog import ColumnSelectionDialog
+from views.layer_list_dialog import LayerSelectionDialog
 from views.main import MainView
 from views.technology_dialog import TechnologySelectionDialog
 
@@ -20,6 +21,12 @@ class MainController:
         technology_dialog = TechnologySelectionDialog()
         if technology_dialog.exec():
             self.selected_technology = technology_dialog.get_selected_technology()
+
+        layer_dialog = LayerSelectionDialog()
+        if layer_dialog.exec():
+            self.selected_layer = layer_dialog.get_selected_layers()
+            print(self.selected_layer)
+
 
         self.imported_image = False
 
