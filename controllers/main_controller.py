@@ -30,6 +30,8 @@ class MainController:
         self.op_master = None
         self.def_file = None
         self.vpi_extraction = None
+        self.selected_area = 0
+        self.selected_patch_size = 20
 
         self.state_list = "1"
         self.cell_name = "INV_X1"
@@ -99,7 +101,7 @@ class MainController:
             lam, G1, G2, Gap = self.parameters_init(self.Kn_value, self.Kp_value, self.voltage_value, self.beta_value, self.Pl_value)
             if self.op_master is not None:
                 if self.def_file is not None:
-                    self.image_matrix = gds_drawing.benchmark_matrix(self.object_storage_list, self.def_file, G1, G2, self.vpi_extraction)
+                    self.image_matrix = gds_drawing.benchmark_matrix(self.object_storage_list, self.def_file, G1, G2, self.vpi_extraction, self.selected_area)
                 else:
                     if self.cell_name not in self.object_storage_list.keys():
                         self.extract_op_cell(self.cell_name)
@@ -171,6 +173,15 @@ class MainController:
                     lib_file = data["op_config"]["lib_file"]
                     def_file = data["op_config"]["def_file"]
                     vpi_file = data["op_config"]["vpi_file"]
+
+                    selected_area = data["op_config"]["selected_area"]
+                    if selected_area is not None and selected_area != "":
+                        self.selected_area = selected_area
+
+                    selected_patch_size = data["op_config"]["selected_patch_size"]
+                    if selected_patch_size is not None and selected_patch_size != "":
+                       self.selected_patch_size = selected_patch_size
+
                     lib = gdspy.GdsLibrary()
 
                     self.gds_cell_list = lib.read_gds(std_file).cells
@@ -185,7 +196,7 @@ class MainController:
                                 self.vpi_extraction[key] = value
 
                     if def_file is not None and def_file != "":
-                        self.def_file = def_parser.get_gates_info_from_def_file(def_file)
+                        self.def_file = def_parser.get_gates_info_from_def_file(def_file, self.selected_patch_size)
                         cell_name_list = self.def_file[2]
                         for cell_name in cell_name_list:
                             self.extract_op_cell(cell_name)

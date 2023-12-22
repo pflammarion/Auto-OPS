@@ -32,9 +32,9 @@ def run_cli():
     parser.add_argument('--unit_test', help='Do cell technology unit test')
     parser.add_argument('--verbose', action='store_true', help='Enable verbose mode')
     parser.add_argument('-f', '--flip_flop', type=int, help='Flip Flop output Q')
-    parser.add_argument('--plot_realtime', type=int, help='Number of zone calculated before plotting during benchmarks')
     parser.add_argument('--benchmark_plot', action='store_true', help='Plot benchmarks results. This could affect performance.')
-    parser.add_argument('--benchmark_area', nargs='+', type=int, help='Benchmark plotting area (Format: [x_min, x_max, y_min, y_max])')
+    parser.add_argument('--benchmark_area', type=int, help='Benchmark plotting area')
+    parser.add_argument('--patch_size', type=int, help='Benchmark plotting area (Format: [x_min, x_max, y_min, y_max])')
 
     args = parser.parse_args()
 
@@ -49,16 +49,16 @@ def run_cli():
     output = args.output
     verbose_mode = args.verbose
     flip_flop = args.flip_flop
-    plot_realtime = args.plot_realtime
     benchmark_plot = args.benchmark_plot
     benchmark_area = args.benchmark_area
+    patch_size = args.patch_size
 
     unit_test = args.unit_test
 
     if args.gui:
         run_gui()
     else:
-        run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list, cell_list, output, verbose_mode, unit_test, flip_flop, vpi_file, benchmark_area, benchmark_plot, plot_realtime)
+        run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list, cell_list, output, verbose_mode, unit_test, flip_flop, vpi_file, benchmark_area, benchmark_plot, patch_size)
 
 
 def run_gui():
@@ -76,7 +76,7 @@ def run_gui():
 
 
 
-def run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list, cell_name_list, output, verbose_mode, unit_test, flip_flop, vpi_file, benchmark_area, benchmark_plot, plot_realtime):
+def run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list, cell_name_list, output, verbose_mode, unit_test, flip_flop, vpi_file, benchmark_area, benchmark_plot, patch_size):
     blue_color = "\033[1;34m"
     reset_color = "\033[0m"
     orange_color = "\033[1;33m"
@@ -102,7 +102,7 @@ def run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list,
 
     def_extract = []
     if def_file:
-        def_extract = get_gates_info_from_def_file(def_file)
+        def_extract = get_gates_info_from_def_file(def_file, patch_size)
         cell_name_list = def_extract[2]
 
     if unit_test:
@@ -219,7 +219,7 @@ def run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list,
         gds_drawing.unit_test(multiple_exporting_dict, unit_test)
 
     if def_file:
-        gds_drawing.benchmark(multiple_exporting_dict, def_extract, benchmark_plot, vpi_extraction=vpi_extraction, area=benchmark_area, plot_realtime=plot_realtime)
+        gds_drawing.benchmark(multiple_exporting_dict, def_extract, benchmark_plot, vpi_extraction=vpi_extraction, area=benchmark_area, patch_size=patch_size)
         end_time = time.time()
         gds_drawing.benchmark_export_data(def_extract, end_time - start_time, def_file)
 
@@ -230,4 +230,4 @@ if __name__ == "__main__":
         #run_auto_ops("Platforms/IHP-Open-PDK130nm/sg13g2_stdcell.gds", "Platforms/IHP-Open-PDK130nm/sg13g2_stdcell_typ_1p20V_25C.lib", "", "", [], [[1, 0], [31, 0], [5, 0], [6, 0], [8, 0], [8, 25]], ['sg13g2_nand2_1'], "unit_test", True)
         run_auto_ops("input/stdcells.gds", "input/stdcells.lib", "", "/Users/paul/IdeaProjects/CMOS-INV-GUI/benchmarks/EPFL/Hyp/Par/top.def", [], [[1, 0], [5, 0], [9, 0], [[10, 0]], [[11, 0]], [[11, 0]]], [], "", True, False, None)
     else:
-        run_gui()
+        run_cli()

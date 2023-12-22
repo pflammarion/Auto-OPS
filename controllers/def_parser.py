@@ -1,7 +1,7 @@
 import re
 
 
-def get_gates_info_from_def_file(file_path) -> list:
+def get_gates_info_from_def_file(file_path, patch_size) -> list:
     with open(file_path, 'r') as file:
         data = file.read()
 
@@ -28,8 +28,10 @@ def get_gates_info_from_def_file(file_path) -> list:
         dif_size["ur_y"] = ur_y
         dif_size["ll_y"] = ll_y
 
-        # 5um * 5um
-        patch_size = 20
+        # 20um * 20um
+        if patch_size is None:
+            patch_size = 20
+
         dif_size["patch_size"] = patch_size
 
         width_patch = int((ur_x-ll_x) / patch_size) + 1
@@ -66,6 +68,8 @@ def get_gates_info_from_def_file(file_path) -> list:
                     else:
                         patch['gates'][gate_name] = [
                             {'GateID': gate_id, 'Coordinates': (x_coord, y_coord), 'Orientation': orientation}]
+    else:
+        raise Exception("Def file reading error, check file or format")
 
     def_extraction = [dif_size, gate_dict, cell_list]
 

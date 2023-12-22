@@ -175,7 +175,7 @@ def count_unknown_states(op_object) -> None:
     print(f"\033[1;33m \n {op_object.name}, {op_object.inputs}, None states = {state_counter}, Loop counter = {op_object.loop_counter}")
 
 
-def benchmark(object_list, def_extract, plot, vpi_extraction=None, area=None, plot_realtime=None) -> None:
+def benchmark(object_list, def_extract, plot, vpi_extraction=None, area=None, patch_size=None) -> None:
     ur_x = def_extract[0]["ur_x"]
     ll_x = def_extract[0]["ll_x"]
     ur_y = def_extract[0]["ur_y"]
@@ -187,12 +187,17 @@ def benchmark(object_list, def_extract, plot, vpi_extraction=None, area=None, pl
         plt.gca().set_facecolor('black')
         plt.gca().set_aspect('equal', adjustable='box')
 
-    if area:
-            plt.xlim(area[0], area[1])
-            plt.ylim(area[2], area[3])
+    if area and patch_size:
+        def_zone = def_extract[1][area]
+
+        origin_x = def_zone['position_x']
+        origin_y = def_zone['position_y']
+        plt.xlim(origin_x, origin_x + patch_size)
+        plt.ylim(origin_y, origin_y + patch_size)
+
     else:
-        plt.xlim(min(ll_x, ur_x) - 1, max(ll_x, ur_x) + 1)
-        plt.ylim(min(ll_y, ur_y) - 1, max(ll_y, ur_y) + 1)
+        plt.xlim(ll_x - 1, ur_x + 1)
+        plt.ylim(ll_y - 1, ur_y + 1)
 
         for i in range(len(def_extract[1])):
             def_zone = def_extract[1][i]
@@ -349,11 +354,10 @@ def export_reflection_to_png(op_object) -> None:
     plt.savefig(path_name)
     plt.close()
 
-def benchmark_matrix(object_list, def_extract, G1, G2, vpi_extraction=None, area_list=[0]):
+
+def benchmark_matrix(object_list, def_extract, G1, G2, vpi_extraction=None, area=0):
 
     patch_size = def_extract[0]["patch_size"]
-
-    area = area_list[0]
 
     def_zone = def_extract[1][area]
 
