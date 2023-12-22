@@ -281,7 +281,7 @@ def benchmark_export_data(def_extract, ex_time, def_name):
 
     with open('benchmarks.log', 'a') as f:
         execution_time = round(ex_time, 4)
-        f.write(f"& {def_name} & & & {len(def_extract[1].keys())} & {number_op_coord} & {area_square_meters} & {execution_time} \\\\ \cline{{2-8}} \n")
+        f.write(f"& {def_name} & & & {len(def_extract[2])} & {number_op_coord} & {area_square_meters} & {execution_time} \\\\ \cline{{2-8}} \n")
         #f.write(f"{def_name} & {execution_time} \\\\ \cline{{2-8}} \n")
 
 
@@ -365,34 +365,19 @@ def export_reflection_to_png(op_object) -> None:
     plt.savefig(path_name)
     plt.close()
 
-def benchmark_matrix(object_list, def_extract, G1, G2, vpi_extraction=None, area=None):
-    ur_x = def_extract[0]["ur_x"]
-    ll_x = def_extract[0]["ll_x"]
-    ur_y = def_extract[0]["ur_y"]
-    ll_y = def_extract[0]["ll_y"]
+def benchmark_matrix(object_list, def_extract, G1, G2, vpi_extraction=None, area_list=[1]):
 
-    micron = def_extract[0]["micron"]
+    patch_size = def_extract[0]["patch_size"]
 
-    if area:
-        width = area[1]-area[0]
-        height = area[3]-area[2]
-        origin_x = area[0]
-        origin_y = area[2]
-    else:
-        width = max(ll_x, ur_x) - min(ll_x, ur_x)
-        height = max(ll_y, ur_y) - min(ll_y, ur_y)
-        origin_x = ll_x
-        origin_y = ll_y
+    area = area_list[0]
+
+    def_zone = def_extract[1][area]
+
+    width = height = patch_size
+    origin_x = def_zone['position_x']
+    origin_y = def_zone['position_y']
 
     scale_up = int(3000/max(width, height))
-
-    if scale_up < 200:
-        print(f"Previous scale_up = {scale_up}")
-        forced_area = 200/scale_up
-        width = width/forced_area
-        height = height/forced_area
-        area = [origin_x, origin_x+width, origin_y, origin_y+height]
-        scale_up = 200
 
     width = int(width*scale_up)
     height = int(height*scale_up)
@@ -405,48 +390,37 @@ def benchmark_matrix(object_list, def_extract, G1, G2, vpi_extraction=None, area
 
     x_m, y_m = np.meshgrid(np.arange(width), np.arange(height))
     layout = np.zeros((height, width))
-    for cell_name, cell_place in def_extract[1].items():
+    for cell_name, cell_place in def_zone['gates'].items():
         if cell_name in object_list.keys():
             for position in cell_place:
-                if area:
-                    x_check, y_check = position['Coordinates']
-                    # area [x_min, x_max, y_min, y_max]
-                    if area[0] < x_check/micron < area[1] and area[2] < y_check/micron < area[3]:
-                        is_used = True
-                    else:
-                        is_used = False
+                if vpi_extraction:
+                    op_object = vpi_object_extractor(object_list[cell_name], cell_name, vpi_extraction, position)
                 else:
-                    is_used = True
+                    key_list = list(object_list[cell_name].keys())
+                    key = random.choice(key_list)
+                    op_object = object_list[cell_name][key]
 
-                if is_used:
-                    if vpi_extraction:
-                        op_object = vpi_object_extractor(object_list[cell_name], cell_name, vpi_extraction, position)
+                for zone in op_object.orientation_list[position['Orientation']]:
+                    x, y = zone["coords"]
+                    x_adder, y_adder = position['Coordinates']
+                    x = tuple([int(((element + x_adder)-origin_x)*scale_up) for element in x])
+                    y = tuple([int(((element + y_adder)-origin_y)*scale_up) for element in y])
+
+                    state = zone["state"]
+
+                    value = None
+                    if state is None:
+                        state = False
+                    if zone["diff_type"] == ShapeType.PMOS:
+                        if not state:
+                            value = G2
                     else:
-                        key_list = list(object_list[cell_name].keys())
-                        key = random.choice(key_list)
-                        op_object = object_list[cell_name][key]
+                        if state:
+                            value = G1
 
-                    for zone in op_object.orientation_list[position['Orientation']]:
-                        x, y = zone["coords"]
-                        x_adder, y_adder = position['Coordinates']
-                        x = tuple([int(((element + x_adder/micron)-origin_x)*scale_up) for element in x])
-                        y = tuple([int(((element + y_adder/micron)-origin_y)*scale_up) for element in y])
-
-                        state = zone["state"]
-
-                        value = None
-                        if state is None:
-                            state = False
-                        if zone["diff_type"] == ShapeType.PMOS:
-                            if not state:
-                                value = G2
-                        else:
-                            if state:
-                                value = G1
-
-                        if value is not None:
-                            mask = (x_m >= min(x)) & (x_m <= max(x)) & (y_m >= min(y)) & (y_m <= max(y))
-                            layout[mask] = value
+                    if value is not None:
+                        mask = (x_m >= min(x)) & (x_m <= max(x)) & (y_m >= min(y)) & (y_m <= max(y))
+                        layout[mask] = value
 
     large_matrix_rows, large_matrix_columns = 3000, 3000
     large_matrix = np.zeros((large_matrix_rows, large_matrix_columns))

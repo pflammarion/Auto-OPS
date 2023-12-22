@@ -103,7 +103,7 @@ def run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list,
     def_extract = []
     if def_file:
         def_extract = get_gates_info_from_def_file(def_file)
-        cell_name_list = def_extract[1].keys()
+        cell_name_list = def_extract[2]
 
     if unit_test:
         print(f"{blue_color}Reading lib file ...{reset_color}")

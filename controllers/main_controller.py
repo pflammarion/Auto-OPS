@@ -186,7 +186,7 @@ class MainController:
 
                     if def_file is not None and def_file != "":
                         self.def_file = def_parser.get_gates_info_from_def_file(def_file)
-                        cell_name_list = self.def_file[1].keys()
+                        cell_name_list = self.def_file[2]
                         for cell_name in cell_name_list:
                             self.extract_op_cell(cell_name)
                             combinations = list(itertools.product([0, 1], repeat=len(self.op_master.inputs_list)))
