@@ -97,7 +97,7 @@ class MainController:
     def reload_view_wrapper(self):
         self.view.set_footer_label("... Loading ...")
         start = time.time()
-        if self.app_state != 4 and not self.imported_image:
+        if not self.imported_image:
             lam, G1, G2, Gap = self.parameters_init(self.Kn_value, self.Kp_value, self.voltage_value, self.beta_value, self.Pl_value)
             if self.op_master is not None:
                 if self.def_file is not None:
@@ -428,11 +428,13 @@ class MainController:
         Gap = 0
         return lam, G1, G2, Gap
 
-    def calc_unique_rcv(self, K, voltage, beta, Pl, L, draw_lam):
-        gate = voltage * K * beta * Pl
-        generated_gate_image = self.draw_one_gate_layout(gate, draw_lam)
+    def calc_unique_rcv(self, voltage, L, old_G1, old_G2):
 
-        # for preview in gui of current position of laser
+        lam, G1, G2, Gap = self.parameters_init(self.Kn_value, self.Kp_value, voltage, self.beta_value, self.Pl_value)
+
+        generated_gate_image = np.select([self.image_matrix == old_G1, self.image_matrix == old_G2], [G1, G2], self.image_matrix)
+
+    # for preview in gui of current position of laser
         if voltage > self.max_voltage_high_gate_state:
             self.high_gate_state_layout = generated_gate_image
             self.max_voltage_high_gate_state = voltage
@@ -528,7 +530,7 @@ class MainController:
         amp_rel = amp_abs / num_pix_under_laser
         self.main_label_value = "RCV (per nm²) = %.6f" % amp_rel
 
-        return np.where(L > 0, 1, 0)
+        return np.where(L > 0, 1, 0), L
 
     def update_rcv_position(self):
         x_input = self.view.get_input_x()
@@ -562,7 +564,7 @@ class MainController:
         self.dataframe = None
         self.update_settings()
         points = np.where(self.image_matrix != 0, 1, 0)
-        mask = self.calc_and_plot_RCV(offset=[self.y_position, self.x_position])
+        mask, _ = self.calc_and_plot_RCV(offset=[self.y_position, self.x_position])
 
         result = cv2.addWeighted(points, 1, mask, 0.5, 0)
 
@@ -629,22 +631,16 @@ class MainController:
         self.app_state = 4
         self.max_voltage_high_gate_state = float('-inf')
         self.high_gate_state_layout = None
-        lam = self.lam_value
-        draw_lam = self.technology_value / 2
-        NA = self.NA_value
-        is_confocal = self.is_confocal
+
         selected_columns = self.selected_columns
 
-        FWHM = 1.22 / np.sqrt(2) * lam / NA
-        FOV = 3000
-        offset = [self.y_position, self.x_position]
-        L = self.psf_2d_pos(FOV, lam, NA, offset[0], offset[1], FWHM // 2 if is_confocal else np.inf)
-        mask = np.where(L > 0, 1, 0)
+        mask, L = self.calc_and_plot_RCV(offset=[self.y_position, self.x_position])
+
+        _, old_G1, old_G2, _ = self.parameters_init(self.Kn_value, self.Kp_value, self.voltage_value, self.beta_value, self.Pl_value)
+
 
         self.dataframe['RCV'] = self.dataframe.apply(
-            lambda row: self.calc_unique_rcv(self.Kn_value, row[selected_columns[1]], self.beta_value, self.Pl_value, L,
-                                             draw_lam),
-            axis=1)
+            lambda row: self.calc_unique_rcv(row[selected_columns[1]], L, old_G1, old_G2), axis=1)
 
         if self.high_gate_state_layout is not None:
             points = np.where(self.high_gate_state_layout != 0, 1, 0)
