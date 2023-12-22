@@ -522,7 +522,7 @@ class MainView(QMainWindow):
         ax = self.main_figure.add_subplot(111)
 
         if lps:
-            im = ax.imshow(image_matrix, cmap='gist_heat', origin='lower')
+            im = ax.imshow(image_matrix, cmap='Reds', origin='lower')
             self.main_figure.colorbar(im)
         else:
             ax.imshow(image_matrix, cmap='gist_gray', origin='lower')
