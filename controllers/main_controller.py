@@ -430,6 +430,7 @@ class MainController:
 
     def calc_unique_rcv(self, voltage, L, old_G1, old_G2):
 
+        # may be when the voltage is > 0,5 changing the gate state
         lam, G1, G2, Gap = self.parameters_init(self.Kn_value, self.Kp_value, voltage, self.beta_value, self.Pl_value)
 
         generated_gate_image = np.select([self.image_matrix == old_G1, self.image_matrix == old_G2], [G1, G2], self.image_matrix)
@@ -637,7 +638,6 @@ class MainController:
         mask, L = self.calc_and_plot_RCV(offset=[self.y_position, self.x_position])
 
         _, old_G1, old_G2, _ = self.parameters_init(self.Kn_value, self.Kp_value, self.voltage_value, self.beta_value, self.Pl_value)
-
 
         self.dataframe['RCV'] = self.dataframe.apply(
             lambda row: self.calc_unique_rcv(row[selected_columns[1]], L, old_G1, old_G2), axis=1)
