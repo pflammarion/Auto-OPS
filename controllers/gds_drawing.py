@@ -181,66 +181,50 @@ def benchmark(object_list, def_extract, plot, vpi_extraction=None, area=None, pl
     ur_y = def_extract[0]["ur_y"]
     ll_y = def_extract[0]["ll_y"]
 
-    micron = def_extract[0]["micron"]
-
-    # Create a new figure
     #plt.figure(figsize=(8, 8))
 
     if plot:
         plt.gca().set_facecolor('black')
         plt.gca().set_aspect('equal', adjustable='box')
 
-        if area:
+    if area:
             plt.xlim(area[0], area[1])
             plt.ylim(area[2], area[3])
-        else:
-            plt.xlim(min(ll_x, ur_x) - 1, max(ll_x, ur_x) + 1)
-            plt.ylim(min(ll_y, ur_y) - 1, max(ll_y, ur_y) + 1)
+    else:
+        plt.xlim(min(ll_x, ur_x) - 1, max(ll_x, ur_x) + 1)
+        plt.ylim(min(ll_y, ur_y) - 1, max(ll_y, ur_y) + 1)
 
-    draw_counter = 0
-    for cell_name, cell_place in def_extract[1].items():
-        if cell_name in object_list.keys():
-            for position in cell_place:
-                if area:
-                    x_check, y_check = position['Coordinates']
-                    # area [x_min, x_max, y_min, y_max]
-                    if area[0] < x_check/micron < area[1] and area[2] < y_check/micron < area[3]:
-                        is_used = True
-                    else:
-                        is_used = False
-                else:
-                    is_used = True
+        for i in range(len(def_extract[1])):
+            def_zone = def_extract[1][i]
+            plt.pause(0.0001)
+            plt.draw()
 
-                if is_used:
-                    draw_counter += 1
-                    if vpi_extraction:
-                        op_object = vpi_object_extractor(object_list[cell_name], cell_name, vpi_extraction, position)
-                    else:
-                        key = list(object_list[cell_name].keys())[0]
-                        op_object = object_list[cell_name][key]
-
-                    for zone in op_object.orientation_list[position['Orientation']]:
-                        x, y = zone["coords"]
-                        x_adder, y_adder = position['Coordinates']
-                        x = tuple([element + x_adder/micron for element in x])
-                        y = tuple([element + y_adder/micron for element in y])
-
-                        state = zone["state"]
-
-                        if zone["diff_type"] == ShapeType.PMOS:
-                            if state is None:
-                                reflect = False
-                            else:
-                                reflect = not state
+            for cell_name, cell_place in def_zone['gates'].items():
+                if cell_name in object_list.keys():
+                    for position in cell_place:
+                        if vpi_extraction:
+                            op_object = vpi_object_extractor(object_list[cell_name], cell_name, vpi_extraction, position)
                         else:
-                            reflect = state
-                        if bool(reflect) and plot:
-                            plt.fill(x, y, facecolor='white', alpha=1)
+                            key = list(object_list[cell_name].keys())[0]
+                            op_object = object_list[cell_name][key]
 
-                if plot_realtime and draw_counter > plot_realtime:
-                    plt.pause(0.0001)
-                    plt.draw()
-                    draw_counter = 0
+                        for zone in op_object.orientation_list[position['Orientation']]:
+                            x, y = zone["coords"]
+                            x_adder, y_adder = position['Coordinates']
+                            x = tuple([element + x_adder for element in x])
+                            y = tuple([element + y_adder for element in y])
+
+                            state = zone["state"]
+
+                            if zone["diff_type"] == ShapeType.PMOS:
+                                if state is None:
+                                    reflect = False
+                                else:
+                                    reflect = not state
+                            else:
+                                reflect = state
+                            if bool(reflect) and plot:
+                                plt.fill(x, y, facecolor='white', alpha=1)
 
     if plot:
         plt.show()
@@ -365,7 +349,7 @@ def export_reflection_to_png(op_object) -> None:
     plt.savefig(path_name)
     plt.close()
 
-def benchmark_matrix(object_list, def_extract, G1, G2, vpi_extraction=None, area_list=[1]):
+def benchmark_matrix(object_list, def_extract, G1, G2, vpi_extraction=None, area_list=[0]):
 
     patch_size = def_extract[0]["patch_size"]
 
@@ -381,6 +365,7 @@ def benchmark_matrix(object_list, def_extract, G1, G2, vpi_extraction=None, area
 
     width = int(width*scale_up)
     height = int(height*scale_up)
+
 
     if width > 3000:
         width = 3000

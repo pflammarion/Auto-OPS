@@ -29,17 +29,19 @@ def get_gates_info_from_def_file(file_path) -> list:
         dif_size["ll_y"] = ll_y
 
         # 5um * 5um
-        patch_size = 5
+        patch_size = 20
         dif_size["patch_size"] = patch_size
 
         width_patch = int((ur_x-ll_x) / patch_size) + 1
         height_patch = int((ur_y-ll_y) / patch_size) + 1
 
+        patch_counter=0
         for i in range(0, height_patch):
             position_y = ll_y + i * patch_size
             for j in range(0, width_patch):
                 position_x = ll_x + j * patch_size
-                gate_dict[i * j] = {'position_x': position_x, 'position_y': position_y, 'gates': {}}
+                gate_dict[patch_counter] = {'position_x': position_x, 'position_y': position_y, 'gates': {}}
+                patch_counter += 1
 
         components = re.findall(r'-\s(\w+)\s(\w+)\s\+\sPLACED\s\(\s(\d+)\s(\d+)\s\)\s([A-Z]+)', data)
 
