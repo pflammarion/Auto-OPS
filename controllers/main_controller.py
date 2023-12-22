@@ -448,6 +448,8 @@ class MainController:
         cell_name_value = self.view.get_cell_name()
         state_list_value = self.view.get_state_list()
 
+        self.def_file = None
+
         if cell_name_value is not None and cell_name_value != "":
             self.cell_name = cell_name_value
         else:

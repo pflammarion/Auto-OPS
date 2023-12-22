@@ -361,7 +361,19 @@ def benchmark_matrix(object_list, def_extract, G1, G2, vpi_extraction=None, area
 
     def_zone = def_extract[1][area]
 
-    width = height = patch_size
+    ur_x = def_extract[0]["ur_x"]
+    ll_x = def_extract[0]["ll_x"]
+    ur_y = def_extract[0]["ur_y"]
+    ll_y = def_extract[0]["ll_y"]
+
+    width = ur_x - ll_x
+    height = ur_y - ll_y
+
+    if width > patch_size:
+        width = patch_size
+    if height > patch_size:
+        height = patch_size
+
     origin_x = def_zone['position_x']
     origin_y = def_zone['position_y']
 
@@ -369,6 +381,7 @@ def benchmark_matrix(object_list, def_extract, G1, G2, vpi_extraction=None, area
 
     width = int(width*scale_up)
     height = int(height*scale_up)
+    print(height)
 
     if width > 3000:
         width = 3000

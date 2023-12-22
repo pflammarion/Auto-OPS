@@ -18,7 +18,7 @@
     "op_config": {
         "std_file": "input/stdcells.gds",
         "lib_file": "input/stdcells.lib",
-        "def_file": "",
+        "def_file": "benchmarks/Benchmarks_ISCAS85/GDS-II/Benchmarks/c17/c17.def",
         "vpi_file": "",
         "selected_area": "",
         "selected_patch_size": "",
