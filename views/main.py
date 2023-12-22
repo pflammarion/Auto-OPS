@@ -525,7 +525,7 @@ class MainView(QMainWindow):
             im = ax.imshow(image_matrix)
             self.main_figure.colorbar(im)
         else:
-            ax.imshow(image_matrix, cmap='gist_gray')
+            ax.imshow(image_matrix, cmap='gist_gray', origin='lower')
 
         ax.set_title(str(title))
         ax.set_xlabel("x")

@@ -366,7 +366,6 @@ def benchmark_matrix(object_list, def_extract, G1, G2, vpi_extraction=None, area
     width = int(width*scale_up)
     height = int(height*scale_up)
 
-
     if width > 3000:
         width = 3000
 
@@ -382,7 +381,7 @@ def benchmark_matrix(object_list, def_extract, G1, G2, vpi_extraction=None, area
                     op_object = vpi_object_extractor(object_list[cell_name], cell_name, vpi_extraction, position)
                 else:
                     key_list = list(object_list[cell_name].keys())
-                    key = random.choice(key_list)
+                    key = key_list[0]
                     op_object = object_list[cell_name][key]
 
                 for zone in op_object.orientation_list[position['Orientation']]:
