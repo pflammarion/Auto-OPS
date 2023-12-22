@@ -381,7 +381,6 @@ def benchmark_matrix(object_list, def_extract, G1, G2, vpi_extraction=None, area
 
     width = int(width*scale_up)
     height = int(height*scale_up)
-    print(height)
 
     if width > 3000:
         width = 3000
