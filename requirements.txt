@@ -11,3 +11,5 @@ statsmodels==0.14.0
 liberty-parser
 pytest
 matplotlib-scalebar
+PyQt5
+opencv-python
