@@ -9,6 +9,8 @@ from PyQt5.QtCore import Qt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 
+from views.cell_layout import CellLayout
+
 
 class MainView(QMainWindow):
     def __init__(self, controller):
@@ -21,16 +23,6 @@ class MainView(QMainWindow):
         self.info_input_Pl = QLineEdit(self)
         self.info_input_voltage = QLineEdit(self)
         self.noise_pourcentage = QLineEdit(self)
-
-        self.cell_name = QLineEdit(self)
-        self.state_list = QLineEdit(self)
-
-        # fill cell from controller
-
-        self.cell_name.setText(str(self.controller.cell_name))
-        self.cell_name.setPlaceholderText(str(self.controller.cell_name))
-        self.state_list.setText(str(self.controller.state_list))
-        self.state_list.setPlaceholderText(str(self.controller.state_list))
 
         # fill infos from controller
         self.info_input_Kn.setText(str(self.controller.Kn_value))
@@ -75,6 +67,12 @@ class MainView(QMainWindow):
         self.technology_label.setObjectName("footer")
         self.technology_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
 
+        self.cell_selector = CellLayout(self.controller.gds_cell_list)
+        self.cell_selector.filterLineEdit.textChanged.connect(lambda: self.cell_selector.filter_items())
+        self.cell_selector.cell_button.clicked.connect(lambda: self.controller.update_cell_values())
+        self.cell_selector.set_cell_name(str(self.controller.cell_name))
+        self.cell_selector.set_state_list(str(self.controller.state_list))
+
         self.buttons = []
 
         self.main_window = QMainWindow()
@@ -91,7 +89,7 @@ class MainView(QMainWindow):
         self.setCentralWidget(main_widget)
 
         layout = QGridLayout(main_widget)
-        #main_widget.setStyleSheet("border : 1px solid black")
+        # main_widget.setStyleSheet("border : 1px solid black")
 
         central_widget = QWidget()
         central_layout = QGridLayout(central_widget)
@@ -179,7 +177,6 @@ class MainView(QMainWindow):
         # hide and show the voltage button for csv mode
         self.info_button_column_voltage.hide()
         voltage_widget.show()
-
 
         self.preview_canvas.hide()
         self.second_canvas.hide()
@@ -318,28 +315,9 @@ class MainView(QMainWindow):
 
     def init_cell_widget(self) -> QWidget:
         cell_widget = QWidget()
-        cell_name_label = QLabel("Cell name:", self)
-        state_list_label = QLabel("State list:", self)
-        cell_button = QPushButton("Update cell", self)
-        cell_button.setCursor(Qt.CursorShape.PointingHandCursor)
-        cell_button.clicked.connect(self.controller.update_cell_values)
-
-        line1 = QHBoxLayout()
-        line1.addWidget(cell_name_label)
-        line1.addWidget(self.cell_name)
-
-        line2 = QHBoxLayout()
-        line2.addWidget(state_list_label)
-        line2.addWidget(self.state_list)
 
         cell_layout = QVBoxLayout(cell_widget)
-        cell_layout.addLayout(line1)
-        cell_layout.addLayout(line2)
-
-        cell_layout.addWidget(cell_button)
-
-        cell_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
-        cell_layout.setSpacing(20)
+        cell_layout.addLayout(self.cell_selector.get_layout())
 
         return cell_widget
 
@@ -577,20 +555,6 @@ class MainView(QMainWindow):
 
         self.controller.stop_thread()
 
-    def get_cell_name(self):
-        return self.cell_name.text()
-
-    def set_cell_name(self, value):
-        if self.cell_name is not None:
-            self.cell_name.setText(value)
-
-    def get_state_list(self):
-        return self.state_list.text()
-
-    def set_state_list(self, value):
-        if self.state_list is not None:
-            self.state_list.setText(value)
-
     def get_input_Kn(self):
         return self.info_input_Kn.text()
 
@@ -673,20 +637,20 @@ class MainView(QMainWindow):
     def plot_dataframe(self, df, selected_columns):
         if len(self.main_figure.axes) > 0:
             self.main_figure.clear()
-        time = df[selected_columns[0]]
+        time_abs = df[selected_columns[0]]
         voltage = df[selected_columns[1]]
         rcv = df['RCV']
         percentage = float(self.noise_pourcentage.text()) / 100
-        noisy_rcv = rcv + np.random.normal(0, rcv.std(), time.size) * percentage
+        noisy_rcv = rcv + np.random.normal(0, rcv.std(), time_abs.size) * percentage
 
         ax1 = self.main_figure.add_subplot(211)
 
         ax2 = self.main_figure.add_subplot(212)
         ax3 = ax2.twinx()
 
-        ax1.plot(time, rcv, label="RCV", color='purple')
-        ax2.plot(time, noisy_rcv, label='Noisy RCV', color='red')
-        ax3.plot(time, voltage, label=f'Voltage - ({selected_columns[1]})', color='blue', linewidth=0.5)
+        ax1.plot(time_abs, rcv, label="RCV", color='purple')
+        ax2.plot(time_abs, noisy_rcv, label='Noisy RCV', color='red')
+        ax3.plot(time_abs, voltage, label=f'Voltage - ({selected_columns[1]})', color='blue', linewidth=0.5)
 
         ax2.set_xlabel(f"Time (s) - ({selected_columns[0]})")
         ax3.set_ylabel('Voltage (V)', color='blue')
@@ -698,15 +662,10 @@ class MainView(QMainWindow):
         ax2.legend(loc='upper left')
         ax3.legend(loc='upper right')
 
-        ax1.set_xlim(time.min(), time.max())
-        ax2.set_xlim(time.min(), time.max())
+        ax1.set_xlim(time_abs.min(), time_abs.max())
+        ax2.set_xlim(time_abs.min(), time_abs.max())
 
         self.main_canvas.draw()
         self.controller.stop_thread()
 
-    def on_import(self):
-        print('Import action triggered')
-
-    def on_export(self):
-        print('Export action triggered')
 

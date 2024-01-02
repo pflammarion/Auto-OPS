@@ -185,6 +185,7 @@ class MainController:
                     lib = gdspy.GdsLibrary()
 
                     self.gds_cell_list = lib.read_gds(std_file).cells
+
                     self.lib_reader = LibReader(lib_file)
                     self.selected_layer = data["op_config"]["layer_list"]
 
@@ -327,8 +328,8 @@ class MainController:
         self.view.set_input_NA(str(self.NA_value))
         self.view.set_input_confocal(self.is_confocal)
 
-        self.view.set_cell_name(str(self.cell_name))
-        self.view.set_state_list(str(self.state_list))
+        self.view.cell_selector.set_cell_name(str(self.cell_name))
+        self.view.cell_selector.set_state_list(str(self.state_list))
 
     def upload_csv(self):
         file_dialog = QFileDialog()
@@ -448,8 +449,9 @@ class MainController:
         return amp_rel
 
     def update_cell_values(self):
-        cell_name_value = self.view.get_cell_name()
-        state_list_value = self.view.get_state_list()
+        cell_name_value = self.view.cell_selector.get_cell_name()
+        self.view.cell_selector.set_cell_name(str(cell_name_value))
+        state_list_value = self.view.cell_selector.get_state_list()
 
         self.def_file = None
 
