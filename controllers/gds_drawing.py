@@ -428,8 +428,7 @@ def benchmark_matrix(object_list, def_extract, G1, G2, vpi_extraction=None, area
     start_col = (large_matrix_columns - width) // 2
     large_matrix[start_row:start_row + height, start_col:start_col + width] = layout
 
-    return large_matrix
-
+    return large_matrix, scale_up
 
 
 def export_matrix_reflection(op_object, G1, G2):
@@ -467,8 +466,7 @@ def export_matrix_reflection(op_object, G1, G2):
     start_col = (large_matrix_columns - width) // 2
     large_matrix[start_row:start_row + height, start_col:start_col + width] = layout
 
-    return large_matrix
-
+    return large_matrix, scale_up
 
 
 def export_reflection_to_png_over_gds_cell(op_object, reflection_draw=False, with_axes=True, flip_flop=None) -> None:

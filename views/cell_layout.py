@@ -61,7 +61,10 @@ class CellLayout(QWidget):
 
     def get_cell_name(self):
         selected_items = self.listWidget.selectedItems()
-        return selected_items[0].text()
+        if selected_items:
+            return selected_items[0].text()
+        else:
+            return self.filterLineEdit.text()
 
     def get_state_list(self):
         return self.state_list.text()

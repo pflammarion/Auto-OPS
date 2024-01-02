@@ -24,6 +24,7 @@ from views.technology_dialog import TechnologySelectionDialog
 class MainController:
     def __init__(self):
 
+        self.scale_up = None
         self.gds_cell_list = None
         self.lib_reader = None
         self.selected_layer = None
@@ -95,13 +96,14 @@ class MainController:
         threading.Thread(target=self.reload_view_wrapper).start()
 
     def reload_view_wrapper(self):
+        self.scale_up = None
         self.view.set_footer_label("... Loading ...")
         start = time.time()
         if not self.imported_image:
             lam, G1, G2, Gap = self.parameters_init(self.Kn_value, self.Kp_value, self.voltage_value, self.beta_value, self.Pl_value)
             if self.op_master is not None:
                 if self.def_file is not None:
-                    self.image_matrix = gds_drawing.benchmark_matrix(self.object_storage_list, self.def_file, G1, G2, self.vpi_extraction, self.selected_area)
+                    self.image_matrix, self.scale_up = gds_drawing.benchmark_matrix(self.object_storage_list, self.def_file, G1, G2, self.vpi_extraction, self.selected_area)
                 else:
                     if self.cell_name not in self.object_storage_list.keys():
                         self.extract_op_cell(self.cell_name)
@@ -110,7 +112,7 @@ class MainController:
                         self.apply_state_op(self.state_list)
 
                     op_object = self.object_storage_list[self.cell_name][self.state_list]
-                    self.image_matrix = gds_drawing.export_matrix_reflection(op_object, G1, G2)
+                    self.image_matrix, self.scale_up = gds_drawing.export_matrix_reflection(op_object, G1, G2)
 
             else:
                 self.image_matrix = self.draw_layout(lam, G1, G2, Gap)

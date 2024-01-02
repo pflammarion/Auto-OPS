@@ -8,6 +8,7 @@ from PyQt5.QtWidgets import QAction, QMainWindow, QWidget, QGridLayout, QLabel, 
 from PyQt5.QtCore import Qt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
+from matplotlib_scalebar.scalebar import ScaleBar
 
 from views.cell_layout import CellLayout
 
@@ -504,6 +505,11 @@ class MainView(QMainWindow):
             self.main_figure.colorbar(im)
         else:
             ax.imshow(image_matrix, cmap='gist_gray', origin='lower')
+
+        if self.controller.scale_up is not None:
+            scale = self.controller.scale_up
+            scalebar = ScaleBar(1/scale, units="um", location="lower left")
+            ax.add_artist(scalebar)
 
         ax.set_title(str(title))
         ax.set_xlabel("x")
