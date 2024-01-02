@@ -26,3 +26,7 @@ QPushButton:hover {
 #main {
     background-color: #212121;
 }
+
+* {
+    color: #FFFFFF;
+}
