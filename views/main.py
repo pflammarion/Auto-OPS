@@ -1,10 +1,12 @@
 import re
+import sys
 import time
 
 import numpy as np
 from PyQt5.QtGui import QPixmap, QIcon
-from PyQt5.QtWidgets import QAction, QMainWindow, QWidget, QGridLayout, QLabel, QPushButton, QVBoxLayout, QLineEdit, QCheckBox, \
-    QHBoxLayout, QMessageBox
+from PyQt5.QtWidgets import QAction, QMainWindow, QWidget, QGridLayout, QLabel, QPushButton, QVBoxLayout, QLineEdit, \
+    QCheckBox, \
+    QHBoxLayout, QMessageBox, QApplication, QMenu
 from PyQt5.QtCore import Qt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
@@ -87,6 +89,7 @@ class MainView(QMainWindow):
         self.setStyleSheet(open("resources/styles.css").read())
 
         main_widget = QWidget()
+        main_widget.setObjectName("main")
         self.setCentralWidget(main_widget)
 
         layout = QGridLayout(main_widget)
@@ -286,7 +289,15 @@ class MainView(QMainWindow):
 
     def init_menu_bar(self):
         menubar = self.menuBar()
-        window_menu = menubar.addMenu('Import / Export')
+
+        window_menu = QMenu('Import / Export', self)
+        menubar.addMenu(window_menu)
+
+        exit_action = QAction("Stop Auto-OPS", self)
+        exit_action.triggered.connect(QApplication.instance().quit)
+        window_menu.addAction(exit_action)
+
+        window_menu.addSeparator()
 
         import_png_file = QAction('Import PNG file', self)
         import_png_file.triggered.connect(self.controller.upload_image)
