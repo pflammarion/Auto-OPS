@@ -508,7 +508,7 @@ class MainView(QMainWindow):
 
         if self.controller.scale_up is not None:
             scale = self.controller.scale_up
-            scalebar = ScaleBar(1/scale, units="um", location="lower left")
+            scalebar = ScaleBar(1/scale, units="um", location="lower left", label=f"1μm:{scale}px")
             ax.add_artist(scalebar)
 
         ax.set_title(str(title))
