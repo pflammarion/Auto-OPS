@@ -571,7 +571,7 @@ class MainController:
         points = np.where(self.image_matrix != 0, 1, 0)
         mask, _ = self.calc_and_plot_RCV(offset=[self.y_position, self.x_position])
 
-        result = cv2.addWeighted(points, 1, mask, 0.5, 0)
+        result = cv2.addWeighted(points, 1, mask, 1, 0)
 
         self.view.display_image(result, self.is_plot_export, self.main_label_value)
 
@@ -648,7 +648,7 @@ class MainController:
 
         if self.high_gate_state_layout is not None:
             points = np.where(self.high_gate_state_layout != 0, 1, 0)
-            result = cv2.addWeighted(points, 1, mask, 0.5, 0)
+            result = cv2.addWeighted(points, 1, mask, 1, 0)
             self.view.display_optional_image(result)
 
         self.view.plot_dataframe(self.dataframe, selected_columns)
