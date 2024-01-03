@@ -15,10 +15,10 @@ from scipy.signal import fftconvolve
 from controllers import gds_drawing, def_parser
 from controllers.GDS_Object.op import Op
 from controllers.lib_reader import LibReader
-from views.column_dialog import ColumnSelectionDialog
-from views.layer_list_dialog import LayerSelectionDialog
+from views.dialogs.column_dialog import ColumnSelectionDialog
+from views.dialogs.layer_list_dialog import LayerSelectionDialog
 from views.main import MainView
-from views.technology_dialog import TechnologySelectionDialog
+from views.dialogs.technology_dialog import TechnologySelectionDialog
 
 
 class MainController:
@@ -627,9 +627,10 @@ class MainController:
         self.view.display_second_image(inverted_image, self.is_plot_export, "Absolute EOFM - " + self.main_label_value)
 
     def update_settings(self):
-        lam_input = self.view.get_input_lam()
-        NA_input = self.view.get_input_NA()
-        confocal_input = self.view.get_input_confocal()
+        laser_values = self.view.laser_layout.get_laser_values()
+        lam_input = laser_values['lam_value']
+        NA_input = laser_values['NA_value']
+        confocal_input = laser_values['is_confocal']
 
         if lam_input is not None and lam_input != "":
             self.lam_value = float(lam_input)

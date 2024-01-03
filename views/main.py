@@ -12,12 +12,14 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from matplotlib_scalebar.scalebar import ScaleBar
 
-from views.cell_layout import CellLayout
+from views.components.cell_layout import CellLayout
+from views.components.laser_layout import LaserLayout
 
 
 class MainView(QMainWindow):
     def __init__(self, controller):
         super().__init__()
+
         self.controller = controller
 
         self.info_input_Kn = QLineEdit(self)
@@ -46,12 +48,13 @@ class MainView(QMainWindow):
         self.info_button_column_voltage.setCursor(Qt.CursorShape.PointingHandCursor)
         self.info_button_column_voltage.clicked.connect(self.controller.volage_column_dialog)
 
+        self.laser_layout = LaserLayout({'lam_value': self.controller.lam_value,
+                                         'NA_value': self.controller.NA_value,
+                                         'is_confocal': self.controller.is_confocal
+                                         })
+
         self.selector_input_x = None
         self.selector_input_y = None
-
-        self.selector_input_lam = None
-        self.selector_input_NA = None
-        self.selector_input_confocal = None
 
         self.main_figure = None
         self.main_canvas = None
@@ -124,8 +127,9 @@ class MainView(QMainWindow):
         cell_widget = self.init_cell_widget()
 
         # Creating the laser widget
-
-        laser_widget = self.init_laser_widget()
+        laser_widget = self.laser_layout.widget
+        laser_submit_btn = self.laser_layout.submit_btn
+        laser_submit_btn.clicked.connect(self.controller.update_physics_values)
 
         # Creating the navigation bar widget
         nav_bar = self.init_nav_bar(central_layout)
@@ -214,7 +218,6 @@ class MainView(QMainWindow):
             voltage_widget.hide()
             self.info_button_column_voltage.show()
             noise_pourcentage_widget.show()
-
 
     def init_nav_bar(self, central_layout) -> QWidget:
         nav_bar_widget = QWidget()
@@ -414,54 +417,6 @@ class MainView(QMainWindow):
 
         return plot_container_widget
 
-    def init_laser_widget(self) -> QWidget:
-        widget = QWidget()
-        layout = QVBoxLayout(widget)
-
-        self.selector_input_lam = QLineEdit(self)
-        self.selector_input_lam.setText(str(self.controller.lam_value))
-        self.selector_input_lam.setPlaceholderText(str(self.controller.lam_value))
-        label_lam = QLabel("Lambda:")
-
-        self.selector_input_NA = QLineEdit(self)
-        self.selector_input_NA.setText(str(self.controller.NA_value))
-        self.selector_input_NA.setPlaceholderText(str(self.controller.NA_value))
-        label_NA = QLabel("NA:")
-
-        self.selector_input_confocal = QCheckBox()
-        self.selector_input_confocal.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.selector_input_confocal.setChecked(bool(self.controller.is_confocal))
-        label_confocal = QLabel("Confocal")
-
-        info_button = QPushButton("Submit values", self)
-        info_button.setCursor(Qt.CursorShape.PointingHandCursor)
-        info_button.clicked.connect(self.controller.update_physics_values)
-
-        layout_confocal = QHBoxLayout()
-        layout_lam = QHBoxLayout()
-        layout_NA = QHBoxLayout()
-
-        layout_confocal.addWidget(label_confocal)
-        layout_confocal.addWidget(self.selector_input_confocal)
-
-        layout_lam.addWidget(label_lam)
-        layout_lam.addWidget(self.selector_input_lam)
-
-        layout_NA.addWidget(label_NA)
-        layout_NA.addWidget(self.selector_input_NA)
-
-        layout.addLayout(layout_lam)
-        layout.addLayout(layout_NA)
-        layout.addLayout(layout_confocal)
-
-        layout.addWidget(info_button)
-
-        layout.setAlignment(Qt.AlignmentFlag.AlignTop)
-        layout.setSpacing(20)
-        widget.setMaximumWidth(200)
-
-        return widget
-
     def init_rcv_widget(self) -> QWidget:
         selector_widget = QWidget()
         selector_label_x = QLabel("x: ", self)
@@ -628,24 +583,6 @@ class MainView(QMainWindow):
     def set_input_y(self, value):
         if self.selector_input_y is not None:
             self.selector_input_y.setText(value)
-
-    def get_input_lam(self):
-        return self.selector_input_lam.text()
-
-    def set_input_lam(self, value):
-        self.selector_input_lam.setText(value)
-
-    def get_input_NA(self):
-        return self.selector_input_NA.text()
-
-    def set_input_NA(self, value):
-        self.selector_input_NA.setText(value)
-
-    def get_input_confocal(self):
-        return self.selector_input_confocal.isChecked()
-
-    def set_input_confocal(self, value):
-        self.selector_input_confocal.setChecked(value)
 
     def set_technology_label(self, text):
         self.technology_label.setText(text)
