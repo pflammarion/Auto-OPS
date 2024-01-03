@@ -24,6 +24,7 @@ from views.technology_dialog import TechnologySelectionDialog
 class MainController:
     def __init__(self):
 
+        self.patch_counter = None
         self.scale_up = None
         self.gds_cell_list = None
         self.lib_reader = None
@@ -178,11 +179,11 @@ class MainController:
 
                     selected_area = data["op_config"]["selected_area"]
                     if selected_area is not None and selected_area != "":
-                        self.selected_area = selected_area
+                        self.selected_area = int(selected_area)
 
                     selected_patch_size = data["op_config"]["selected_patch_size"]
                     if selected_patch_size is not None and selected_patch_size != "":
-                       self.selected_patch_size = selected_patch_size
+                        self.selected_patch_size = int(selected_patch_size)
 
                     lib = gdspy.GdsLibrary()
 
@@ -201,6 +202,7 @@ class MainController:
                     if def_file is not None and def_file != "":
                         self.def_file = def_parser.get_gates_info_from_def_file(def_file, self.selected_patch_size)
                         cell_name_list = self.def_file[2]
+                        self.patch_counter = self.def_file[3]
                         for cell_name in cell_name_list:
                             self.extract_op_cell(cell_name)
                             combinations = list(itertools.product([0, 1], repeat=len(self.op_master.inputs_list)))
@@ -214,6 +216,33 @@ class MainController:
                 print(f"Error loading JSON data: {e}")
         else:
             print(f"JSON file '{json_file_path}' does not exist.")
+
+    def patch_matrix_preview(self):
+
+        layout = np.empty(shape=(1000, 1000))
+        layout.fill(0)
+
+        patch_size = 1000 / max(self.patch_counter)
+        patch_counter = 0
+        for i in range(0, self.patch_counter[1]):
+            for j in range(0, self.patch_counter[0]):
+
+                value = 0.5
+
+                if patch_counter == self.selected_area:
+                    value = 1
+
+                patch_counter += 1
+
+                x = j * patch_size
+                y = i * patch_size
+
+                x_start, x_end = int(x), int(x + patch_size)
+                y_start, y_end = int(y), int(y + patch_size)
+
+                layout[y_start:y_end, x_start:x_end] = value
+
+        self.view.display_optional_image(layout, f"Selected Patch N°{self.selected_area}/{patch_counter-1}", False)
 
     def save_settings_to_json(self):
         json_data = {
@@ -564,6 +593,7 @@ class MainController:
             title = "Generated image.py"
 
         self.view.display_image(self.image_matrix, self.is_plot_export, title)
+        self.patch_matrix_preview()
 
     def print_rcv_image(self):
         self.dataframe = None

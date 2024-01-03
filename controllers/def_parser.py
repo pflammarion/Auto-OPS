@@ -37,7 +37,8 @@ def get_gates_info_from_def_file(file_path, patch_size) -> list:
         width_patch = int((ur_x-ll_x) / patch_size) + 1
         height_patch = int((ur_y-ll_y) / patch_size) + 1
 
-        patch_counter=0
+        patch_counter = 0
+
         for i in range(0, height_patch):
             position_y = ll_y + i * patch_size
             for j in range(0, width_patch):
@@ -71,6 +72,6 @@ def get_gates_info_from_def_file(file_path, patch_size) -> list:
     else:
         raise Exception("Def file reading error, check file or format")
 
-    def_extraction = [dif_size, gate_dict, cell_list]
+    def_extraction = [dif_size, gate_dict, cell_list, [width_patch, height_patch]]
 
     return def_extraction

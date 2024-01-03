@@ -136,6 +136,7 @@ class MainView(QMainWindow):
 
         preview_widget = self.init_preview_layout()
         preview_widget.setMaximumHeight(400)
+        preview_widget.setMinimumWidth(400)
 
         # Creating the plot widget
 
@@ -208,12 +209,12 @@ class MainView(QMainWindow):
             left_layout.addWidget(widget, 1, 0)
             self.preview_canvas.show()
 
+            left_widget.setMaximumWidth(400)
+
             voltage_widget.hide()
             self.info_button_column_voltage.show()
             noise_pourcentage_widget.show()
 
-            left_widget.setMaximumWidth(400)
-            left_layout.itemAtPosition(2, 0).widget().setMinimumWidth(400)
 
     def init_nav_bar(self, central_layout) -> QWidget:
         nav_bar_widget = QWidget()
@@ -237,7 +238,7 @@ class MainView(QMainWindow):
         main_button1.setCursor(Qt.CursorShape.PointingHandCursor)
         main_button1.clicked.connect(lambda: self.set_selected(main_button1))
 
-        main_button1.clicked.connect(lambda: self.set_mode(central_layout, 0))
+        main_button1.clicked.connect(lambda: self.set_mode(central_layout, 4))
         main_button1.clicked.connect(lambda: self.controller.set_state(0))
 
         RCV_pixmap = QPixmap('resources/logo/RCV_logo.png')
@@ -540,15 +541,19 @@ class MainView(QMainWindow):
         self.preview_figure.clear()
         self.second_figure.clear()
 
-    def display_optional_image(self, image_matrix, title=""):
+    def display_optional_image(self, image_matrix, title="", axis=True):
         if len(self.preview_figure.axes) > 0:
             self.preview_figure.clear()
 
         ax = self.preview_figure.add_subplot(111)
         ax.imshow(image_matrix, cmap='gist_gray', origin='lower')
         ax.set_title(str(title))
-        ax.set_xlabel("x")
-        ax.set_ylabel('y')
+
+        if axis:
+            ax.set_xlabel("x")
+            ax.set_ylabel('y')
+        else:
+            ax.axis('off')
 
         self.preview_canvas.draw()
         self.controller.stop_thread()
