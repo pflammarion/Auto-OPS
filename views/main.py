@@ -1,13 +1,18 @@
 import re
+import sys
 import time
 
 import numpy as np
 from PyQt5.QtGui import QPixmap, QIcon
-from PyQt5.QtWidgets import QAction, QMainWindow, QWidget, QGridLayout, QLabel, QPushButton, QVBoxLayout, QLineEdit, QCheckBox, \
-    QHBoxLayout, QMessageBox
+from PyQt5.QtWidgets import QAction, QMainWindow, QWidget, QGridLayout, QLabel, QPushButton, QVBoxLayout, QLineEdit, \
+    QCheckBox, \
+    QHBoxLayout, QMessageBox, QApplication, QMenu
 from PyQt5.QtCore import Qt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
+from matplotlib_scalebar.scalebar import ScaleBar
+
+from views.cell_layout import CellLayout
 
 
 class MainView(QMainWindow):
@@ -61,9 +66,15 @@ class MainView(QMainWindow):
         self.footer_label.setObjectName("footer")
         self.footer_label.setAlignment(Qt.AlignmentFlag.AlignRight)
 
-        self.technologie_label = QLabel()
-        self.technologie_label.setObjectName("footer")
-        self.technologie_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
+        self.technology_label = QLabel()
+        self.technology_label.setObjectName("footer")
+        self.technology_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
+
+        self.cell_selector = CellLayout(self.controller.gds_cell_list)
+        self.cell_selector.filterLineEdit.textChanged.connect(lambda: self.cell_selector.filter_items())
+        self.cell_selector.cell_button.clicked.connect(lambda: self.controller.update_cell_values())
+        self.cell_selector.set_cell_name(str(self.controller.cell_name))
+        self.cell_selector.set_state_list(str(self.controller.state_list))
 
         self.buttons = []
 
@@ -78,10 +89,11 @@ class MainView(QMainWindow):
         self.setStyleSheet(open("resources/styles.css").read())
 
         main_widget = QWidget()
+        main_widget.setObjectName("main")
         self.setCentralWidget(main_widget)
 
         layout = QGridLayout(main_widget)
-        #main_widget.setStyleSheet("border : 1px solid black")
+        # main_widget.setStyleSheet("border : 1px solid black")
 
         central_widget = QWidget()
         central_layout = QGridLayout(central_widget)
@@ -107,6 +119,10 @@ class MainView(QMainWindow):
 
         info_widget = self.init_physic_info_widget()
 
+        # Creating cell widget
+
+        cell_widget = self.init_cell_widget()
+
         # Creating the laser widget
 
         laser_widget = self.init_laser_widget()
@@ -120,6 +136,7 @@ class MainView(QMainWindow):
 
         preview_widget = self.init_preview_layout()
         preview_widget.setMaximumHeight(400)
+        preview_widget.setMinimumWidth(400)
 
         # Creating the plot widget
 
@@ -128,7 +145,7 @@ class MainView(QMainWindow):
         footer_widget = QWidget()
         footer_layout = QGridLayout(footer_widget)
         footer_layout.addWidget(self.footer_label, 0, 1)
-        footer_layout.addWidget(self.technologie_label, 0, 0)
+        footer_layout.addWidget(self.technology_label, 0, 0)
         footer_widget.setMaximumHeight(50)
         footer_widget.setMinimumHeight(50)
 
@@ -137,6 +154,7 @@ class MainView(QMainWindow):
         left_layout.addWidget(laser_widget, 0, 0)
         left_layout.addWidget(preview_widget, 2, 0)
         right_widget_layout.addWidget(info_widget, 0, 0)
+        right_widget_layout.addWidget(cell_widget, 1, 0)
         main_central_layout.addWidget(plot_container_widget, 0, 0)
 
         central_layout.addWidget(left_widget, 0, 0)
@@ -165,7 +183,6 @@ class MainView(QMainWindow):
         self.info_button_column_voltage.hide()
         voltage_widget.show()
 
-
         self.preview_canvas.hide()
         self.second_canvas.hide()
         noise_pourcentage_widget.hide()
@@ -192,12 +209,12 @@ class MainView(QMainWindow):
             left_layout.addWidget(widget, 1, 0)
             self.preview_canvas.show()
 
+            left_widget.setMaximumWidth(400)
+
             voltage_widget.hide()
             self.info_button_column_voltage.show()
             noise_pourcentage_widget.show()
 
-            left_widget.setMaximumWidth(400)
-            left_layout.itemAtPosition(2, 0).widget().setMinimumWidth(400)
 
     def init_nav_bar(self, central_layout) -> QWidget:
         nav_bar_widget = QWidget()
@@ -221,7 +238,7 @@ class MainView(QMainWindow):
         main_button1.setCursor(Qt.CursorShape.PointingHandCursor)
         main_button1.clicked.connect(lambda: self.set_selected(main_button1))
 
-        main_button1.clicked.connect(lambda: self.set_mode(central_layout, 0))
+        main_button1.clicked.connect(lambda: self.set_mode(central_layout, 4))
         main_button1.clicked.connect(lambda: self.controller.set_state(0))
 
         RCV_pixmap = QPixmap('resources/logo/RCV_logo.png')
@@ -273,7 +290,15 @@ class MainView(QMainWindow):
 
     def init_menu_bar(self):
         menubar = self.menuBar()
-        window_menu = menubar.addMenu('Import / Export')
+
+        window_menu = QMenu('Import / Export', self)
+        menubar.addMenu(window_menu)
+
+        exit_action = QAction("Stop Auto-OPS", self)
+        exit_action.triggered.connect(QApplication.instance().quit)
+        window_menu.addAction(exit_action)
+
+        window_menu.addSeparator()
 
         import_png_file = QAction('Import PNG file', self)
         import_png_file.triggered.connect(self.controller.upload_image)
@@ -300,6 +325,14 @@ class MainView(QMainWindow):
         self.preview_canvas.hide()
 
         return self.preview_canvas
+
+    def init_cell_widget(self) -> QWidget:
+        cell_widget = QWidget()
+
+        cell_layout = QVBoxLayout(cell_widget)
+        cell_layout.addLayout(self.cell_selector.get_layout())
+
+        return cell_widget
 
     def init_physic_info_widget(self) -> QWidget:
         info_widget = QWidget()
@@ -480,10 +513,15 @@ class MainView(QMainWindow):
         ax = self.main_figure.add_subplot(111)
 
         if lps:
-            im = ax.imshow(image_matrix)
+            im = ax.imshow(image_matrix, cmap='Reds', origin='lower')
             self.main_figure.colorbar(im)
         else:
-            ax.imshow(image_matrix, cmap='gist_gray')
+            ax.imshow(image_matrix, cmap='gist_gray', origin='lower')
+
+        if self.controller.scale_up is not None:
+            scale = self.controller.scale_up
+            scalebar = ScaleBar(1/scale, units="um", location="lower left", label=f"1:{scale}")
+            ax.add_artist(scalebar)
 
         ax.set_title(str(title))
         ax.set_xlabel("x")
@@ -503,15 +541,19 @@ class MainView(QMainWindow):
         self.preview_figure.clear()
         self.second_figure.clear()
 
-    def display_optional_image(self, image_matrix, title=""):
+    def display_optional_image(self, image_matrix, title="", axis=True):
         if len(self.preview_figure.axes) > 0:
             self.preview_figure.clear()
 
         ax = self.preview_figure.add_subplot(111)
-        ax.imshow(image_matrix, cmap='gist_gray')
+        ax.imshow(image_matrix, cmap='gist_gray', origin='lower')
         ax.set_title(str(title))
-        ax.set_xlabel("x")
-        ax.set_ylabel('y')
+
+        if axis:
+            ax.set_xlabel("x")
+            ax.set_ylabel('y')
+        else:
+            ax.axis('off')
 
         self.preview_canvas.draw()
         self.controller.stop_thread()
@@ -605,8 +647,8 @@ class MainView(QMainWindow):
     def set_input_confocal(self, value):
         self.selector_input_confocal.setChecked(value)
 
-    def set_technologie_label(self, text):
-        self.technologie_label.setText(text)
+    def set_technology_label(self, text):
+        self.technology_label.setText(text)
 
     def set_footer_label(self, text):
         self.footer_label.setText(text)
@@ -617,20 +659,20 @@ class MainView(QMainWindow):
     def plot_dataframe(self, df, selected_columns):
         if len(self.main_figure.axes) > 0:
             self.main_figure.clear()
-        time = df[selected_columns[0]]
+        time_abs = df[selected_columns[0]]
         voltage = df[selected_columns[1]]
         rcv = df['RCV']
         percentage = float(self.noise_pourcentage.text()) / 100
-        noisy_rcv = rcv + np.random.normal(0, rcv.std(), time.size) * percentage
+        noisy_rcv = rcv + np.random.normal(0, rcv.std(), time_abs.size) * percentage
 
         ax1 = self.main_figure.add_subplot(211)
 
         ax2 = self.main_figure.add_subplot(212)
         ax3 = ax2.twinx()
 
-        ax1.plot(time, rcv, label="RCV", color='purple')
-        ax2.plot(time, noisy_rcv, label='Noisy RCV', color='red')
-        ax3.plot(time, voltage, label=f'Voltage - ({selected_columns[1]})', color='blue', linewidth=0.5)
+        ax1.plot(time_abs, rcv, label="RCV", color='purple')
+        ax2.plot(time_abs, noisy_rcv, label='Noisy RCV', color='red')
+        ax3.plot(time_abs, voltage, label=f'Voltage - ({selected_columns[1]})', color='blue', linewidth=0.5)
 
         ax2.set_xlabel(f"Time (s) - ({selected_columns[0]})")
         ax3.set_ylabel('Voltage (V)', color='blue')
@@ -642,15 +684,10 @@ class MainView(QMainWindow):
         ax2.legend(loc='upper left')
         ax3.legend(loc='upper right')
 
-        ax1.set_xlim(time.min(), time.max())
-        ax2.set_xlim(time.min(), time.max())
+        ax1.set_xlim(time_abs.min(), time_abs.max())
+        ax2.set_xlim(time_abs.min(), time_abs.max())
 
         self.main_canvas.draw()
         self.controller.stop_thread()
 
-    def on_import(self):
-        print('Import action triggered')
-
-    def on_export(self):
-        print('Export action triggered')
 

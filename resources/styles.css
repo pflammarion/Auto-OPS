@@ -22,3 +22,11 @@ QPushButton:hover {
 #footer {
     font-style: italic;
 }
+
+#main {
+    background-color: #212121;
+}
+
+* {
+    color: #FFFFFF;
+}

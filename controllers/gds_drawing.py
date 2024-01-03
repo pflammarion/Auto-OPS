@@ -1,3 +1,5 @@
+import random
+
 import pytest
 from datetime import datetime
 import json
@@ -173,72 +175,61 @@ def count_unknown_states(op_object) -> None:
     print(f"\033[1;33m \n {op_object.name}, {op_object.inputs}, None states = {state_counter}, Loop counter = {op_object.loop_counter}")
 
 
-def benchmark(object_list, def_extract, plot, vpi_extraction=None, area=None, plot_realtime=None) -> None:
+def benchmark(object_list, def_extract, plot, vpi_extraction=None, area=None, patch_size=None) -> None:
     ur_x = def_extract[0]["ur_x"]
     ll_x = def_extract[0]["ll_x"]
     ur_y = def_extract[0]["ur_y"]
     ll_y = def_extract[0]["ll_y"]
 
-    micron = def_extract[0]["micron"]
-
-    # Create a new figure
     #plt.figure(figsize=(8, 8))
 
     if plot:
         plt.gca().set_facecolor('black')
         plt.gca().set_aspect('equal', adjustable='box')
 
-        if area:
-            plt.xlim(area[0], area[1])
-            plt.ylim(area[2], area[3])
-        else:
-            plt.xlim(min(ll_x, ur_x) - 1, max(ll_x, ur_x) + 1)
-            plt.ylim(min(ll_y, ur_y) - 1, max(ll_y, ur_y) + 1)
+    if area and patch_size:
+        def_zone = def_extract[1][area]
 
-    draw_counter = 0
-    for cell_name, cell_place in def_extract[1].items():
-        if cell_name in object_list.keys():
-            for position in cell_place:
-                if area:
-                    x_check, y_check = position['Coordinates']
-                    # area [x_min, x_max, y_min, y_max]
-                    if area[0] < x_check/micron < area[1] and area[2] < y_check/micron < area[3]:
-                        is_used = True
-                    else:
-                        is_used = False
-                else:
-                    is_used = True
+        origin_x = def_zone['position_x']
+        origin_y = def_zone['position_y']
+        plt.xlim(origin_x, origin_x + patch_size)
+        plt.ylim(origin_y, origin_y + patch_size)
 
-                if is_used:
-                    draw_counter += 1
-                    if vpi_extraction:
-                        op_object = vpi_object_extractor(object_list[cell_name], cell_name, vpi_extraction, position)
-                    else:
-                        key = list(object_list[cell_name].keys())[0]
-                        op_object = object_list[cell_name][key]
+    else:
+        plt.xlim(ll_x - 1, ur_x + 1)
+        plt.ylim(ll_y - 1, ur_y + 1)
 
-                    for zone in op_object.orientation_list[position['Orientation']]:
-                        x, y = zone["coords"]
-                        x_adder, y_adder = position['Coordinates']
-                        x = tuple([element + x_adder/micron for element in x])
-                        y = tuple([element + y_adder/micron for element in y])
+        for i in range(len(def_extract[1])):
+            def_zone = def_extract[1][i]
+            plt.pause(0.0001)
+            plt.draw()
 
-                        state = zone["state"]
-
-                        if zone["diff_type"] == ShapeType.PMOS:
-                            if state is None:
-                                reflect = False
-                            else:
-                                reflect = not state
+            for cell_name, cell_place in def_zone['gates'].items():
+                if cell_name in object_list.keys():
+                    for position in cell_place:
+                        if vpi_extraction:
+                            op_object = vpi_object_extractor(object_list[cell_name], cell_name, vpi_extraction, position)
                         else:
-                            reflect = state
-                        if bool(reflect) and plot:
-                            plt.fill(x, y, facecolor='white', alpha=1)
+                            key = list(object_list[cell_name].keys())[0]
+                            op_object = object_list[cell_name][key]
 
-                if plot_realtime and draw_counter > plot_realtime:
-                    plt.pause(0.0001)
-                    plt.draw()
-                    draw_counter = 0
+                        for zone in op_object.orientation_list[position['Orientation']]:
+                            x, y = zone["coords"]
+                            x_adder, y_adder = position['Coordinates']
+                            x = tuple([element + x_adder for element in x])
+                            y = tuple([element + y_adder for element in y])
+
+                            state = zone["state"]
+
+                            if zone["diff_type"] == ShapeType.PMOS:
+                                if state is None:
+                                    reflect = False
+                                else:
+                                    reflect = not state
+                            else:
+                                reflect = state
+                            if bool(reflect) and plot:
+                                plt.fill(x, y, facecolor='white', alpha=1)
 
     if plot:
         plt.show()
@@ -279,7 +270,7 @@ def benchmark_export_data(def_extract, ex_time, def_name):
 
     with open('benchmarks.log', 'a') as f:
         execution_time = round(ex_time, 4)
-        f.write(f"& {def_name} & & & {len(def_extract[1].keys())} & {number_op_coord} & {area_square_meters} & {execution_time} \\\\ \cline{{2-8}} \n")
+        f.write(f"& {def_name} & & & {len(def_extract[2])} & {number_op_coord} & {area_square_meters} & {execution_time} \\\\ \cline{{2-8}} \n")
         #f.write(f"{def_name} & {execution_time} \\\\ \cline{{2-8}} \n")
 
 
@@ -362,6 +353,120 @@ def export_reflection_to_png(op_object) -> None:
     plt.title(file_name)
     plt.savefig(path_name)
     plt.close()
+
+
+def benchmark_matrix(object_list, def_extract, G1, G2, vpi_extraction=None, area=0):
+
+    patch_size = def_extract[0]["patch_size"]
+
+    def_zone = def_extract[1][area]
+
+    ur_x = def_extract[0]["ur_x"]
+    ll_x = def_extract[0]["ll_x"]
+    ur_y = def_extract[0]["ur_y"]
+    ll_y = def_extract[0]["ll_y"]
+
+    width = ur_x - ll_x
+    height = ur_y - ll_y
+
+    if width > patch_size:
+        width = patch_size
+    if height > patch_size:
+        height = patch_size
+
+    origin_x = def_zone['position_x']
+    origin_y = def_zone['position_y']
+
+    scale_up = int(3000/max(width, height))
+
+    width = int(width*scale_up)
+    height = int(height*scale_up)
+
+    if width > 3000:
+        width = 3000
+
+    if height > 3000:
+        height = 3000
+
+    x_m, y_m = np.meshgrid(np.arange(width), np.arange(height))
+    layout = np.zeros((height, width))
+    for cell_name, cell_place in def_zone['gates'].items():
+        if cell_name in object_list.keys():
+            for position in cell_place:
+                if vpi_extraction:
+                    op_object = vpi_object_extractor(object_list[cell_name], cell_name, vpi_extraction, position)
+                else:
+                    key_list = list(object_list[cell_name].keys())
+                    key = key_list[0]
+                    op_object = object_list[cell_name][key]
+
+                for zone in op_object.orientation_list[position['Orientation']]:
+                    x, y = zone["coords"]
+                    x_adder, y_adder = position['Coordinates']
+                    x = tuple([int(((element + x_adder)-origin_x)*scale_up) for element in x])
+                    y = tuple([int(((element + y_adder)-origin_y)*scale_up) for element in y])
+
+                    state = zone["state"]
+
+                    value = None
+                    if state is None:
+                        state = False
+                    if zone["diff_type"] == ShapeType.PMOS:
+                        if not state:
+                            value = G2
+                    else:
+                        if state:
+                            value = G1
+
+                    if value is not None:
+                        mask = (x_m >= min(x)) & (x_m <= max(x)) & (y_m >= min(y)) & (y_m <= max(y))
+                        layout[mask] = value
+
+    large_matrix_rows, large_matrix_columns = 3000, 3000
+    large_matrix = np.zeros((large_matrix_rows, large_matrix_columns))
+    start_row = (large_matrix_rows - height) // 2
+    start_col = (large_matrix_columns - width) // 2
+    large_matrix[start_row:start_row + height, start_col:start_col + width] = layout
+
+    return large_matrix, scale_up
+
+
+def export_matrix_reflection(op_object, G1, G2):
+    scale_up = 500
+    width = int(op_object.get_width()*scale_up)
+    height = int(op_object.get_height()*scale_up)
+    layout = np.zeros((height, width))
+    x_m, y_m = np.meshgrid(np.arange(width), np.arange(height))
+
+    for reflection in op_object.reflection_list:
+        for zone in reflection.zone_list:
+            x, y = zone.coordinates
+
+            x = tuple([int(element * scale_up) for element in x])
+            y = tuple([int(element * scale_up) for element in y])
+
+            state = zone.state
+            value = None
+            if state is None:
+                state = False
+            if reflection.shape_type == ShapeType.PMOS:
+                if not state:
+                    value = G2
+            else:
+                if state:
+                    value = G1
+
+            if value is not None:
+                mask = (x_m >= min(x)) & (x_m <= max(x)) & (y_m >= min(y)) & (y_m <= max(y))
+                layout[mask] = value
+
+    large_matrix_rows, large_matrix_columns = 3000, 3000
+    large_matrix = np.zeros((large_matrix_rows, large_matrix_columns))
+    start_row = (large_matrix_rows - height) // 2
+    start_col = (large_matrix_columns - width) // 2
+    large_matrix[start_row:start_row + height, start_col:start_col + width] = layout
+
+    return large_matrix, scale_up
 
 
 def export_reflection_to_png_over_gds_cell(op_object, reflection_draw=False, with_axes=True, flip_flop=None) -> None:
@@ -479,14 +584,14 @@ def export_reflection_to_png_over_gds_cell(op_object, reflection_draw=False, wit
     plt.close()
 
 
-def unit_test(processed_cells, unit_test_technologie):
+def unit_test(processed_cells, unit_test_technology):
     reset_color = "\033[0m"
     green_color = "\033[1;32m"
     red_color = "\033[1;31m"
 
     test_length = len(processed_cells.keys())
     test_counter = 0
-    reference_file = f'test/{str(unit_test_technologie)}nm.json'
+    reference_file = f'test/{str(unit_test_technology)}nm.json'
     differences_list = []
 
     with open(reference_file, 'r') as ref:
