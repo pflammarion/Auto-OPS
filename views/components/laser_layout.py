@@ -1,5 +1,5 @@
 from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import QVBoxLayout, QLineEdit, QListWidget, QPushButton, QWidget, QLabel, QHBoxLayout, QCheckBox
+from PyQt5.QtWidgets import QVBoxLayout, QLineEdit, QPushButton, QWidget, QLabel, QHBoxLayout, QCheckBox
 
 
 class LaserLayout(QWidget):
@@ -20,17 +20,14 @@ class LaserLayout(QWidget):
 
         self.selector_input_lam = QLineEdit(self)
         self.selector_input_lam.setText(str(value_dict['lam_value']))
-        self.selector_input_lam.setPlaceholderText(str(value_dict['lam_value']))
         label_lam = QLabel("Lambda:")
 
         self.selector_input_NA = QLineEdit(self)
         self.selector_input_NA.setText(str(value_dict['NA_value']))
-        self.selector_input_NA.setPlaceholderText(str(value_dict['NA_value']))
         label_NA = QLabel("NA:")
 
         self.selector_input_confocal = QCheckBox()
         self.selector_input_confocal.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.selector_input_confocal.setChecked(bool(value_dict['is_confocal']))
 
         label_confocal = QLabel("Confocal")
 
@@ -62,6 +59,8 @@ class LaserLayout(QWidget):
 
         self.widget = widget
         self.layout = layout
+
+        self.update_inputs(value_dict)
 
     def update_inputs(self, value_dict):
         self.selector_input_lam.setText(str(value_dict['lam_value']))

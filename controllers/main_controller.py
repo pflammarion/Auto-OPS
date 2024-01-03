@@ -343,24 +343,16 @@ class MainController:
                 self.view.popup_window("JSON Import Successful", "JSON settings imported successfully")
 
     def update_view_input(self):
+        # TODO delete safely this function
         self.view.set_technology_label("Technology: " + str(self.technology_value) + " nm")
-
-        self.view.set_input_Kn(str(self.Kn_value))
-        self.view.set_input_Kp(str(self.Kp_value))
-        self.view.set_input_beta(str(self.beta_value))
-        self.view.set_input_Pl(str(self.Pl_value))
-        self.view.set_input_voltage(str(self.voltage_value))
-        self.view.set_input_pourcentage(str(self.noise_pourcentage))
 
         self.view.set_input_x(str(self.x_position))
         self.view.set_input_y(str(self.y_position))
 
-        self.view.set_input_lam(str(self.lam_value))
-        self.view.set_input_NA(str(self.NA_value))
-        self.view.set_input_confocal(self.is_confocal)
-
         self.view.cell_selector.set_cell_name(str(self.cell_name))
         self.view.cell_selector.set_state_list(str(self.state_list))
+
+        self.view.update_inputs_values()
 
     def upload_csv(self):
         file_dialog = QFileDialog()
@@ -502,12 +494,13 @@ class MainController:
 
         self.imported_image = False
 
-        Kn_input = self.view.get_input_Kn()
-        Kp_input = self.view.get_input_Kp()
-        beta_input = self.view.get_input_beta()
-        Pl_input = self.view.get_input_Pl()
-        voltage_input = self.view.get_input_voltage()
-        pourcentage_input = self.view.get_input_pourcentage()
+        input_values = self.view.gate_layout.get_input_values()
+        Kn_input = input_values['Kn_value']
+        Kp_input = input_values['Kp_value']
+        beta_input = input_values['beta_value']
+        Pl_input = input_values['Pl_value']
+        voltage_input = input_values['voltage_value']
+        pourcentage_input = input_values['noise_pourcentage']
 
         # Check if the inputs are not null (not None) and not empty before converting to floats
         if Kn_input is not None and Kn_input != "":
