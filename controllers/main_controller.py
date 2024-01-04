@@ -293,11 +293,10 @@ class MainController:
 
         if self.cell_name != "":
             name = self.cell_name
-        else:
-            name = "numpyarray"
-
             if self.state_list is not None:
                 name += "_" + str(self.state_list)
+        else:
+            name = "numpyarray"
 
         current_time = datetime.datetime.now()
         timestamp_string = current_time.strftime("%Y%m%d%H%M%S")
