@@ -36,7 +36,7 @@ class MainController:
         self.selected_patch_size = 20
 
         self.state_list = "1"
-        self.cell_name = "INV_X1"
+        self.cell_name = ""
 
         self.object_storage_list = {}
 
@@ -287,6 +287,24 @@ class MainController:
         end = time.time()
         self.view.set_footer_label(f"Execution time for SVG export: {end - start:.2f} seconds")
 
+    def export_np_array(self):
+        start = time.time()
+
+        if self.cell_name is not "":
+            name = self.cell_name
+        else:
+            name = "numpyarray"
+
+        if self.state_list is not None:
+            name += "_" + str(self.state_list)
+
+        np.save(f'export/np_arrays/{name}.npy', self.image_matrix)
+
+        self.view.popup_window("Export Successful", "Plots exported successfully in 'export/np_arrays' folder!")
+
+        end = time.time()
+        self.view.set_footer_label(f"Execution time for NP array export: {end - start:.2f} seconds")
+
     def upload_image(self):
         file_dialog = QFileDialog()
         file_dialog.setFileMode(QFileDialog.FileMode.ExistingFiles)
@@ -478,7 +496,7 @@ class MainController:
         if cell_name_value is not None and cell_name_value != "":
             self.cell_name = cell_name_value
         else:
-            self.cell_name = "INV_X1"
+            self.cell_name = ""
 
         if state_list_value is not None and state_list_value != "":
             self.state_list = state_list_value

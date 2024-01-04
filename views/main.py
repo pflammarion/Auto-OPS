@@ -314,6 +314,10 @@ class MainView(QMainWindow):
         export_results.triggered.connect(self.controller.export_plots)
         window_menu.addAction(export_results)
 
+        export_np_array = QAction('Export Np array plots', self)
+        export_np_array.triggered.connect(self.controller.export_np_array)
+        window_menu.addAction(export_np_array)
+
     def init_preview_layout(self) -> QWidget:
 
         self.preview_figure = Figure()
