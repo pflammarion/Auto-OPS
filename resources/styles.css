@@ -23,7 +23,8 @@ QPushButton:hover {
     font-style: italic;
 }
 
-QLineEdit {
+QLineEdit,
+QListWidget {
     background-color: #212121;
 }
 
