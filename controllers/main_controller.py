@@ -346,9 +346,6 @@ class MainController:
         # TODO delete safely this function
         self.view.set_technology_label("Technology: " + str(self.technology_value) + " nm")
 
-        self.view.set_input_x(str(self.x_position))
-        self.view.set_input_y(str(self.y_position))
-
         self.view.cell_selector.set_cell_name(str(self.cell_name))
         self.view.cell_selector.set_state_list(str(self.state_list))
 
@@ -560,8 +557,9 @@ class MainController:
         return np.where(L > 0, 1, 0), L
 
     def update_rcv_position(self):
-        x_input = self.view.get_input_x()
-        y_input = self.view.get_input_y()
+        input_values = self.view.laser_position_layout.get_input_values()
+        x_input = input_values['input_x']
+        y_input = input_values['input_y']
 
         if x_input is not None and x_input != "":
             self.x_position = int(x_input)

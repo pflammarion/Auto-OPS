@@ -1,11 +1,9 @@
 import re
-import sys
 import time
 
 import numpy as np
 from PyQt5.QtGui import QPixmap, QIcon
-from PyQt5.QtWidgets import QAction, QMainWindow, QWidget, QGridLayout, QLabel, QPushButton, QVBoxLayout, QLineEdit, \
-    QCheckBox, \
+from PyQt5.QtWidgets import QAction, QMainWindow, QWidget, QGridLayout, QLabel, QPushButton, QVBoxLayout, \
     QHBoxLayout, QMessageBox, QApplication, QMenu
 from PyQt5.QtCore import Qt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
@@ -13,8 +11,9 @@ from matplotlib.figure import Figure
 from matplotlib_scalebar.scalebar import ScaleBar
 
 from views.components.cell_layout import CellLayout
-from views.components.gate_config import GateLayout
+from views.components.gate_layout import GateLayout
 from views.components.laser_layout import LaserLayout
+from views.components.laser_position_layout import LaserPositionLayout
 
 
 class MainView(QMainWindow):
@@ -36,9 +35,7 @@ class MainView(QMainWindow):
                                        'voltage_value': self.controller.voltage_value,
                                        'noise_pourcentage': self.controller.noise_pourcentage
                                        })
-
-        self.selector_input_x = None
-        self.selector_input_y = None
+        self.laser_position_layout = LaserPositionLayout()
 
         self.main_figure = None
         self.main_canvas = None
@@ -186,7 +183,12 @@ class MainView(QMainWindow):
 
         # RCV mode
         if mode == 1:
-            widget = self.init_rcv_widget()
+            self.laser_position_layout.init_ui({'input_x': self.controller.x_position,
+                                                'input_y': self.controller.y_position
+                                                })
+            widget = self.laser_position_layout.widget
+            self.laser_position_layout.selector_button.clicked.connect(self.controller.update_rcv_position)
+
             left_layout.addWidget(widget, 1, 0)
 
         # EOFM mode
@@ -195,7 +197,12 @@ class MainView(QMainWindow):
 
         # CSV mode
         elif mode == 3:
-            widget = self.init_rcv_widget()
+            self.laser_position_layout.init_ui({'input_x': self.controller.x_position,
+                                                'input_y': self.controller.y_position
+                                                })
+            widget = self.laser_position_layout.widget
+            self.laser_position_layout.selector_button.clicked.connect(self.controller.update_rcv_position)
+
             left_layout.addWidget(widget, 1, 0)
             self.preview_canvas.show()
 
@@ -323,7 +330,6 @@ class MainView(QMainWindow):
 
         return cell_widget
 
-
     def init_plot_widget(self) -> QWidget:
 
         plot_container_widget = QWidget()
@@ -339,43 +345,6 @@ class MainView(QMainWindow):
         self.second_canvas.hide()
 
         return plot_container_widget
-
-    def init_rcv_widget(self) -> QWidget:
-        selector_widget = QWidget()
-        selector_label_x = QLabel("x: ", self)
-        selector_label_y = QLabel("y: ", self)
-
-        self.selector_input_x = QLineEdit(self)
-        self.selector_input_x.setText(str(self.controller.x_position))
-        self.selector_input_x.setPlaceholderText(str(self.controller.x_position))
-        self.selector_input_y = QLineEdit(self)
-        self.selector_input_y.setText(str(self.controller.y_position))
-        self.selector_input_y.setPlaceholderText(str(self.controller.y_position))
-
-        selector_button = QPushButton("Submit values", self)
-        selector_button.setCursor(Qt.CursorShape.PointingHandCursor)
-        selector_button.clicked.connect(self.controller.update_rcv_position)
-
-        selector_layout = QVBoxLayout(selector_widget)
-        line1_layout = QHBoxLayout()
-        line2_layout = QHBoxLayout()
-
-        line1_layout.addWidget(selector_label_x)
-        line1_layout.addWidget(self.selector_input_x)
-
-        line2_layout.addWidget(selector_label_y)
-        line2_layout.addWidget(self.selector_input_y)
-
-        selector_layout.addLayout(line1_layout)
-        selector_layout.addLayout(line2_layout)
-        selector_layout.addWidget(selector_button)
-
-        selector_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
-        selector_layout.setSpacing(20)
-
-        selector_widget.setMaximumWidth(200)
-
-        return selector_widget
 
     def set_selected(self, selected_button):
         for button in self.buttons:
@@ -398,7 +367,7 @@ class MainView(QMainWindow):
 
         if self.controller.scale_up is not None:
             scale = self.controller.scale_up
-            scalebar = ScaleBar(1/scale, units="um", location="lower left", label=f"1:{scale}")
+            scalebar = ScaleBar(1 / scale, units="um", location="lower left", label=f"1:{scale}")
             ax.add_artist(scalebar)
 
         ax.set_title(str(title))
@@ -454,21 +423,6 @@ class MainView(QMainWindow):
             self.second_figure.savefig('export/plots/' + title + '.svg', format='svg')
 
         self.controller.stop_thread()
-
-
-    def get_input_x(self):
-        return self.selector_input_x.text()
-
-    def set_input_x(self, value):
-        if self.selector_input_x is not None:
-            self.selector_input_x.setText(value)
-
-    def get_input_y(self):
-        return self.selector_input_y.text()
-
-    def set_input_y(self, value):
-        if self.selector_input_y is not None:
-            self.selector_input_y.setText(value)
 
     def set_technology_label(self, text):
         self.technology_label.setText(text)
@@ -527,4 +481,6 @@ class MainView(QMainWindow):
                                         'noise_pourcentage': self.controller.noise_pourcentage
                                         })
 
-
+        self.laser_position_layout.update_inputs({'input_x': self.controller.x_position,
+                                                  'input_y': self.controller.y_position
+                                                  })
