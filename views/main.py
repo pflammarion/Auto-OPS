@@ -9,6 +9,7 @@ from PyQt5.QtCore import Qt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from matplotlib_scalebar.scalebar import ScaleBar
+from matplotlib.ticker import MultipleLocator
 
 from views.components.cell_layout import CellLayout
 from views.components.gate_layout import GateLayout
@@ -369,12 +370,15 @@ class MainView(QMainWindow):
             im = ax.imshow(image_matrix, cmap='Reds', origin='lower')
             self.main_figure.colorbar(im)
         else:
-            ax.imshow(image_matrix, cmap='gist_gray', origin='lower')
+            ax.imshow(image_matrix, cmap='gist_gray', origin='lower', )
 
         if self.controller.scale_up is not None:
             scale = self.controller.scale_up
             scalebar = ScaleBar(1 / scale, units="um", location="lower left", label=f"1:{scale}")
             ax.add_artist(scalebar)
+            ax.grid(True, which='both', linestyle='-', linewidth=0.5, color='darkgrey')
+            ax.xaxis.set_major_locator(MultipleLocator(scale))
+            ax.yaxis.set_major_locator(MultipleLocator(scale))
 
         ax.set_title(str(title))
         ax.set_xlabel("x")
