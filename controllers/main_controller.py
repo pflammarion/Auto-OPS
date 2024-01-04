@@ -1,4 +1,5 @@
 import copy
+import datetime
 import itertools
 import json
 import os
@@ -290,13 +291,18 @@ class MainController:
     def export_np_array(self):
         start = time.time()
 
-        if self.cell_name is not "":
+        if self.cell_name != "":
             name = self.cell_name
         else:
             name = "numpyarray"
 
-        if self.state_list is not None:
-            name += "_" + str(self.state_list)
+            if self.state_list is not None:
+                name += "_" + str(self.state_list)
+
+        current_time = datetime.datetime.now()
+        timestamp_string = current_time.strftime("%Y%m%d%H%M%S")
+
+        name += "_" + str(timestamp_string)
 
         np.save(f'export/np_arrays/{name}.npy', self.image_matrix)
 
