@@ -300,7 +300,7 @@ class MainController:
 
         np.save(f'export/np_arrays/{name}.npy', self.image_matrix)
 
-        self.view.popup_window("Export Successful", "Plots exported successfully in 'export/np_arrays' folder!")
+        self.view.popup_window("Export Successful", f"Numpy array exported successfully in 'export/np_arrays/{name}.npy'")
 
         end = time.time()
         self.view.set_footer_label(f"Execution time for NP array export: {end - start:.2f} seconds")
