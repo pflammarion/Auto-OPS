@@ -24,7 +24,7 @@ from views.dialogs.technology_dialog import TechnologySelectionDialog
 class MainController:
     def __init__(self):
 
-        self.patch_counter = None
+        self.patch_counter = [1, 1]
         self.scale_up = None
         self.gds_cell_list = None
         self.lib_reader = None
