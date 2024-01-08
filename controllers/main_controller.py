@@ -1,4 +1,5 @@
 import copy
+import datetime
 import itertools
 import json
 import os
@@ -15,16 +16,16 @@ from scipy.signal import fftconvolve
 from controllers import gds_drawing, def_parser
 from controllers.GDS_Object.op import Op
 from controllers.lib_reader import LibReader
-from views.column_dialog import ColumnSelectionDialog
-from views.layer_list_dialog import LayerSelectionDialog
+from views.dialogs.column_dialog import ColumnSelectionDialog
+from views.dialogs.layer_list_dialog import LayerSelectionDialog
 from views.main import MainView
-from views.technology_dialog import TechnologySelectionDialog
+from views.dialogs.technology_dialog import TechnologySelectionDialog
 
 
 class MainController:
     def __init__(self):
 
-        self.patch_counter = None
+        self.patch_counter = [1, 1]
         self.scale_up = None
         self.gds_cell_list = None
         self.lib_reader = None
@@ -35,8 +36,8 @@ class MainController:
         self.selected_area = 0
         self.selected_patch_size = 20
 
-        self.state_list = "1"
-        self.cell_name = "INV_X1"
+        self.state_list = ""
+        self.cell_name = ""
 
         self.object_storage_list = {}
 
@@ -102,7 +103,7 @@ class MainController:
         start = time.time()
         if not self.imported_image:
             lam, G1, G2, Gap = self.parameters_init(self.Kn_value, self.Kp_value, self.voltage_value, self.beta_value, self.Pl_value)
-            if self.op_master is not None:
+            if self.cell_name is not None and self.cell_name != "":
                 if self.def_file is not None:
                     self.image_matrix, self.scale_up = gds_drawing.benchmark_matrix(self.object_storage_list, self.def_file, G1, G2, self.vpi_extraction, self.selected_area)
                 else:
@@ -287,6 +288,28 @@ class MainController:
         end = time.time()
         self.view.set_footer_label(f"Execution time for SVG export: {end - start:.2f} seconds")
 
+    def export_np_array(self):
+        start = time.time()
+
+        if self.cell_name != "":
+            name = self.cell_name
+            if self.state_list is not None:
+                name += "_" + str(self.state_list)
+        else:
+            name = "numpyarray"
+
+        current_time = datetime.datetime.now()
+        timestamp_string = current_time.strftime("%Y%m%d%H%M%S")
+
+        name += "_" + str(timestamp_string)
+
+        np.save(f'export/np_arrays/{name}.npy', self.image_matrix)
+
+        self.view.popup_window("Export Successful", f"Numpy array exported successfully in 'export/np_arrays/{name}.npy'")
+
+        end = time.time()
+        self.view.set_footer_label(f"Execution time for NP array export: {end - start:.2f} seconds")
+
     def upload_image(self):
         file_dialog = QFileDialog()
         file_dialog.setFileMode(QFileDialog.FileMode.ExistingFiles)
@@ -343,24 +366,13 @@ class MainController:
                 self.view.popup_window("JSON Import Successful", "JSON settings imported successfully")
 
     def update_view_input(self):
+        # TODO delete safely this function
         self.view.set_technology_label("Technology: " + str(self.technology_value) + " nm")
-
-        self.view.set_input_Kn(str(self.Kn_value))
-        self.view.set_input_Kp(str(self.Kp_value))
-        self.view.set_input_beta(str(self.beta_value))
-        self.view.set_input_Pl(str(self.Pl_value))
-        self.view.set_input_voltage(str(self.voltage_value))
-        self.view.set_input_pourcentage(str(self.noise_pourcentage))
-
-        self.view.set_input_x(str(self.x_position))
-        self.view.set_input_y(str(self.y_position))
-
-        self.view.set_input_lam(str(self.lam_value))
-        self.view.set_input_NA(str(self.NA_value))
-        self.view.set_input_confocal(self.is_confocal)
 
         self.view.cell_selector.set_cell_name(str(self.cell_name))
         self.view.cell_selector.set_state_list(str(self.state_list))
+
+        self.view.update_inputs_values()
 
     def upload_csv(self):
         file_dialog = QFileDialog()
@@ -489,7 +501,7 @@ class MainController:
         if cell_name_value is not None and cell_name_value != "":
             self.cell_name = cell_name_value
         else:
-            self.cell_name = "INV_X1"
+            self.cell_name = ""
 
         if state_list_value is not None and state_list_value != "":
             self.state_list = state_list_value
@@ -502,12 +514,13 @@ class MainController:
 
         self.imported_image = False
 
-        Kn_input = self.view.get_input_Kn()
-        Kp_input = self.view.get_input_Kp()
-        beta_input = self.view.get_input_beta()
-        Pl_input = self.view.get_input_Pl()
-        voltage_input = self.view.get_input_voltage()
-        pourcentage_input = self.view.get_input_pourcentage()
+        input_values = self.view.gate_layout.get_input_values()
+        Kn_input = input_values['Kn_value']
+        Kp_input = input_values['Kp_value']
+        beta_input = input_values['beta_value']
+        Pl_input = input_values['Pl_value']
+        voltage_input = input_values['voltage_value']
+        pourcentage_input = input_values['noise_pourcentage']
 
         # Check if the inputs are not null (not None) and not empty before converting to floats
         if Kn_input is not None and Kn_input != "":
@@ -567,8 +580,9 @@ class MainController:
         return np.where(L > 0, 1, 0), L
 
     def update_rcv_position(self):
-        x_input = self.view.get_input_x()
-        y_input = self.view.get_input_y()
+        input_values = self.view.laser_position_layout.get_input_values()
+        x_input = input_values['input_x']
+        y_input = input_values['input_y']
 
         if x_input is not None and x_input != "":
             self.x_position = int(x_input)
@@ -627,9 +641,10 @@ class MainController:
         self.view.display_second_image(inverted_image, self.is_plot_export, "Absolute EOFM - " + self.main_label_value)
 
     def update_settings(self):
-        lam_input = self.view.get_input_lam()
-        NA_input = self.view.get_input_NA()
-        confocal_input = self.view.get_input_confocal()
+        laser_values = self.view.laser_layout.get_laser_values()
+        lam_input = laser_values['lam_value']
+        NA_input = laser_values['NA_value']
+        confocal_input = laser_values['is_confocal']
 
         if lam_input is not None and lam_input != "":
             self.lam_value = float(lam_input)

@@ -1,57 +1,42 @@
 import re
-import sys
 import time
 
 import numpy as np
 from PyQt5.QtGui import QPixmap, QIcon
-from PyQt5.QtWidgets import QAction, QMainWindow, QWidget, QGridLayout, QLabel, QPushButton, QVBoxLayout, QLineEdit, \
-    QCheckBox, \
+from PyQt5.QtWidgets import QAction, QMainWindow, QWidget, QGridLayout, QLabel, QPushButton, QVBoxLayout, \
     QHBoxLayout, QMessageBox, QApplication, QMenu
 from PyQt5.QtCore import Qt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from matplotlib_scalebar.scalebar import ScaleBar
+from matplotlib.ticker import MultipleLocator
 
-from views.cell_layout import CellLayout
+from views.components.cell_layout import CellLayout
+from views.components.gate_layout import GateLayout
+from views.components.laser_layout import LaserLayout
+from views.components.laser_position_layout import LaserPositionLayout
 
 
 class MainView(QMainWindow):
     def __init__(self, controller):
         super().__init__()
+
         self.controller = controller
 
-        self.info_input_Kn = QLineEdit(self)
-        self.info_input_Kp = QLineEdit(self)
-        self.info_input_beta = QLineEdit(self)
-        self.info_input_Pl = QLineEdit(self)
-        self.info_input_voltage = QLineEdit(self)
-        self.noise_pourcentage = QLineEdit(self)
-
         # fill infos from controller
-        self.info_input_Kn.setText(str(self.controller.Kn_value))
-        self.info_input_Kn.setPlaceholderText(str(self.controller.Kn_value))
-        self.info_input_Kp.setText(str(self.controller.Kp_value))
-        self.info_input_Kp.setPlaceholderText(str(self.controller.Kp_value))
-        self.info_input_beta.setText(str(self.controller.beta_value))
-        self.info_input_beta.setPlaceholderText(str(self.controller.beta_value))
-        self.info_input_Pl.setText(str(self.controller.Pl_value))
-        self.info_input_Pl.setPlaceholderText(str(self.controller.Pl_value))
-        self.info_input_voltage.setText(str(self.controller.voltage_value))
-        self.info_input_voltage.setPlaceholderText(str(self.controller.voltage_value))
+        self.laser_layout = LaserLayout({'lam_value': self.controller.lam_value,
+                                         'NA_value': self.controller.NA_value,
+                                         'is_confocal': self.controller.is_confocal
+                                         })
 
-        self.noise_pourcentage.setText(str(self.controller.noise_pourcentage))
-        self.noise_pourcentage.setPlaceholderText(str(self.controller.noise_pourcentage))
-
-        self.info_button_column_voltage = QPushButton("Voltage columns")
-        self.info_button_column_voltage.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.info_button_column_voltage.clicked.connect(self.controller.volage_column_dialog)
-
-        self.selector_input_x = None
-        self.selector_input_y = None
-
-        self.selector_input_lam = None
-        self.selector_input_NA = None
-        self.selector_input_confocal = None
+        self.gate_layout = GateLayout({'Kn_value': self.controller.Kn_value,
+                                       'Kp_value': self.controller.Kp_value,
+                                       'beta_value': self.controller.beta_value,
+                                       'Pl_value': self.controller.Pl_value,
+                                       'voltage_value': self.controller.voltage_value,
+                                       'noise_pourcentage': self.controller.noise_pourcentage
+                                       })
+        self.laser_position_layout = LaserPositionLayout()
 
         self.main_figure = None
         self.main_canvas = None
@@ -117,15 +102,18 @@ class MainView(QMainWindow):
 
         # Creating the info widget
 
-        info_widget = self.init_physic_info_widget()
+        info_widget = self.gate_layout.widget
+        self.gate_layout.info_button_column_voltage.clicked.connect(self.controller.volage_column_dialog)
+        self.gate_layout.submit_btn.clicked.connect(self.controller.update_physics_values)
 
         # Creating cell widget
 
         cell_widget = self.init_cell_widget()
 
         # Creating the laser widget
-
-        laser_widget = self.init_laser_widget()
+        laser_widget = self.laser_layout.widget
+        laser_submit_btn = self.laser_layout.submit_btn
+        laser_submit_btn.clicked.connect(self.controller.update_physics_values)
 
         # Creating the navigation bar widget
         nav_bar = self.init_nav_bar(central_layout)
@@ -180,7 +168,7 @@ class MainView(QMainWindow):
         self.clear_figures()
 
         # hide and show the voltage button for csv mode
-        self.info_button_column_voltage.hide()
+        self.gate_layout.info_button_column_voltage.hide()
         voltage_widget.show()
 
         self.preview_canvas.hide()
@@ -196,7 +184,12 @@ class MainView(QMainWindow):
 
         # RCV mode
         if mode == 1:
-            widget = self.init_rcv_widget()
+            self.laser_position_layout.init_ui({'input_x': self.controller.x_position,
+                                                'input_y': self.controller.y_position
+                                                })
+            widget = self.laser_position_layout.widget
+            self.laser_position_layout.selector_button.clicked.connect(self.controller.update_rcv_position)
+
             left_layout.addWidget(widget, 1, 0)
 
         # EOFM mode
@@ -205,16 +198,20 @@ class MainView(QMainWindow):
 
         # CSV mode
         elif mode == 3:
-            widget = self.init_rcv_widget()
+            self.laser_position_layout.init_ui({'input_x': self.controller.x_position,
+                                                'input_y': self.controller.y_position
+                                                })
+            widget = self.laser_position_layout.widget
+            self.laser_position_layout.selector_button.clicked.connect(self.controller.update_rcv_position)
+
             left_layout.addWidget(widget, 1, 0)
             self.preview_canvas.show()
 
             left_widget.setMaximumWidth(400)
 
             voltage_widget.hide()
-            self.info_button_column_voltage.show()
+            self.gate_layout.info_button_column_voltage.show()
             noise_pourcentage_widget.show()
-
 
     def init_nav_bar(self, central_layout) -> QWidget:
         nav_bar_widget = QWidget()
@@ -318,6 +315,12 @@ class MainView(QMainWindow):
         export_results.triggered.connect(self.controller.export_plots)
         window_menu.addAction(export_results)
 
+        window_menu.addSeparator()
+
+        export_np_array = QAction('Export Numpy array', self)
+        export_np_array.triggered.connect(self.controller.export_np_array)
+        window_menu.addAction(export_np_array)
+
     def init_preview_layout(self) -> QWidget:
 
         self.preview_figure = Figure()
@@ -334,70 +337,6 @@ class MainView(QMainWindow):
 
         return cell_widget
 
-    def init_physic_info_widget(self) -> QWidget:
-        info_widget = QWidget()
-        info_label_Kn = QLabel("Kn:", self)
-        info_label_Kp = QLabel("Kp:", self)
-        info_label_beta = QLabel("Beta:", self)
-        info_label_Pl = QLabel("P_L:", self)
-        info_label_voltage = QLabel("Voltage:", self)
-        label_noise_pourcentage = QLabel("Noise (%):", self)
-        info_button = QPushButton("Submit values", self)
-        info_button.setCursor(Qt.CursorShape.PointingHandCursor)
-        info_button.clicked.connect(self.controller.update_physics_values)
-
-        # Creating layouts
-        input_layout = QGridLayout(info_widget)
-
-        # Creating QHBoxLayouts for each line
-        line1 = QHBoxLayout()
-        line1.addWidget(info_label_Kn)
-        line1.addWidget(self.info_input_Kn)
-
-        line2 = QHBoxLayout()
-        line2.addWidget(info_label_Kp)
-        line2.addWidget(self.info_input_Kp)
-
-        line3 = QHBoxLayout()
-        line3.addWidget(info_label_beta)
-        line3.addWidget(self.info_input_beta)
-
-        line4 = QHBoxLayout()
-        line4.addWidget(info_label_Pl)
-        line4.addWidget(self.info_input_Pl)
-
-        line5_widget = QWidget()
-        line5 = QGridLayout(line5_widget)
-        line5.setContentsMargins(0, 0, 0, 0)
-        line5.addWidget(info_label_voltage, 0, 0)
-        line5.addWidget(self.info_input_voltage, 0, 1)
-
-        line5_btn = self.info_button_column_voltage
-        line5_btn.hide()
-
-        line6_widget = QWidget()
-        line6 = QGridLayout(line6_widget)
-        line6.setContentsMargins(0, 0, 0, 0)
-        line6.addWidget(label_noise_pourcentage, 0, 0)
-        line6.addWidget(self.noise_pourcentage, 0, 1)
-        line6_widget.hide()
-
-        # Adding the lines to the main layout
-        input_layout.addLayout(line1, 0, 0)
-        input_layout.addLayout(line2, 1, 0)
-        input_layout.addLayout(line3, 2, 0)
-        input_layout.addLayout(line4, 3, 0)
-        input_layout.addWidget(line5_widget, 4, 0)
-        input_layout.addWidget(line5_btn, 5, 0)
-
-        input_layout.addWidget(line6_widget, 6, 0)
-        input_layout.addWidget(info_button, 7, 0)
-
-        input_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
-        input_layout.setSpacing(20)
-
-        return info_widget
-
     def init_plot_widget(self) -> QWidget:
 
         plot_container_widget = QWidget()
@@ -413,91 +352,6 @@ class MainView(QMainWindow):
         self.second_canvas.hide()
 
         return plot_container_widget
-
-    def init_laser_widget(self) -> QWidget:
-        widget = QWidget()
-        layout = QVBoxLayout(widget)
-
-        self.selector_input_lam = QLineEdit(self)
-        self.selector_input_lam.setText(str(self.controller.lam_value))
-        self.selector_input_lam.setPlaceholderText(str(self.controller.lam_value))
-        label_lam = QLabel("Lambda:")
-
-        self.selector_input_NA = QLineEdit(self)
-        self.selector_input_NA.setText(str(self.controller.NA_value))
-        self.selector_input_NA.setPlaceholderText(str(self.controller.NA_value))
-        label_NA = QLabel("NA:")
-
-        self.selector_input_confocal = QCheckBox()
-        self.selector_input_confocal.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.selector_input_confocal.setChecked(bool(self.controller.is_confocal))
-        label_confocal = QLabel("Confocal")
-
-        info_button = QPushButton("Submit values", self)
-        info_button.setCursor(Qt.CursorShape.PointingHandCursor)
-        info_button.clicked.connect(self.controller.update_physics_values)
-
-        layout_confocal = QHBoxLayout()
-        layout_lam = QHBoxLayout()
-        layout_NA = QHBoxLayout()
-
-        layout_confocal.addWidget(label_confocal)
-        layout_confocal.addWidget(self.selector_input_confocal)
-
-        layout_lam.addWidget(label_lam)
-        layout_lam.addWidget(self.selector_input_lam)
-
-        layout_NA.addWidget(label_NA)
-        layout_NA.addWidget(self.selector_input_NA)
-
-        layout.addLayout(layout_lam)
-        layout.addLayout(layout_NA)
-        layout.addLayout(layout_confocal)
-
-        layout.addWidget(info_button)
-
-        layout.setAlignment(Qt.AlignmentFlag.AlignTop)
-        layout.setSpacing(20)
-        widget.setMaximumWidth(200)
-
-        return widget
-
-    def init_rcv_widget(self) -> QWidget:
-        selector_widget = QWidget()
-        selector_label_x = QLabel("x: ", self)
-        selector_label_y = QLabel("y: ", self)
-
-        self.selector_input_x = QLineEdit(self)
-        self.selector_input_x.setText(str(self.controller.x_position))
-        self.selector_input_x.setPlaceholderText(str(self.controller.x_position))
-        self.selector_input_y = QLineEdit(self)
-        self.selector_input_y.setText(str(self.controller.y_position))
-        self.selector_input_y.setPlaceholderText(str(self.controller.y_position))
-
-        selector_button = QPushButton("Submit values", self)
-        selector_button.setCursor(Qt.CursorShape.PointingHandCursor)
-        selector_button.clicked.connect(self.controller.update_rcv_position)
-
-        selector_layout = QVBoxLayout(selector_widget)
-        line1_layout = QHBoxLayout()
-        line2_layout = QHBoxLayout()
-
-        line1_layout.addWidget(selector_label_x)
-        line1_layout.addWidget(self.selector_input_x)
-
-        line2_layout.addWidget(selector_label_y)
-        line2_layout.addWidget(self.selector_input_y)
-
-        selector_layout.addLayout(line1_layout)
-        selector_layout.addLayout(line2_layout)
-        selector_layout.addWidget(selector_button)
-
-        selector_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
-        selector_layout.setSpacing(20)
-
-        selector_widget.setMaximumWidth(200)
-
-        return selector_widget
 
     def set_selected(self, selected_button):
         for button in self.buttons:
@@ -516,12 +370,15 @@ class MainView(QMainWindow):
             im = ax.imshow(image_matrix, cmap='Reds', origin='lower')
             self.main_figure.colorbar(im)
         else:
-            ax.imshow(image_matrix, cmap='gist_gray', origin='lower')
+            ax.imshow(image_matrix, cmap='gist_gray', origin='lower', )
 
         if self.controller.scale_up is not None:
             scale = self.controller.scale_up
-            scalebar = ScaleBar(1/scale, units="um", location="lower left", label=f"1:{scale}")
+            scalebar = ScaleBar(1 / scale, units="um", location="lower left", label=f"1:{scale}")
             ax.add_artist(scalebar)
+            ax.grid(True, which='both', linestyle='-', linewidth=0.5, color='darkgrey')
+            ax.xaxis.set_major_locator(MultipleLocator(scale))
+            ax.yaxis.set_major_locator(MultipleLocator(scale))
 
         ax.set_title(str(title))
         ax.set_xlabel("x")
@@ -577,76 +434,6 @@ class MainView(QMainWindow):
 
         self.controller.stop_thread()
 
-    def get_input_Kn(self):
-        return self.info_input_Kn.text()
-
-    def set_input_Kn(self, value):
-        self.info_input_Kn.setText(value)
-
-    def get_input_Kp(self):
-        return self.info_input_Kp.text()
-
-    def set_input_Kp(self, value):
-        self.info_input_Kp.setText(value)
-
-    def get_input_beta(self):
-        return self.info_input_beta.text()
-
-    def set_input_beta(self, value):
-        self.info_input_beta.setText(value)
-
-    def get_input_Pl(self):
-        return self.info_input_Pl.text()
-
-    def set_input_Pl(self, value):
-        self.info_input_Pl.setText(value)
-
-    def get_input_voltage(self):
-        return self.info_input_voltage.text()
-
-    def set_input_voltage(self, value):
-        if self.info_input_voltage is not None:
-            self.info_input_voltage.setText(value)
-
-    def get_input_pourcentage(self):
-        return self.noise_pourcentage.text()
-
-    def set_input_pourcentage(self, value):
-        if self.noise_pourcentage is not None:
-            self.noise_pourcentage.setText(value)
-
-    def get_input_x(self):
-        return self.selector_input_x.text()
-
-    def set_input_x(self, value):
-        if self.selector_input_x is not None:
-            self.selector_input_x.setText(value)
-
-    def get_input_y(self):
-        return self.selector_input_y.text()
-
-    def set_input_y(self, value):
-        if self.selector_input_y is not None:
-            self.selector_input_y.setText(value)
-
-    def get_input_lam(self):
-        return self.selector_input_lam.text()
-
-    def set_input_lam(self, value):
-        self.selector_input_lam.setText(value)
-
-    def get_input_NA(self):
-        return self.selector_input_NA.text()
-
-    def set_input_NA(self, value):
-        self.selector_input_NA.setText(value)
-
-    def get_input_confocal(self):
-        return self.selector_input_confocal.isChecked()
-
-    def set_input_confocal(self, value):
-        self.selector_input_confocal.setChecked(value)
-
     def set_technology_label(self, text):
         self.technology_label.setText(text)
 
@@ -662,7 +449,7 @@ class MainView(QMainWindow):
         time_abs = df[selected_columns[0]]
         voltage = df[selected_columns[1]]
         rcv = df['RCV']
-        percentage = float(self.noise_pourcentage.text()) / 100
+        percentage = float(self.controller.noise_pourcentage) / 100
         noisy_rcv = rcv + np.random.normal(0, rcv.std(), time_abs.size) * percentage
 
         ax1 = self.main_figure.add_subplot(211)
@@ -674,8 +461,8 @@ class MainView(QMainWindow):
         ax2.plot(time_abs, noisy_rcv, label='Noisy RCV', color='red')
         ax3.plot(time_abs, voltage, label=f'Voltage - ({selected_columns[1]})', color='blue', linewidth=0.5)
 
-        ax2.set_xlabel(f"Time (s) - ({selected_columns[0]})")
-        ax3.set_ylabel('Voltage (V)', color='blue')
+        ax2.set_xlabel(f'Time (s) - ({selected_columns[0]})')
+        ax3.set_ylabel(f'Voltage - ({selected_columns[1]})', color='blue')
         ax1.set_ylabel('RCV (nm²)', color='purple')
         ax2.set_ylabel('RCV (nm²)', color='red')
 
@@ -690,4 +477,20 @@ class MainView(QMainWindow):
         self.main_canvas.draw()
         self.controller.stop_thread()
 
+    def update_inputs_values(self):
+        self.laser_layout.update_inputs({'lam_value': self.controller.lam_value,
+                                         'NA_value': self.controller.NA_value,
+                                         'is_confocal': self.controller.is_confocal
+                                         })
 
+        self.gate_layout.update_inputs({'Kn_value': self.controller.Kn_value,
+                                        'Kp_value': self.controller.Kp_value,
+                                        'beta_value': self.controller.beta_value,
+                                        'Pl_value': self.controller.Pl_value,
+                                        'voltage_value': self.controller.voltage_value,
+                                        'noise_pourcentage': self.controller.noise_pourcentage
+                                        })
+
+        self.laser_position_layout.update_inputs({'input_x': self.controller.x_position,
+                                                  'input_y': self.controller.y_position
+                                                  })
