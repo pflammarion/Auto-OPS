@@ -32,6 +32,8 @@ QListWidget {
     background-color: #212121;
 }
 
-* {
+QLabel,
+QListWidget,
+QLineEdit{
     color: #FFFFFF;
 }
