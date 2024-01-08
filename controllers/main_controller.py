@@ -36,7 +36,7 @@ class MainController:
         self.selected_area = 0
         self.selected_patch_size = 20
 
-        self.state_list = "1"
+        self.state_list = ""
         self.cell_name = ""
 
         self.object_storage_list = {}
@@ -103,7 +103,7 @@ class MainController:
         start = time.time()
         if not self.imported_image:
             lam, G1, G2, Gap = self.parameters_init(self.Kn_value, self.Kp_value, self.voltage_value, self.beta_value, self.Pl_value)
-            if self.op_master is not None:
+            if self.cell_name is not None and self.cell_name != "":
                 if self.def_file is not None:
                     self.image_matrix, self.scale_up = gds_drawing.benchmark_matrix(self.object_storage_list, self.def_file, G1, G2, self.vpi_extraction, self.selected_area)
                 else:
