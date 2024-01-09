@@ -112,7 +112,7 @@ class MainController:
             if self.script is None or script == "":
                 session = PromptSession()
                 while True:
-                    user_input = session.prompt('auto_ops> ')
+                    user_input = session.prompt('auto_ops_gui> ')
                     self.process_command_line_mode(user_input)
 
             else:
@@ -166,7 +166,7 @@ class MainController:
         try:
             process = subprocess.Popen(['bash', self.script], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
             for line in process.stdout:
-                print("\nauto_ops> " + line.strip())
+                print("\nauto_ops_gui> " + line.strip())
                 self.process_command_line_mode(line.strip())
             process.wait()
 
