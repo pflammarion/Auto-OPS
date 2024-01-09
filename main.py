@@ -39,30 +39,30 @@ def run_cli():
     parser_command_line.add_argument('-f', '--flip_flop', type=int, help='Flip Flop output Q')
     parser_command_line.add_argument('-o', '--output', help='Output type', choices=['reflection_over_cell'])
 
-    parser.add_argument('--gui', action='store_true', help='Start the gui')
+    parser_gui = subparsers.add_parser('gui', help='GUI mode for simulation')
+    parser_gui.add_argument('-cl', '--command_line', action='store_true', help='Use the GUI as a command line tool')
 
     args = parser.parse_args()
 
-    std_file = args.std_file
-    lib_file = args.lib_file
-    gds_file = args.gds_file
-    def_file = args.def_file
-    vpi_file = args.vpi_file
-    cell_input = args.input
-    layer_list = ast.literal_eval(args.layer_list)
-    cell_list = args.cell_list
-    output = args.output
-    verbose_mode = args.verbose
-    flip_flop = args.flip_flop
-    benchmark_plot = args.benchmark_plot
-    benchmark_area = args.benchmark_area
-    patch_size = args.patch_size
-
-    unit_test = args.unit_test
-
-    if args.gui:
+    if args.subcommand == 'gui':
         run_gui()
     else:
+        std_file = args.std_file
+        lib_file = args.lib_file
+        gds_file = args.gds_file
+        def_file = args.def_file
+        vpi_file = args.vpi_file
+        cell_input = args.input
+        layer_list = ast.literal_eval(args.layer_list)
+        cell_list = args.cell_list
+        output = args.output
+        verbose_mode = args.verbose
+        flip_flop = args.flip_flop
+        benchmark_plot = args.benchmark_plot
+        benchmark_area = args.benchmark_area
+        patch_size = args.patch_size
+        unit_test = args.unit_test
+
         run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list, cell_list, output, verbose_mode, unit_test, flip_flop, vpi_file, benchmark_area, benchmark_plot, patch_size)
 
 
