@@ -45,7 +45,7 @@ def run_cli():
     args = parser.parse_args()
 
     if args.subcommand == 'gui':
-        run_gui()
+        run_gui(args.command_line)
     else:
         std_file = args.std_file
         lib_file = args.lib_file
@@ -66,18 +66,19 @@ def run_cli():
         run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list, cell_list, output, verbose_mode, unit_test, flip_flop, vpi_file, benchmark_area, benchmark_plot, patch_size)
 
 
-def run_gui():
+def run_gui(command_line):
     from PyQt5.QtGui import QIcon
     from PyQt5.QtWidgets import QApplication
     from controllers.main_controller import MainController
 
     app = QApplication(sys.argv)
-    app.setApplicationName("CMOS-INV-GUI")
-    app.setWindowIcon(QIcon('resources/app_logo.png'))
-    controller = MainController()
-    view = controller.get_view()
-    view.show()
-    sys.exit(app.exec())
+    controller = MainController(command_line)
+    if not command_line:
+        app.setApplicationName("CMOS-INV-GUI")
+        app.setWindowIcon(QIcon('resources/app_logo.png'))
+        view = controller.get_view()
+        view.show()
+        sys.exit(app.exec())
 
 
 

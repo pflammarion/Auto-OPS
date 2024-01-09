@@ -23,7 +23,7 @@ from views.dialogs.technology_dialog import TechnologySelectionDialog
 
 
 class MainController:
-    def __init__(self):
+    def __init__(self, command_line):
 
         self.patch_counter = [1, 1]
         self.scale_up = None
@@ -65,7 +65,7 @@ class MainController:
 
         self.data = self.load_settings_from_json("config/config.json")
 
-        if self.gds_cell_list is None or self.lib_reader is None or self.selected_layer is None:
+        if self.gds_cell_list is None or self.lib_reader is None or self.selected_layer is None and not command_line:
             self.init_op_object()
 
         if self.def_file is None:
@@ -81,15 +81,15 @@ class MainController:
 
         self.app_state = 0
 
-        self.view = MainView(self)
+        if not command_line:
+            self.view = MainView(self)
+            self.view.set_technology_label("Technology: " + str(self.technology_value) + " nm")
 
-        self.view.set_technology_label("Technology: " + str(self.technology_value) + " nm")
+            self._running = True
 
-        self._running = True
+            self.is_plot_export = False
 
-        self.is_plot_export = False
-
-        self.reload_view()
+            self.reload_view()
 
     def stop_thread(self):
         self._running = False
