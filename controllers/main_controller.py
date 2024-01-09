@@ -21,6 +21,9 @@ from views.dialogs.layer_list_dialog import LayerSelectionDialog
 from views.main import MainView
 from views.dialogs.technology_dialog import TechnologySelectionDialog
 
+from prompt_toolkit import PromptSession
+from prompt_toolkit.styles import Style
+
 
 class MainController:
     def __init__(self, command_line):
@@ -91,6 +94,24 @@ class MainController:
 
             self.reload_view()
 
+        else:
+            print("""
+            
+     █████  ██    ██ ████████  ██████         ██████  ██████  ███████ 
+    ██   ██ ██    ██    ██    ██    ██       ██    ██ ██   ██ ██      
+    ███████ ██    ██    ██    ██    ██ █████ ██    ██ ██████  ███████ 
+    ██   ██ ██    ██    ██    ██    ██       ██    ██ ██           ██ 
+    ██   ██  ██████     ██     ██████         ██████  ██      ███████ 
+                                                            
+            """)
+            session = PromptSession()
+            while True:
+                user_input = session.prompt('auto_ops> ')
+                self.process_command_line_mode(user_input)
+
+    def process_command_line_mode(self, command):
+        print(f"Processing Auto-OPS command: {command}")
+
     def stop_thread(self):
         self._running = False
 
@@ -102,10 +123,14 @@ class MainController:
         self.view.set_footer_label("... Loading ...")
         start = time.time()
         if not self.imported_image:
-            lam, G1, G2, Gap = self.parameters_init(self.Kn_value, self.Kp_value, self.voltage_value, self.beta_value, self.Pl_value)
+            lam, G1, G2, Gap = self.parameters_init(self.Kn_value, self.Kp_value, self.voltage_value, self.beta_value,
+                                                    self.Pl_value)
             if self.cell_name is not None and self.cell_name != "":
                 if self.def_file is not None:
-                    self.image_matrix, self.scale_up = gds_drawing.benchmark_matrix(self.object_storage_list, self.def_file, G1, G2, self.vpi_extraction, self.selected_area)
+                    self.image_matrix, self.scale_up = gds_drawing.benchmark_matrix(self.object_storage_list,
+                                                                                    self.def_file, G1, G2,
+                                                                                    self.vpi_extraction,
+                                                                                    self.selected_area)
                 else:
                     if self.cell_name not in self.object_storage_list.keys():
                         self.extract_op_cell(self.cell_name)
@@ -243,7 +268,7 @@ class MainController:
 
                 layout[y_start:y_end, x_start:x_end] = value
 
-        self.view.display_optional_image(layout, f"Selected Patch N°{self.selected_area}/{patch_counter-1}", False)
+        self.view.display_optional_image(layout, f"Selected Patch N°{self.selected_area}/{patch_counter - 1}", False)
 
     def save_settings_to_json(self):
         json_data = {
@@ -305,7 +330,8 @@ class MainController:
 
         np.save(f'export/np_arrays/{name}.npy', self.image_matrix)
 
-        self.view.popup_window("Export Successful", f"Numpy array exported successfully in 'export/np_arrays/{name}.npy'")
+        self.view.popup_window("Export Successful",
+                               f"Numpy array exported successfully in 'export/np_arrays/{name}.npy'")
 
         end = time.time()
         self.view.set_footer_label(f"Execution time for NP array export: {end - start:.2f} seconds")
@@ -477,9 +503,10 @@ class MainController:
         # may be when the voltage is > 0,5 changing the gate state
         lam, G1, G2, Gap = self.parameters_init(self.Kn_value, self.Kp_value, voltage, self.beta_value, self.Pl_value)
 
-        generated_gate_image = np.select([self.image_matrix == old_G1, self.image_matrix == old_G2], [G1, G2], self.image_matrix)
+        generated_gate_image = np.select([self.image_matrix == old_G1, self.image_matrix == old_G2], [G1, G2],
+                                         self.image_matrix)
 
-    # for preview in gui of current position of laser
+        # for preview in gui of current position of laser
         if voltage > self.max_voltage_high_gate_state:
             self.high_gate_state_layout = generated_gate_image
             self.max_voltage_high_gate_state = voltage
@@ -686,7 +713,8 @@ class MainController:
 
         mask, L = self.calc_and_plot_RCV(offset=[self.y_position, self.x_position])
 
-        _, old_G1, old_G2, _ = self.parameters_init(self.Kn_value, self.Kp_value, self.voltage_value, self.beta_value, self.Pl_value)
+        _, old_G1, old_G2, _ = self.parameters_init(self.Kn_value, self.Kp_value, self.voltage_value, self.beta_value,
+                                                    self.Pl_value)
 
         self.dataframe['RCV'] = self.dataframe.apply(
             lambda row: self.calc_unique_rcv(row[selected_columns[1]], L, old_G1, old_G2), axis=1)

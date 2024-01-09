@@ -71,14 +71,20 @@ def run_gui(command_line):
     from PyQt5.QtWidgets import QApplication
     from controllers.main_controller import MainController
 
-    app = QApplication(sys.argv)
-    controller = MainController(command_line)
+    print("Starting Auto-OPS....")
+
     if not command_line:
+        app = QApplication(sys.argv)
+        controller = MainController(False)
         app.setApplicationName("CMOS-INV-GUI")
         app.setWindowIcon(QIcon('resources/app_logo.png'))
         view = controller.get_view()
         view.show()
         sys.exit(app.exec())
+
+    else:
+        MainController(True)
+
 
 
 
