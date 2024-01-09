@@ -14,7 +14,7 @@ import numpy as np
 import pandas as pd
 from scipy.signal import fftconvolve
 
-from controllers import gds_drawing, def_parser
+from controllers import gds_drawing, def_parser, gui_parser
 from controllers.GDS_Object.op import Op
 from controllers.gui_parser import parse_info
 from controllers.lib_reader import LibReader
@@ -24,7 +24,6 @@ from views.main import MainView
 from views.dialogs.technology_dialog import TechnologySelectionDialog
 
 from prompt_toolkit import PromptSession
-from prompt_toolkit.styles import Style
 
 
 class MainController:
@@ -116,7 +115,12 @@ class MainController:
             print("\nSee you soon!\n")
             sys.exit(1)
         elif command == "info":
-            parse_info(self)
+            gui_parser.parse_info(self)
+        elif command.startswith("update"):
+            gui_parser.update_variable(self, command)
+        elif command.startswith("plot"):
+            self.update_image_matrix()
+            gui_parser.plot(self, command)
 
     def stop_thread(self):
         self._running = False
@@ -124,10 +128,7 @@ class MainController:
     def reload_view(self):
         threading.Thread(target=self.reload_view_wrapper).start()
 
-    def reload_view_wrapper(self):
-        self.scale_up = None
-        self.view.set_footer_label("... Loading ...")
-        start = time.time()
+    def update_image_matrix(self):
         if not self.imported_image:
             lam, G1, G2, Gap = self.parameters_init(self.Kn_value, self.Kp_value, self.voltage_value, self.beta_value,
                                                     self.Pl_value)
@@ -149,6 +150,14 @@ class MainController:
 
             else:
                 self.image_matrix = self.draw_layout(lam, G1, G2, Gap)
+
+
+    def reload_view_wrapper(self):
+        self.scale_up = None
+        self.view.set_footer_label("... Loading ...")
+        start = time.time()
+
+        self.update_image_matrix()
 
         if self.app_state == 1:
             self.print_psf()

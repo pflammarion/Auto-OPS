@@ -1,29 +1,77 @@
+import matplotlib.pyplot as plt
+from matplotlib_scalebar.scalebar import ScaleBar
+from matplotlib.ticker import MultipleLocator
+
 def parse_info(obj):
     info_str = (
-        "Information:\n\n"
-        f"Selected cell: {obj.cell_name}\n"
-        f"Selected layer: {obj.selected_layer}\n"
-        f"State list: {obj.state_list}\n"
+        "\nInformation:\n\n"
+        f"cell_name: {obj.cell_name}\n"
+        f"selected_layer: {obj.selected_layer}\n"
+        f"state_list: {obj.state_list}\n"
         "------------------------------------\n"
-        f"X position: {obj.x_position}\n"
-        f"Y position: {obj.y_position}\n"
-        f"Lam value: {obj.lam_value}\n"
-        f"NA value: {obj.NA_value}\n"
-        f"Is confocal: {obj.is_confocal}\n"
+        f"x_position: {obj.x_position}\n"
+        f"y_position: {obj.y_position}\n"
+        f"lam_value: {obj.lam_value}\n"
+        f"NA_value: {obj.NA_value}\n"
+        f"is_confocal: {obj.is_confocal}\n"
         "------------------------------------\n"
-        f"Kn value: {obj.Kn_value}\n"
-        f"Kp value: {obj.Kp_value}\n"
-        f"Beta value: {obj.beta_value}\n"
-        f"Pl value: {obj.Pl_value}\n"
-        f"Voltage value: {obj.voltage_value}\n"
-        f"Noise percentage: {obj.noise_pourcentage}\n"
+        f"Kn_value: {obj.Kn_value}\n"
+        f"Kp_value: {obj.Kp_value}\n"
+        f"beta_value: {obj.beta_value}\n"
+        f"Pl_value: {obj.Pl_value}\n"
+        f"voltage_value: {obj.voltage_value}\n"
+        f"noise_pourcentage: {obj.noise_pourcentage}\n"
         "------------------------------------\n"
-        f"Patch counter: {obj.patch_counter}\n"
-        f"Scale up: {obj.scale_up}\n"
-        f"Selected area: {obj.selected_area}\n"
-        f"Selected patch size: {obj.selected_patch_size}\n"
-        f"VPI extraction: {obj.vpi_extraction}\n"
+        f"patch_counter: {obj.patch_counter}\n"
+        f"scale_up: {obj.scale_up}\n"
+        f"selected_area: {obj.selected_area}\n"
+        f"selected_patch_size: {obj.selected_patch_size}\n"
+        f"vpi_extraction: {obj.vpi_extraction}\n"
     )
 
     print(info_str)
 
+def update_variable(obj, prompt):
+    try:
+        _, variable, value = prompt.split(' ', 2)
+        variable = variable.strip()
+        value = value.strip()
+
+        if hasattr(obj, variable):
+            setattr(obj, variable, value)
+
+            if variable == "cell_name" or variable == "state_list":
+                obj.def_file = None
+
+            print(f"Updated {variable} to: {value}")
+        else:
+            print(f"Variable {variable} does not exist in the object.")
+    except ValueError:
+        print("Invalid input format. Please use 'variable value'.")
+
+
+def plot(obj, prompt):
+    try:
+        _, variable = prompt.split(' ', 1)
+        variable = variable.strip()
+
+        if variable == "lps":
+            plt.imshow(obj.image_matrix, cmap='Reds', origin='lower')
+        else:
+            plt.imshow(obj.image_matrix, cmap='gist_gray', origin='lower')
+
+        if obj.scale_up is not None:
+            scale = obj.scale_up
+            scalebar = ScaleBar(1 / scale, units="um", location="lower left", length_fraction=0.1, label=f"1:{scale}")
+            plt.gca().add_artist(scalebar)
+            plt.grid(True, which='both', linestyle='-', linewidth=0.5, color='darkgrey')
+            plt.gca().xaxis.set_major_locator(MultipleLocator(scale))
+            plt.gca().yaxis.set_major_locator(MultipleLocator(scale))
+
+        plt.title(variable)
+        plt.xlabel("x")
+        plt.ylabel("y")
+        plt.show()
+
+    except ValueError:
+        print("An error occurred during plotting")
