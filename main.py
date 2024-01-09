@@ -40,11 +40,12 @@ def run_cli():
 
     parser_gui = subparsers.add_parser('gui', help='GUI mode for simulation')
     parser_gui.add_argument('-cli', '--command_line', action='store_true', help='Use the GUI as a command line tool')
+    parser_gui.add_argument('-s', '--script', help='Add an input script based on available commands')
 
     args = parser.parse_args()
 
     if args.subcommand == 'gui':
-        run_gui(args.command_line)
+        run_gui(args.command_line, args.script)
     else:
         std_file = args.std_file
         lib_file = args.lib_file
@@ -65,7 +66,7 @@ def run_cli():
         run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list, cell_list, output, verbose_mode, unit_test, flip_flop, vpi_file, benchmark_area, benchmark_plot, patch_size)
 
 
-def run_gui(command_line):
+def run_gui(command_line, script):
     from PyQt5.QtGui import QIcon
     from PyQt5.QtWidgets import QApplication
     from controllers.main_controller import MainController
@@ -82,7 +83,7 @@ def run_gui(command_line):
         sys.exit(app.exec())
 
     else:
-        MainController(True)
+        MainController(True, script)
 
 
 

@@ -23,10 +23,13 @@ from views.main import MainView
 from views.dialogs.technology_dialog import TechnologySelectionDialog
 
 from prompt_toolkit import PromptSession
+import subprocess
 
 
 class MainController:
-    def __init__(self, command_line):
+    def __init__(self, command_line, script=None):
+
+        self.script = script
 
         self.patch_counter = [1, 1]
         self.scale_up = None
@@ -104,15 +107,19 @@ class MainController:
     ██   ██  ██████     ██     ██████         ██████  ██      ███████ 
                                                             
             """)
-            session = PromptSession()
-            while True:
-                user_input = session.prompt('auto_ops> ')
-                self.process_command_line_mode(user_input)
+            if self.script is None or script == "":
+                session = PromptSession()
+                while True:
+                    user_input = session.prompt('auto_ops> ')
+                    self.process_command_line_mode(user_input)
+
+            else:
+                self.run_script()
 
     def process_command_line_mode(self, command):
-        if command == "exit":
+        if command == "exit" or command == "quit":
             print("\nSee you soon!\n")
-            sys.exit(1)
+            sys.exit(0)
         elif command == "info":
             gui_parser.parse_info(self)
         elif command.startswith("update"):
@@ -120,6 +127,25 @@ class MainController:
         elif command.startswith("plot"):
             self.update_image_matrix()
             gui_parser.plot(self, command)
+        else:
+            print("Command not found")
+
+    def run_script(self):
+        try:
+            process = subprocess.Popen(['bash', self.script], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            for line in process.stdout:
+                print("\nauto_ops> " + line.strip())
+                self.process_command_line_mode(line.strip())
+            process.wait()
+
+            if process.returncode != 0:
+                print(f"Error executing script:\n{process.stderr.read()}")
+            else:
+                print("\nScript execution completed. Exiting.")
+                sys.exit(0)
+        except Exception as e:
+            print(f"Error executing script: {e}")
+
 
     def stop_thread(self):
         self._running = False
