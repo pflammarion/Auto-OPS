@@ -16,7 +16,6 @@ from scipy.signal import fftconvolve
 
 from controllers import gds_drawing, def_parser, gui_parser
 from controllers.GDS_Object.op import Op
-from controllers.gui_parser import parse_info, CommandLineInterface
 from controllers.lib_reader import LibReader
 from views.dialogs.column_dialog import ColumnSelectionDialog
 from views.dialogs.layer_list_dialog import LayerSelectionDialog
