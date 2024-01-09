@@ -122,6 +122,16 @@ class MainController:
         if command == "exit" or command == "quit":
             print("\nSee you soon!\n")
             sys.exit(0)
+        elif command == "h" or command == "help":
+            print("Help:\n"
+                  "Commands available: info, update, rcv, plot, export.\n\n"
+                  "info: To get the current variables information\n"
+                  "update: {variable_name} {new_value} to update a variable with a new value\n"
+                  "rcv: To calculate the rcv value of the current matrix. You can use the {save} argument to save it in export/rcv.csv\n"
+                  "plot: {original, rcv, psf} to plot the matrix\n"
+                  "export: To export the numpy array matrix\n"
+                  "-----------------------------------------")
+
         elif command == "info":
             gui_parser.parse_info(self)
         elif command.startswith("update"):

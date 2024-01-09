@@ -40,7 +40,7 @@ def run_cli():
 
     parser_gui = subparsers.add_parser('gui', help='GUI mode for simulation')
     parser_gui.add_argument('-cli', '--command_line', action='store_true', help='Use the GUI as a command line tool')
-    parser_gui.add_argument('-s', '--script', help='Add an input script based on available commands')
+    parser_gui.add_argument('-s', '--script', help='Add an input script based on available commands in the GUI_cli')
 
     args = parser.parse_args()
 
