@@ -3,6 +3,7 @@ import datetime
 import itertools
 import json
 import os
+import sys
 import threading
 import time
 
@@ -15,6 +16,7 @@ from scipy.signal import fftconvolve
 
 from controllers import gds_drawing, def_parser
 from controllers.GDS_Object.op import Op
+from controllers.gui_parser import parse_info
 from controllers.lib_reader import LibReader
 from views.dialogs.column_dialog import ColumnSelectionDialog
 from views.dialogs.layer_list_dialog import LayerSelectionDialog
@@ -110,7 +112,11 @@ class MainController:
                 self.process_command_line_mode(user_input)
 
     def process_command_line_mode(self, command):
-        print(f"Processing Auto-OPS command: {command}")
+        if command == "exit":
+            print("\nSee you soon!\n")
+            sys.exit(1)
+        elif command == "info":
+            parse_info(self)
 
     def stop_thread(self):
         self._running = False
