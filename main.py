@@ -17,24 +17,29 @@ from controllers.lib_reader import LibReader
 def run_cli():
     parser = argparse.ArgumentParser(description='Auto-OPS command line tool')
 
-    parser.add_argument('-s', '--std_file', type=str, help='Input std file', required=True)
-    parser.add_argument('-l', '--lib_file', type=str, help='Input lib file', required=True)
-    parser.add_argument('-g', '--gds_file', help='Input GDS design file')
-    parser.add_argument('-d', '--def_file', help='Input DEF design file')
-    parser.add_argument('-vpi', '--vpi_file', help='Input VPI output file')
-    parser.add_argument('-i', '--input', nargs='+', type=int, help='Input pattern list applied as A-Z/0-9 order')
-    parser.add_argument('-la', '--layer_list', type=str, help='Diffusion, ... [1, 5, 9, 10, 11]',
-                        required=True)
-    parser.add_argument('-c', '--cell_list', nargs='+', type=str,
-                        help='Cell list for active regions extraction (empty for all cells)')
-    parser.add_argument('-o', '--output', help='Output type', choices=['reflection_over_cell'])
+    subparsers = parser.add_subparsers(help='Subcommands', dest='subcommand')
+
+    parser_command_line = subparsers.add_parser('command_line', help='Command line mode')
+
+    parser_command_line.add_argument('-s', '--std_file', type=str, help='Input std file', required=True)
+    parser_command_line.add_argument('-l', '--lib_file', type=str, help='Input lib file', required=True)
+    parser_command_line.add_argument('-la', '--layer_list', type=str, help='Diffusion, ... [1, 5, 9, 10, 11]', required=True)
+    parser_command_line.add_argument('--verbose', action='store_true', help='Enable verbose mode')
+    parser_command_line.add_argument('--unit_test', help='Do cell technology unit test')
+
+    parser_command_line.add_argument('-g', '--gds_file', help='Input GDS design file')
+    parser_command_line.add_argument('-d', '--def_file', help='Input DEF design file')
+    parser_command_line.add_argument('-vpi', '--vpi_file', help='Input VPI output file')
+    parser_command_line.add_argument('--benchmark_plot', action='store_true', help='Plot benchmarks results. This could affect performance.')
+    parser_command_line.add_argument('--benchmark_area', type=int, help='Benchmark plotting area')
+    parser_command_line.add_argument('--patch_size', type=int, help='Int in um^2 of the patch size (default 20)')
+
+    parser_command_line.add_argument('-i', '--input', nargs='+', type=int, help='Input pattern list applied as A-Z/0-9 order')
+    parser_command_line.add_argument('-c', '--cell_list', nargs='+', type=str, help='Cell list for active regions extraction (empty for all cells)')
+    parser_command_line.add_argument('-f', '--flip_flop', type=int, help='Flip Flop output Q')
+    parser_command_line.add_argument('-o', '--output', help='Output type', choices=['reflection_over_cell'])
+
     parser.add_argument('--gui', action='store_true', help='Start the gui')
-    parser.add_argument('--unit_test', help='Do cell technology unit test')
-    parser.add_argument('--verbose', action='store_true', help='Enable verbose mode')
-    parser.add_argument('-f', '--flip_flop', type=int, help='Flip Flop output Q')
-    parser.add_argument('--benchmark_plot', action='store_true', help='Plot benchmarks results. This could affect performance.')
-    parser.add_argument('--benchmark_area', type=int, help='Benchmark plotting area')
-    parser.add_argument('--patch_size', type=int, help='Benchmark plotting area (Format: [x_min, x_max, y_min, y_max])')
 
     args = parser.parse_args()
 
