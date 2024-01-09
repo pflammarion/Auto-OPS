@@ -11,7 +11,6 @@ from controllers import gds_drawing
 from controllers.GDS_Object.op import Op
 from controllers.def_parser import get_gates_info_from_def_file
 from controllers.lib_reader import LibReader
-#
 
 
 def run_cli():
@@ -40,7 +39,7 @@ def run_cli():
     parser_command_line.add_argument('-o', '--output', help='Output type', choices=['reflection_over_cell'])
 
     parser_gui = subparsers.add_parser('gui', help='GUI mode for simulation')
-    parser_gui.add_argument('-cl', '--command_line', action='store_true', help='Use the GUI as a command line tool')
+    parser_gui.add_argument('-cli', '--command_line', action='store_true', help='Use the GUI as a command line tool')
 
     args = parser.parse_args()
 

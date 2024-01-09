@@ -16,7 +16,7 @@ from scipy.signal import fftconvolve
 
 from controllers import gds_drawing, def_parser, gui_parser
 from controllers.GDS_Object.op import Op
-from controllers.gui_parser import parse_info
+from controllers.gui_parser import parse_info, CommandLineInterface
 from controllers.lib_reader import LibReader
 from views.dialogs.column_dialog import ColumnSelectionDialog
 from views.dialogs.layer_list_dialog import LayerSelectionDialog
@@ -54,7 +54,7 @@ class MainController:
         self.beta_value = 1
         self.Pl_value = 10E7
         self.voltage_value = 1.2
-        self.noise_pourcentage = 5
+        self.noise_percentage = 5
 
         self.max_voltage_high_gate_state = float('-inf')
         self.high_gate_state_layout = None
@@ -210,7 +210,7 @@ class MainController:
                     self.beta_value = data["gate_config"]["beta"]
                     self.Pl_value = data["gate_config"]["Pl"]
                     self.voltage_value = data["gate_config"]["voltage"]
-                    self.noise_pourcentage = data["gate_config"]["noise_pourcentage"]
+                    self.noise_percentage = data["gate_config"]["noise_percentage"]
 
                 if "op_config" in data:
                     std_file = data["op_config"]["std_file"]
@@ -301,7 +301,7 @@ class MainController:
                 "beta": self.beta_value,
                 "Pl": self.Pl_value,
                 "voltage": self.voltage_value,
-                "noise_pourcentage": self.noise_pourcentage
+                "noise_percentage": self.noise_percentage
             }
         }
 
@@ -562,7 +562,7 @@ class MainController:
         beta_input = input_values['beta_value']
         Pl_input = input_values['Pl_value']
         voltage_input = input_values['voltage_value']
-        pourcentage_input = input_values['noise_pourcentage']
+        pourcentage_input = input_values['noise_percentage']
 
         # Check if the inputs are not null (not None) and not empty before converting to floats
         if Kn_input is not None and Kn_input != "":
@@ -591,9 +591,9 @@ class MainController:
             self.voltage_value = self.data["gate_config"]["voltage"]
 
         if pourcentage_input is not None and pourcentage_input != "":
-            self.noise_pourcentage = int(pourcentage_input)
+            self.noise_percentage = int(pourcentage_input)
         else:
-            self.noise_pourcentage = self.data["gate_config"]["noise_pourcentage"]
+            self.noise_percentage = self.data["gate_config"]["noise_percentage"]
 
         self.reload_view()
 

@@ -20,7 +20,7 @@ def parse_info(obj):
         f"beta_value: {obj.beta_value}\n"
         f"Pl_value: {obj.Pl_value}\n"
         f"voltage_value: {obj.voltage_value}\n"
-        f"noise_pourcentage: {obj.noise_pourcentage}\n"
+        f"noise_percentage: {obj.noise_percentage}\n"
         "------------------------------------\n"
         f"patch_counter: {obj.patch_counter}\n"
         f"scale_up: {obj.scale_up}\n"
@@ -30,6 +30,7 @@ def parse_info(obj):
     )
 
     print(info_str)
+
 
 def update_variable(obj, prompt):
     try:
