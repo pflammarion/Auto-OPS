@@ -1,4 +1,5 @@
 import copy
+import csv
 import datetime
 import itertools
 import json
@@ -30,6 +31,7 @@ class MainController:
     def __init__(self, command_line, script=None):
 
         self.script = script
+        self.command_line = command_line
 
         self.patch_counter = [1, 1]
         self.scale_up = None
@@ -124,9 +126,39 @@ class MainController:
             gui_parser.parse_info(self)
         elif command.startswith("update"):
             gui_parser.update_variable(self, command)
-        elif command.startswith("plot"):
+        elif command.startswith("rcv"):
             self.update_image_matrix()
-            gui_parser.plot(self, command)
+            result, value = self.print_rcv_image()
+
+            _, variable = command.split(' ', 1)
+            variable = variable.strip()
+
+            print(value)
+
+            if variable == "save":
+                csv_file_path = os.path.join("export/rcv.csv")
+                with open(csv_file_path, mode='a', newline='') as csv_file:
+                    csv_writer = csv.writer(csv_file)
+                    csv_writer.writerow([self.cell_name, self.state_list, self.x_position, self.y_position, value])
+                print(f"Result saved in export/rcv.csv")
+
+        elif command.startswith("plot"):
+            _, variable = command.split(' ', 1)
+            variable = variable.strip()
+
+            self.update_image_matrix()
+            value = ""
+
+            if variable == "rcv":
+                result, value = self.print_rcv_image()
+            else:
+                result = self.image_matrix
+
+            gui_parser.plot(result, self, variable + ": " + str(value))
+
+        elif command == "export":
+            self.export_np_array()
+
         else:
             print("Command not found")
 
@@ -145,7 +177,6 @@ class MainController:
                 sys.exit(0)
         except Exception as e:
             print(f"Error executing script: {e}")
-
 
     def stop_thread(self):
         self._running = False
@@ -176,7 +207,6 @@ class MainController:
             else:
                 self.image_matrix = self.draw_layout(lam, G1, G2, Gap)
 
-
     def reload_view_wrapper(self):
         self.scale_up = None
         self.view.set_footer_label("... Loading ...")
@@ -188,7 +218,8 @@ class MainController:
             self.print_psf()
 
         elif self.app_state == 2:
-            self.print_rcv_image()
+            result, _ = self.print_rcv_image()
+            self.view.display_image(result, self.is_plot_export, self.main_label_value)
 
         elif self.app_state == 3:
             self.print_EOFM_image()
@@ -644,7 +675,7 @@ class MainController:
         amp_rel = amp_abs / num_pix_under_laser
         self.main_label_value = "RCV (per nm²) = %.6f" % amp_rel
 
-        return np.where(L > 0, 1, 0), L
+        return np.where(L > 0, 1, 0), L, amp_rel
 
     def update_rcv_position(self):
         input_values = self.view.laser_position_layout.get_input_values()
@@ -678,13 +709,16 @@ class MainController:
 
     def print_rcv_image(self):
         self.dataframe = None
-        self.update_settings()
+
+        if not self.command_line:
+            self.update_settings()
+
         points = np.where(self.image_matrix != 0, 1, 0)
-        mask, _ = self.calc_and_plot_RCV(offset=[self.y_position, self.x_position])
+        mask, _, value = self.calc_and_plot_RCV(offset=[self.y_position, self.x_position])
 
         result = cv2.addWeighted(points, 1, mask, 1, 0)
 
-        self.view.display_image(result, self.is_plot_export, self.main_label_value)
+        return result, value
 
     def calc_and_plot_EOFM(self):
         lam = self.lam_value
@@ -751,7 +785,7 @@ class MainController:
 
         selected_columns = self.selected_columns
 
-        mask, L = self.calc_and_plot_RCV(offset=[self.y_position, self.x_position])
+        mask, L, _ = self.calc_and_plot_RCV(offset=[self.y_position, self.x_position])
 
         _, old_G1, old_G2, _ = self.parameters_init(self.Kn_value, self.Kp_value, self.voltage_value, self.beta_value,
                                                     self.Pl_value)

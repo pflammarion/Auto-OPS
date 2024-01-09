@@ -39,10 +39,20 @@ def update_variable(obj, prompt):
         value = value.strip()
 
         if hasattr(obj, variable):
-            setattr(obj, variable, value)
 
             if variable == "cell_name" or variable == "state_list":
                 obj.def_file = None
+
+            elif variable == "is_confocal":
+                value = bool(value)
+
+            elif variable == "patch_counter":
+                value = list(value)
+
+            else:
+                value = float(value)
+
+            setattr(obj, variable, value)
 
             print(f"Updated {variable} to: {value}")
         else:
@@ -51,25 +61,22 @@ def update_variable(obj, prompt):
         print("Invalid input format. Please use 'variable value'.")
 
 
-def plot(obj, prompt):
+def plot(image, obj, prompt):
     try:
-        _, variable = prompt.split(' ', 1)
-        variable = variable.strip()
-
-        if variable == "lps":
-            plt.imshow(obj.image_matrix, cmap='Reds', origin='lower')
+        if prompt == "lps":
+            plt.imshow(image, cmap='Reds', origin='lower')
         else:
-            plt.imshow(obj.image_matrix, cmap='gist_gray', origin='lower')
+            plt.imshow(image, cmap='gist_gray', origin='lower')
 
         if obj.scale_up is not None:
             scale = obj.scale_up
-            scalebar = ScaleBar(1 / scale, units="um", location="lower left", length_fraction=0.1, label=f"1:{scale}")
+            scalebar = ScaleBar(1 / scale, units="um", location="lower left", label=f"1:{scale}")
             plt.gca().add_artist(scalebar)
             plt.grid(True, which='both', linestyle='-', linewidth=0.5, color='darkgrey')
             plt.gca().xaxis.set_major_locator(MultipleLocator(scale))
             plt.gca().yaxis.set_major_locator(MultipleLocator(scale))
 
-        plt.title(variable)
+        plt.title(prompt)
         plt.xlabel("x")
         plt.ylabel("y")
         plt.show()
