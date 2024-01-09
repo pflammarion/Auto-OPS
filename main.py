@@ -19,7 +19,7 @@ def run_cli():
 
     subparsers = parser.add_subparsers(help='Subcommands', dest='subcommand')
 
-    parser_command_line = subparsers.add_parser('command_line', help='Command line mode')
+    parser_command_line = subparsers.add_parser('auto_ops', help='Auto-OPS command line mode')
 
     parser_command_line.add_argument('-s', '--std_file', type=str, help='Input std file', required=True)
     parser_command_line.add_argument('-l', '--lib_file', type=str, help='Input lib file', required=True)
