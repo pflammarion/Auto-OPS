@@ -169,6 +169,19 @@ class MainController:
         elif command == "export":
             self.export_np_array()
 
+        elif command == "overlay":
+            truth_table, voltage, input_names = self.lib_reader.extract_truth_table(self.cell_name)
+            combinations = list(itertools.product([0, 1], repeat=len(input_names)))
+            merged_image_matrix = np.empty(shape=(3000, 3000))
+            merged_image_matrix.fill(0)
+
+            for combination in combinations:
+                self.state_list = ''.join(str(item) for item in combination)
+                self.update_image_matrix()
+                merged_image_matrix += np.where(merged_image_matrix == 0, self.image_matrix, 0)
+
+            gui_parser.plot(merged_image_matrix, self, "merged image")
+
         else:
             print("Command not found")
 

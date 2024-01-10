@@ -42,6 +42,7 @@ def update_variable(obj, prompt):
 
             if variable == "cell_name" or variable == "state_list":
                 obj.def_file = None
+                value = str(value)
 
             elif variable == "is_confocal":
                 value = bool(value)
