@@ -33,6 +33,9 @@ class MainController:
         self.script = script
         self.command_line = command_line
 
+        self.merged_image_matrix = np.empty(shape=(3000, 3000))
+        self.merged_image_matrix.fill(0)
+
         self.patch_counter = [1, 1]
         self.scale_up = None
         self.gds_cell_list = None
@@ -127,6 +130,9 @@ class MainController:
                   "Commands available: info, update, rcv, plot, export.\n\n"
                   "info: To get the current variables information\n"
                   "update: {variable_name} {new_value} to update a variable with a new value\n"
+                  "save: To save to save the propagation in the matrix•\n"
+                  "merge To merge the propagation into the precedent matrix\n"
+                  "reset: To reset the merged matrix to 0\n"
                   "rcv: To calculate the rcv value of the current matrix. You can use the {save} argument to save it in export/rcv.csv\n"
                   "plot: {original, rcv, psf} to plot the matrix\n"
                   "export: To export the numpy array matrix\n"
@@ -156,7 +162,6 @@ class MainController:
             _, variable = command.split(' ', 1)
             variable = variable.strip()
 
-            self.update_image_matrix()
             value = ""
 
             if variable == "rcv":
@@ -169,18 +174,17 @@ class MainController:
         elif command == "export":
             self.export_np_array()
 
-        elif command == "overlay":
-            truth_table, voltage, input_names = self.lib_reader.extract_truth_table(self.cell_name)
-            combinations = list(itertools.product([0, 1], repeat=len(input_names)))
-            merged_image_matrix = np.empty(shape=(3000, 3000))
-            merged_image_matrix.fill(0)
+        elif command == "save":
+            self.update_image_matrix()
 
-            for combination in combinations:
-                self.state_list = ''.join(str(item) for item in combination)
-                self.update_image_matrix()
-                merged_image_matrix += np.where(merged_image_matrix == 0, self.image_matrix, 0)
+        elif command == "merge":
+            self.update_image_matrix()
+            self.merged_image_matrix += np.where(self.merged_image_matrix == 0, self.image_matrix, 0)
+            self.image_matrix = copy.deepcopy(self.merged_image_matrix)
 
-            gui_parser.plot(merged_image_matrix, self, "merged image")
+        elif command == "reset":
+            self.merged_image_matrix = np.empty(shape=(3000, 3000))
+            self.merged_image_matrix.fill(0)
 
         else:
             print("Command not found")
