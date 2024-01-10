@@ -34,7 +34,7 @@ class MainView(QMainWindow):
                                        'beta_value': self.controller.beta_value,
                                        'Pl_value': self.controller.Pl_value,
                                        'voltage_value': self.controller.voltage_value,
-                                       'noise_pourcentage': self.controller.noise_pourcentage
+                                       'noise_percentage': self.controller.noise_percentage
                                        })
         self.laser_position_layout = LaserPositionLayout()
 
@@ -161,7 +161,7 @@ class MainView(QMainWindow):
         right_layout = central_layout.itemAtPosition(0, 2).widget().layout()
         info_layout = right_layout.itemAtPosition(0, 0).widget().layout()
         voltage_widget = info_layout.itemAtPosition(4, 0).widget()
-        noise_pourcentage_widget = info_layout.itemAtPosition(6, 0).widget()
+        noise_percentage_widget = info_layout.itemAtPosition(6, 0).widget()
 
         left_widget.setMaximumWidth(200)
 
@@ -173,7 +173,7 @@ class MainView(QMainWindow):
 
         self.preview_canvas.hide()
         self.second_canvas.hide()
-        noise_pourcentage_widget.hide()
+        noise_percentage_widget.hide()
 
         # Clear the layout if there's already a widget at position (0, 0)
         if left_layout.itemAtPosition(1, 0) is not None:
@@ -211,7 +211,7 @@ class MainView(QMainWindow):
 
             voltage_widget.hide()
             self.gate_layout.info_button_column_voltage.show()
-            noise_pourcentage_widget.show()
+            noise_percentage_widget.show()
 
     def init_nav_bar(self, central_layout) -> QWidget:
         nav_bar_widget = QWidget()
@@ -449,7 +449,7 @@ class MainView(QMainWindow):
         time_abs = df[selected_columns[0]]
         voltage = df[selected_columns[1]]
         rcv = df['RCV']
-        percentage = float(self.controller.noise_pourcentage) / 100
+        percentage = float(self.controller.noise_percentage) / 100
         noisy_rcv = rcv + np.random.normal(0, rcv.std(), time_abs.size) * percentage
 
         ax1 = self.main_figure.add_subplot(211)
@@ -488,7 +488,7 @@ class MainView(QMainWindow):
                                         'beta_value': self.controller.beta_value,
                                         'Pl_value': self.controller.Pl_value,
                                         'voltage_value': self.controller.voltage_value,
-                                        'noise_pourcentage': self.controller.noise_pourcentage
+                                        'noise_percentage': self.controller.noise_percentage
                                         })
 
         self.laser_position_layout.update_inputs({'input_x': self.controller.x_position,

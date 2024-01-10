@@ -13,3 +13,4 @@ pytest
 matplotlib-scalebar
 PyQt5
 opencv-python
+prompt_toolkit

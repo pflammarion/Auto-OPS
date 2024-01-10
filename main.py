@@ -11,68 +11,80 @@ from controllers import gds_drawing
 from controllers.GDS_Object.op import Op
 from controllers.def_parser import get_gates_info_from_def_file
 from controllers.lib_reader import LibReader
-#
 
 
 def run_cli():
     parser = argparse.ArgumentParser(description='Auto-OPS command line tool')
 
-    parser.add_argument('-s', '--std_file', type=str, help='Input std file', required=True)
-    parser.add_argument('-l', '--lib_file', type=str, help='Input lib file', required=True)
-    parser.add_argument('-g', '--gds_file', help='Input GDS design file')
-    parser.add_argument('-d', '--def_file', help='Input DEF design file')
-    parser.add_argument('-vpi', '--vpi_file', help='Input VPI output file')
-    parser.add_argument('-i', '--input', nargs='+', type=int, help='Input pattern list applied as A-Z/0-9 order')
-    parser.add_argument('-la', '--layer_list', type=str, help='Diffusion, ... [1, 5, 9, 10, 11]',
-                        required=True)
-    parser.add_argument('-c', '--cell_list', nargs='+', type=str,
-                        help='Cell list for active regions extraction (empty for all cells)')
-    parser.add_argument('-o', '--output', help='Output type', choices=['reflection_over_cell'])
-    parser.add_argument('--gui', action='store_true', help='Start the gui')
-    parser.add_argument('--unit_test', help='Do cell technology unit test')
-    parser.add_argument('--verbose', action='store_true', help='Enable verbose mode')
-    parser.add_argument('-f', '--flip_flop', type=int, help='Flip Flop output Q')
-    parser.add_argument('--benchmark_plot', action='store_true', help='Plot benchmarks results. This could affect performance.')
-    parser.add_argument('--benchmark_area', type=int, help='Benchmark plotting area')
-    parser.add_argument('--patch_size', type=int, help='Benchmark plotting area (Format: [x_min, x_max, y_min, y_max])')
+    subparsers = parser.add_subparsers(help='Subcommands', dest='subcommand')
+
+    parser_command_line = subparsers.add_parser('auto_ops', help='Auto-OPS command line mode')
+
+    parser_command_line.add_argument('-s', '--std_file', type=str, help='Input std file', required=True)
+    parser_command_line.add_argument('-l', '--lib_file', type=str, help='Input lib file', required=True)
+    parser_command_line.add_argument('-la', '--layer_list', type=str, help='Diffusion, ... [1, 5, 9, 10, 11]', required=True)
+    parser_command_line.add_argument('--verbose', action='store_true', help='Enable verbose mode')
+    parser_command_line.add_argument('--unit_test', help='Do cell technology unit test')
+
+    parser_command_line.add_argument('-g', '--gds_file', help='Input GDS design file')
+    parser_command_line.add_argument('-d', '--def_file', help='Input DEF design file')
+    parser_command_line.add_argument('-vpi', '--vpi_file', help='Input VPI output file')
+    parser_command_line.add_argument('--benchmark_plot', action='store_true', help='Plot benchmarks results. This could affect performance.')
+    parser_command_line.add_argument('--benchmark_area', type=int, help='Benchmark plotting area')
+    parser_command_line.add_argument('--patch_size', type=int, help='Int in um^2 of the patch size (default 20)')
+
+    parser_command_line.add_argument('-i', '--input', nargs='+', type=int, help='Input pattern list applied as A-Z/0-9 order')
+    parser_command_line.add_argument('-c', '--cell_list', nargs='+', type=str, help='Cell list for active regions extraction (empty for all cells)')
+    parser_command_line.add_argument('-f', '--flip_flop', type=int, help='Flip Flop output Q')
+    parser_command_line.add_argument('-o', '--output', help='Output type', choices=['reflection_over_cell'])
+
+    parser_gui = subparsers.add_parser('gui', help='GUI mode for simulation')
+    parser_gui.add_argument('-cli', '--command_line', action='store_true', help='Use the GUI as a command line tool')
+    parser_gui.add_argument('-s', '--script', help='Add an input script based on available commands in the GUI_cli')
 
     args = parser.parse_args()
 
-    std_file = args.std_file
-    lib_file = args.lib_file
-    gds_file = args.gds_file
-    def_file = args.def_file
-    vpi_file = args.vpi_file
-    cell_input = args.input
-    layer_list = ast.literal_eval(args.layer_list)
-    cell_list = args.cell_list
-    output = args.output
-    verbose_mode = args.verbose
-    flip_flop = args.flip_flop
-    benchmark_plot = args.benchmark_plot
-    benchmark_area = args.benchmark_area
-    patch_size = args.patch_size
-
-    unit_test = args.unit_test
-
-    if args.gui:
-        run_gui()
+    if args.subcommand == 'gui':
+        run_gui(args.command_line, args.script)
     else:
+        std_file = args.std_file
+        lib_file = args.lib_file
+        gds_file = args.gds_file
+        def_file = args.def_file
+        vpi_file = args.vpi_file
+        cell_input = args.input
+        layer_list = ast.literal_eval(args.layer_list)
+        cell_list = args.cell_list
+        output = args.output
+        verbose_mode = args.verbose
+        flip_flop = args.flip_flop
+        benchmark_plot = args.benchmark_plot
+        benchmark_area = args.benchmark_area
+        patch_size = args.patch_size
+        unit_test = args.unit_test
+
         run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list, cell_list, output, verbose_mode, unit_test, flip_flop, vpi_file, benchmark_area, benchmark_plot, patch_size)
 
 
-def run_gui():
+def run_gui(command_line, script):
     from PyQt5.QtGui import QIcon
     from PyQt5.QtWidgets import QApplication
     from controllers.main_controller import MainController
 
-    app = QApplication(sys.argv)
-    app.setApplicationName("CMOS-INV-GUI")
-    app.setWindowIcon(QIcon('resources/app_logo.png'))
-    controller = MainController()
-    view = controller.get_view()
-    view.show()
-    sys.exit(app.exec())
+    print("Starting Auto-OPS....")
+
+    if not command_line:
+        app = QApplication(sys.argv)
+        controller = MainController(False)
+        app.setApplicationName("CMOS-INV-GUI")
+        app.setWindowIcon(QIcon('resources/app_logo.png'))
+        view = controller.get_view()
+        view.show()
+        sys.exit(app.exec())
+
+    else:
+        MainController(True, script)
+
 
 
 

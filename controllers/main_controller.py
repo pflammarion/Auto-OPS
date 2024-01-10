@@ -1,8 +1,10 @@
 import copy
+import csv
 import datetime
 import itertools
 import json
 import os
+import sys
 import threading
 import time
 
@@ -13,7 +15,7 @@ import numpy as np
 import pandas as pd
 from scipy.signal import fftconvolve
 
-from controllers import gds_drawing, def_parser
+from controllers import gds_drawing, def_parser, gui_parser
 from controllers.GDS_Object.op import Op
 from controllers.lib_reader import LibReader
 from views.dialogs.column_dialog import ColumnSelectionDialog
@@ -21,9 +23,15 @@ from views.dialogs.layer_list_dialog import LayerSelectionDialog
 from views.main import MainView
 from views.dialogs.technology_dialog import TechnologySelectionDialog
 
+from prompt_toolkit import PromptSession
+import subprocess
+
 
 class MainController:
-    def __init__(self):
+    def __init__(self, command_line, script=None):
+
+        self.script = script
+        self.command_line = command_line
 
         self.patch_counter = [1, 1]
         self.scale_up = None
@@ -50,7 +58,7 @@ class MainController:
         self.beta_value = 1
         self.Pl_value = 10E7
         self.voltage_value = 1.2
-        self.noise_pourcentage = 5
+        self.noise_percentage = 5
 
         self.max_voltage_high_gate_state = float('-inf')
         self.high_gate_state_layout = None
@@ -65,7 +73,7 @@ class MainController:
 
         self.data = self.load_settings_from_json("config/config.json")
 
-        if self.gds_cell_list is None or self.lib_reader is None or self.selected_layer is None:
+        if self.gds_cell_list is None or self.lib_reader is None or self.selected_layer is None and not command_line:
             self.init_op_object()
 
         if self.def_file is None:
@@ -81,15 +89,104 @@ class MainController:
 
         self.app_state = 0
 
-        self.view = MainView(self)
+        if not command_line:
+            self.view = MainView(self)
+            self.view.set_technology_label("Technology: " + str(self.technology_value) + " nm")
 
-        self.view.set_technology_label("Technology: " + str(self.technology_value) + " nm")
+            self._running = True
 
-        self._running = True
+            self.is_plot_export = False
 
-        self.is_plot_export = False
+            self.reload_view()
 
-        self.reload_view()
+        else:
+            print("""
+            
+     █████  ██    ██ ████████  ██████         ██████  ██████  ███████ 
+    ██   ██ ██    ██    ██    ██    ██       ██    ██ ██   ██ ██      
+    ███████ ██    ██    ██    ██    ██ █████ ██    ██ ██████  ███████ 
+    ██   ██ ██    ██    ██    ██    ██       ██    ██ ██           ██ 
+    ██   ██  ██████     ██     ██████         ██████  ██      ███████ 
+                                                            
+            """)
+            if self.script is None or script == "":
+                session = PromptSession()
+                while True:
+                    user_input = session.prompt('auto_ops_gui> ')
+                    self.process_command_line_mode(user_input)
+
+            else:
+                self.run_script()
+
+    def process_command_line_mode(self, command):
+        if command == "exit" or command == "quit":
+            print("\nSee you soon!\n")
+            sys.exit(0)
+        elif command == "h" or command == "help":
+            print("Help:\n"
+                  "Commands available: info, update, rcv, plot, export.\n\n"
+                  "info: To get the current variables information\n"
+                  "update: {variable_name} {new_value} to update a variable with a new value\n"
+                  "rcv: To calculate the rcv value of the current matrix. You can use the {save} argument to save it in export/rcv.csv\n"
+                  "plot: {original, rcv, psf} to plot the matrix\n"
+                  "export: To export the numpy array matrix\n"
+                  "-----------------------------------------")
+
+        elif command == "info":
+            gui_parser.parse_info(self)
+        elif command.startswith("update"):
+            gui_parser.update_variable(self, command)
+        elif command.startswith("rcv"):
+            self.update_image_matrix()
+            result, value = self.print_rcv_image()
+
+            _, variable = command.split(' ', 1)
+            variable = variable.strip()
+
+            print(value)
+
+            if variable == "save":
+                csv_file_path = os.path.join("export/rcv.csv")
+                with open(csv_file_path, mode='a', newline='') as csv_file:
+                    csv_writer = csv.writer(csv_file)
+                    csv_writer.writerow([self.cell_name, self.state_list, self.x_position, self.y_position, value])
+                print(f"Result saved in export/rcv.csv")
+
+        elif command.startswith("plot"):
+            _, variable = command.split(' ', 1)
+            variable = variable.strip()
+
+            self.update_image_matrix()
+            value = ""
+
+            if variable == "rcv":
+                result, value = self.print_rcv_image()
+            else:
+                result = self.image_matrix
+
+            gui_parser.plot(result, self, variable + ": " + str(value))
+
+        elif command == "export":
+            self.export_np_array()
+
+        else:
+            print("Command not found")
+
+    def run_script(self):
+        try:
+            process = subprocess.Popen(['bash', self.script], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            for line in process.stdout:
+                print("\nauto_ops_gui> " + line.strip())
+                self.process_command_line_mode(line.strip())
+            process.wait()
+
+            if process.returncode != 0:
+                print(f"Error executing script:\n{process.stderr.read()}")
+            else:
+                print("\nScript execution completed. Exiting.")
+                sys.exit(0)
+        except Exception as e:
+            print(f"Error executing script: {e}")
 
     def stop_thread(self):
         self._running = False
@@ -97,15 +194,16 @@ class MainController:
     def reload_view(self):
         threading.Thread(target=self.reload_view_wrapper).start()
 
-    def reload_view_wrapper(self):
-        self.scale_up = None
-        self.view.set_footer_label("... Loading ...")
-        start = time.time()
+    def update_image_matrix(self):
         if not self.imported_image:
-            lam, G1, G2, Gap = self.parameters_init(self.Kn_value, self.Kp_value, self.voltage_value, self.beta_value, self.Pl_value)
+            lam, G1, G2, Gap = self.parameters_init(self.Kn_value, self.Kp_value, self.voltage_value, self.beta_value,
+                                                    self.Pl_value)
             if self.cell_name is not None and self.cell_name != "":
                 if self.def_file is not None:
-                    self.image_matrix, self.scale_up = gds_drawing.benchmark_matrix(self.object_storage_list, self.def_file, G1, G2, self.vpi_extraction, self.selected_area)
+                    self.image_matrix, self.scale_up = gds_drawing.benchmark_matrix(self.object_storage_list,
+                                                                                    self.def_file, G1, G2,
+                                                                                    self.vpi_extraction,
+                                                                                    self.selected_area)
                 else:
                     if self.cell_name not in self.object_storage_list.keys():
                         self.extract_op_cell(self.cell_name)
@@ -119,11 +217,19 @@ class MainController:
             else:
                 self.image_matrix = self.draw_layout(lam, G1, G2, Gap)
 
+    def reload_view_wrapper(self):
+        self.scale_up = None
+        self.view.set_footer_label("... Loading ...")
+        start = time.time()
+
+        self.update_image_matrix()
+
         if self.app_state == 1:
             self.print_psf()
 
         elif self.app_state == 2:
-            self.print_rcv_image()
+            result, _ = self.print_rcv_image()
+            self.view.display_image(result, self.is_plot_export, self.main_label_value)
 
         elif self.app_state == 3:
             self.print_EOFM_image()
@@ -170,7 +276,7 @@ class MainController:
                     self.beta_value = data["gate_config"]["beta"]
                     self.Pl_value = data["gate_config"]["Pl"]
                     self.voltage_value = data["gate_config"]["voltage"]
-                    self.noise_pourcentage = data["gate_config"]["noise_pourcentage"]
+                    self.noise_percentage = data["gate_config"]["noise_percentage"]
 
                 if "op_config" in data:
                     std_file = data["op_config"]["std_file"]
@@ -243,7 +349,7 @@ class MainController:
 
                 layout[y_start:y_end, x_start:x_end] = value
 
-        self.view.display_optional_image(layout, f"Selected Patch N°{self.selected_area}/{patch_counter-1}", False)
+        self.view.display_optional_image(layout, f"Selected Patch N°{self.selected_area}/{patch_counter - 1}", False)
 
     def save_settings_to_json(self):
         json_data = {
@@ -261,7 +367,7 @@ class MainController:
                 "beta": self.beta_value,
                 "Pl": self.Pl_value,
                 "voltage": self.voltage_value,
-                "noise_pourcentage": self.noise_pourcentage
+                "noise_percentage": self.noise_percentage
             }
         }
 
@@ -305,10 +411,16 @@ class MainController:
 
         np.save(f'export/np_arrays/{name}.npy', self.image_matrix)
 
-        self.view.popup_window("Export Successful", f"Numpy array exported successfully in 'export/np_arrays/{name}.npy'")
+        message = f"Numpy array exported successfully in 'export/np_arrays/{name}.npy'"
 
-        end = time.time()
-        self.view.set_footer_label(f"Execution time for NP array export: {end - start:.2f} seconds")
+        if not self.command_line:
+            self.view.popup_window("Export Successful", message)
+
+            end = time.time()
+            self.view.set_footer_label(f"Execution time for NP array export: {end - start:.2f} seconds")
+        else:
+            print(message)
+
 
     def upload_image(self):
         file_dialog = QFileDialog()
@@ -477,9 +589,10 @@ class MainController:
         # may be when the voltage is > 0,5 changing the gate state
         lam, G1, G2, Gap = self.parameters_init(self.Kn_value, self.Kp_value, voltage, self.beta_value, self.Pl_value)
 
-        generated_gate_image = np.select([self.image_matrix == old_G1, self.image_matrix == old_G2], [G1, G2], self.image_matrix)
+        generated_gate_image = np.select([self.image_matrix == old_G1, self.image_matrix == old_G2], [G1, G2],
+                                         self.image_matrix)
 
-    # for preview in gui of current position of laser
+        # for preview in gui of current position of laser
         if voltage > self.max_voltage_high_gate_state:
             self.high_gate_state_layout = generated_gate_image
             self.max_voltage_high_gate_state = voltage
@@ -520,7 +633,7 @@ class MainController:
         beta_input = input_values['beta_value']
         Pl_input = input_values['Pl_value']
         voltage_input = input_values['voltage_value']
-        pourcentage_input = input_values['noise_pourcentage']
+        pourcentage_input = input_values['noise_percentage']
 
         # Check if the inputs are not null (not None) and not empty before converting to floats
         if Kn_input is not None and Kn_input != "":
@@ -549,9 +662,9 @@ class MainController:
             self.voltage_value = self.data["gate_config"]["voltage"]
 
         if pourcentage_input is not None and pourcentage_input != "":
-            self.noise_pourcentage = int(pourcentage_input)
+            self.noise_percentage = int(pourcentage_input)
         else:
-            self.noise_pourcentage = self.data["gate_config"]["noise_pourcentage"]
+            self.noise_percentage = self.data["gate_config"]["noise_percentage"]
 
         self.reload_view()
 
@@ -577,7 +690,7 @@ class MainController:
         amp_rel = amp_abs / num_pix_under_laser
         self.main_label_value = "RCV (per nm²) = %.6f" % amp_rel
 
-        return np.where(L > 0, 1, 0), L
+        return np.where(L > 0, 1, 0), L, amp_rel
 
     def update_rcv_position(self):
         input_values = self.view.laser_position_layout.get_input_values()
@@ -611,13 +724,16 @@ class MainController:
 
     def print_rcv_image(self):
         self.dataframe = None
-        self.update_settings()
+
+        if not self.command_line:
+            self.update_settings()
+
         points = np.where(self.image_matrix != 0, 1, 0)
-        mask, _ = self.calc_and_plot_RCV(offset=[self.y_position, self.x_position])
+        mask, _, value = self.calc_and_plot_RCV(offset=[self.y_position, self.x_position])
 
         result = cv2.addWeighted(points, 1, mask, 1, 0)
 
-        self.view.display_image(result, self.is_plot_export, self.main_label_value)
+        return result, value
 
     def calc_and_plot_EOFM(self):
         lam = self.lam_value
@@ -684,9 +800,10 @@ class MainController:
 
         selected_columns = self.selected_columns
 
-        mask, L = self.calc_and_plot_RCV(offset=[self.y_position, self.x_position])
+        mask, L, _ = self.calc_and_plot_RCV(offset=[self.y_position, self.x_position])
 
-        _, old_G1, old_G2, _ = self.parameters_init(self.Kn_value, self.Kp_value, self.voltage_value, self.beta_value, self.Pl_value)
+        _, old_G1, old_G2, _ = self.parameters_init(self.Kn_value, self.Kp_value, self.voltage_value, self.beta_value,
+                                                    self.Pl_value)
 
         self.dataframe['RCV'] = self.dataframe.apply(
             lambda row: self.calc_unique_rcv(row[selected_columns[1]], L, old_G1, old_G2), axis=1)

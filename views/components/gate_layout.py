@@ -16,7 +16,7 @@ class GateLayout(QWidget):
         self.info_input_beta = QLineEdit(self)
         self.info_input_Pl = QLineEdit(self)
         self.info_input_voltage = QLineEdit(self)
-        self.noise_pourcentage = QLineEdit(self)
+        self.noise_percentage = QLineEdit(self)
 
         self.init_ui(value_dict)
 
@@ -39,8 +39,8 @@ class GateLayout(QWidget):
         info_label_voltage = QLabel("Voltage:")
         self.info_input_voltage.setPlaceholderText(str(value_dict['voltage_value']))
 
-        label_noise_pourcentage = QLabel("Noise (%):")
-        self.noise_pourcentage.setPlaceholderText(str(value_dict['noise_pourcentage']))
+        label_noise_percentage = QLabel("Noise (%):")
+        self.noise_percentage.setPlaceholderText(str(value_dict['noise_percentage']))
 
         self.submit_btn = QPushButton("Submit values")
         self.submit_btn.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -80,8 +80,8 @@ class GateLayout(QWidget):
         line6_widget = QWidget()
         line6 = QGridLayout(line6_widget)
         line6.setContentsMargins(0, 0, 0, 0)
-        line6.addWidget(label_noise_pourcentage, 0, 0)
-        line6.addWidget(self.noise_pourcentage, 0, 1)
+        line6.addWidget(label_noise_percentage, 0, 0)
+        line6.addWidget(self.noise_percentage, 0, 1)
         line6_widget.hide()
 
         # Adding the lines to the main layout
@@ -109,7 +109,7 @@ class GateLayout(QWidget):
         self.info_input_beta.setText(str(value_dict['beta_value']))
         self.info_input_Pl.setText(str(value_dict['Pl_value']))
         self.info_input_voltage.setText(str(value_dict['voltage_value']))
-        self.noise_pourcentage.setText(str(value_dict['noise_pourcentage']))
+        self.noise_percentage.setText(str(value_dict['noise_percentage']))
 
     def get_input_values(self):
         data = {'Kn_value': self.info_input_Kn.text(),
@@ -117,6 +117,6 @@ class GateLayout(QWidget):
                 'beta_value': self.info_input_beta.text(),
                 'Pl_value': self.info_input_Pl.text(),
                 'voltage_value': self.info_input_voltage.text(),
-                'noise_pourcentage': self.noise_pourcentage.text(),
+                'noise_percentage': self.noise_percentage.text(),
                 }
         return data
