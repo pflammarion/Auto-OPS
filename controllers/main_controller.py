@@ -134,7 +134,7 @@ class MainController:
                   "merge To merge the propagation into the precedent matrix\n"
                   "reset: To reset the merged matrix to 0\n"
                   "rcv: To calculate the rcv value of the current matrix. You can use the {save} argument to save it in export/rcv.csv\n"
-                  "plot: {original, rcv, psf} to plot the matrix\n"
+                  "plot: {original, rcv, psf, save} to plot the matrix\n"
                   "export: To export the numpy array matrix\n"
                   "-----------------------------------------")
 
@@ -159,13 +159,21 @@ class MainController:
                 print(f"Result saved in export/rcv.csv")
 
         elif command.startswith("plot"):
-            _, variable = command.split(' ', 1)
-            variable = variable.strip()
+            variable = ""
+            try:
+                _, variable = command.split(' ', 1)
+                variable = variable.strip()
+
+            except ValueError:
+                print("No Title set")
 
             value = ""
 
             if variable == "rcv":
                 result, value = self.print_rcv_image()
+            elif variable == "save":
+                self.update_image_matrix()
+                result = self.image_matrix
             else:
                 result = self.image_matrix
 
@@ -437,7 +445,6 @@ class MainController:
             self.view.set_footer_label(f"Execution time for NP array export: {end - start:.2f} seconds")
         else:
             print(message)
-
 
     def upload_image(self):
         file_dialog = QFileDialog()
