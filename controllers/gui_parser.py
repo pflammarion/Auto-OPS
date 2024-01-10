@@ -50,6 +50,15 @@ def update_variable(obj, prompt):
             elif variable == "patch_counter":
                 value = list(value)
 
+            elif variable == "vpi_extraction":
+                with open(value, 'r') as file:
+                    extract = {}
+                    for line in file:
+                        key, state = line.strip().split(',')
+                        extract[key] = state
+
+                value = extract
+
             else:
                 value = float(value)
 

@@ -171,7 +171,7 @@ class MainController:
 
             if variable == "rcv":
                 result, value = self.print_rcv_image()
-            elif variable == "save":
+            elif variable == "save" or self.image_matrix is None:
                 self.update_image_matrix()
                 result = self.image_matrix
             else:
@@ -223,7 +223,7 @@ class MainController:
         if not self.imported_image:
             lam, G1, G2, Gap = self.parameters_init(self.Kn_value, self.Kp_value, self.voltage_value, self.beta_value,
                                                     self.Pl_value)
-            if self.cell_name is not None and self.cell_name != "":
+            if self.cell_name is not None and self.cell_name != "" or self.def_file is not None:
                 if self.def_file is not None:
                     self.image_matrix, self.scale_up = gds_drawing.benchmark_matrix(self.object_storage_list,
                                                                                     self.def_file, G1, G2,
