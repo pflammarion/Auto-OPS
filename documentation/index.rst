@@ -53,7 +53,6 @@ Auto-OPS is created to be fast with a low ressources consuption
    :hidden:
    :caption: GETTING STARTED
 
-   getting_started/introduction
    getting_started/installation
    getting_started/quick-start
 
