@@ -8,7 +8,7 @@ import datetime
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
-project = 'Opti-Sim-Plus'
+project = 'Auto-OPS'
 copyright = f'{datetime.datetime.now().year}, Paul Flammarion, Sajjad Parvin, Rolf Drechsler'
 author = 'Paul Flammarion, Sajjad Parvin, Rolf Drechsler'
 release = '1.0'

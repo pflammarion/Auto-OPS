@@ -1,10 +1,10 @@
-.. Opti-Sim-Plus documentation master file, created by
+.. Auto-OPS documentation master file, created by
    sphinx-quickstart on Wed Oct 25 16:45:47 2023.
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Opti-Sim-Plus: Logical Gate Reflection's Simulation
-===================================================
+Auto-OPS: A Framework For Automated Optical Probing Simulation on GDS-II
+========================================================================
 
 .. image:: /assets/logo.png
    :align: center
@@ -25,16 +25,16 @@ Nevertheless, in the literature, there are some countermeasures to mitigate OPA,
 
 .. warning::
 
-   This documentation is a work in progress. We are actively writing it, but if there are things you'd like to be documented in priority, feel free to request in on the `GitHub Repo <https://github.com/pflammarion/Opti-Sim-Plus>`_.
+   This documentation is a work in progress. We are actively writing it, but if there are things you'd like to be documented in priority, feel free to request in on the `GitHub Repo <https://github.com/pflammarion/Auto-OPS>`_.
 
 
 
-The Opti-Sim-Plus project
+The Auto-OPS project
 -------------------------
 
-.. image:: /assets/opti-sim-plus.png
+.. image:: /assets/auto-ops.png
    :align: center
-   :alt: Opti-Sim-Plus project
+   :alt: Auto-OPS project
    :width: 600
 
 .. raw:: html
@@ -43,9 +43,9 @@ The Opti-Sim-Plus project
 
 Nowadays, doing some optical probing demonstration are laborious and costly.
 
-The Opti-Sim-Plus project is a graphical interface which was developed to provide an easy to use and complete tool to perform optical probing simulation.
+The Auto-OPS project is a graphical interface which was developed to provide an easy to use and complete tool to perform optical probing simulation.
 
-Opti-Sim-Plus is created to be fast with a low ressources consuption
+Auto-OPS is created to be fast with a low ressources consuption
 
 
 .. toctree::
@@ -60,11 +60,11 @@ Opti-Sim-Plus is created to be fast with a low ressources consuption
 .. toctree::
    :maxdepth: 2
    :hidden:
-   :caption: THE OPTI-SIM-PLUS PROJECT
+   :caption: THE Auto-OPS PROJECT
 
-   the-opti-sim-plus-project/user-interface
-   the-opti-sim-plus-project/simulation-workflow
-   the-opti-sim-plus-project/advanced-features
+   auto-ops/user-interface
+   auto-ops/simulation-workflow
+   auto-ops/advanced-features
 
 .. toctree::
    :maxdepth: 2
