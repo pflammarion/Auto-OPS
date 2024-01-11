@@ -26,11 +26,9 @@ def run_cli():
     parser_command_line.add_argument('--verbose', action='store_true', help='Enable verbose mode')
     parser_command_line.add_argument('--unit_test', help='Do cell technology unit test')
 
-    parser_command_line.add_argument('-g', '--gds_file', help='Input GDS design file')
     parser_command_line.add_argument('-d', '--def_file', help='Input DEF design file')
     parser_command_line.add_argument('-vpi', '--vpi_file', help='Input VPI output file')
     parser_command_line.add_argument('--benchmark_plot', action='store_true', help='Plot benchmarks results. This could affect performance.')
-    parser_command_line.add_argument('--benchmark_area', type=int, help='Benchmark plotting area')
     parser_command_line.add_argument('--patch_size', type=int, help='Int in um^2 of the patch size (default 20)')
 
     parser_command_line.add_argument('-i', '--input', nargs='+', type=int, help='Input pattern list applied as A-Z/0-9 order')
@@ -49,7 +47,6 @@ def run_cli():
     else:
         std_file = args.std_file
         lib_file = args.lib_file
-        gds_file = args.gds_file
         def_file = args.def_file
         vpi_file = args.vpi_file
         cell_input = args.input
@@ -59,11 +56,10 @@ def run_cli():
         verbose_mode = args.verbose
         flip_flop = args.flip_flop
         benchmark_plot = args.benchmark_plot
-        benchmark_area = args.benchmark_area
         patch_size = args.patch_size
         unit_test = args.unit_test
 
-        run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list, cell_list, output, verbose_mode, unit_test, flip_flop, vpi_file, benchmark_area, benchmark_plot, patch_size)
+        run_auto_ops(std_file, lib_file, def_file, cell_input, layer_list, cell_list, output, verbose_mode, unit_test, flip_flop, vpi_file, benchmark_plot, patch_size)
 
 
 def run_gui(command_line, script):
@@ -88,7 +84,7 @@ def run_gui(command_line, script):
 
 
 
-def run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list, cell_name_list, output, verbose_mode, unit_test, flip_flop, vpi_file, benchmark_area, benchmark_plot, patch_size):
+def run_auto_ops(std_file, lib_file, def_file, cell_input, layer_list, cell_name_list, output, verbose_mode, unit_test, flip_flop, vpi_file, benchmark_plot, patch_size):
     blue_color = "\033[1;34m"
     reset_color = "\033[0m"
     orange_color = "\033[1;33m"
@@ -231,7 +227,7 @@ def run_auto_ops(std_file, lib_file, gds_file, def_file, cell_input, layer_list,
         gds_drawing.unit_test(multiple_exporting_dict, unit_test)
 
     if def_file:
-        gds_drawing.benchmark(multiple_exporting_dict, def_extract, benchmark_plot, vpi_extraction=vpi_extraction, area=benchmark_area, patch_size=patch_size)
+        gds_drawing.benchmark(multiple_exporting_dict, def_extract, benchmark_plot, vpi_extraction=vpi_extraction)
         end_time = time.time()
         gds_drawing.benchmark_export_data(def_extract, end_time - start_time, def_file)
 

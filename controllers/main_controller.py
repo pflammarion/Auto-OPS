@@ -134,7 +134,7 @@ class MainController:
                   "save: To save to save the propagation in the matrix•\n"
                   "merge To merge the propagation into the precedent matrix\n"
                   "reset: To reset the merged matrix to 0\n"
-                  "rcv: To calculate the rcv value of the current matrix. You can use the {save} argument to save it in export/rcv.csv\n"
+                  "rcv: To calculate the rcv value of the current matrix. You can use the {export} argument to save it in export/rcv.csv\n"
                   "plot: {original, rcv, psf, save} to plot the matrix\n"
                   "export: To export the numpy array matrix\n"
                   "-----------------------------------------")
@@ -152,7 +152,7 @@ class MainController:
 
             print(value)
 
-            if variable == "save":
+            if variable == "export":
                 csv_file_path = os.path.join("export/rcv.csv")
                 with open(csv_file_path, mode='a', newline='') as csv_file:
                     csv_writer = csv.writer(csv_file)
