@@ -30,8 +30,8 @@ You can download Auto-OPS from sources with Git:
 
 After the download completed, you can install Auto-OPS with ont of the following methods:
 
-1. Auto-OPS python environment
-------------------------------
+1. Auto-OPS in Python environment
+---------------------------------
 
 .. code-block:: bash
 
