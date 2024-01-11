@@ -6,6 +6,8 @@ class CellLayout(QWidget):
     def __init__(self, items):
         super().__init__()
 
+        self.merge_button = None
+        self.reset_button = None
         self.cell_name = None
         self.layout = None
         self.cell_button = None
@@ -37,10 +39,22 @@ class CellLayout(QWidget):
         self.cell_button = QPushButton("Update cell", self)
         self.cell_button.setCursor(Qt.CursorShape.PointingHandCursor)
 
+        btn_box = QHBoxLayout()
+
+        self.merge_button = QPushButton("Merge cell", self)
+        self.merge_button.setCursor(Qt.CursorShape.PointingHandCursor)
+
+        self.reset_button = QPushButton("Reset", self)
+        self.reset_button.setCursor(Qt.CursorShape.PointingHandCursor)
+
+        btn_box.addWidget(self.merge_button)
+        btn_box.addWidget(self.reset_button)
+
         layout.addWidget(self.filterLineEdit)
         layout.addWidget(self.listWidget)
         layout.addLayout(line2)
         layout.addWidget(self.cell_button)
+        layout.addLayout(btn_box)
 
         layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         layout.setSpacing(20)

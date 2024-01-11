@@ -30,6 +30,7 @@ import subprocess
 class MainController:
     def __init__(self, command_line, script=None):
 
+        self.merge = False
         self.script = script
         self.command_line = command_line
 
@@ -186,13 +187,10 @@ class MainController:
             self.update_image_matrix()
 
         elif command == "merge":
-            self.update_image_matrix()
-            self.merged_image_matrix += np.where(self.merged_image_matrix == 0, self.image_matrix, 0)
-            self.image_matrix = copy.deepcopy(self.merged_image_matrix)
+            self.merge_image_matrix()
 
         elif command == "reset":
-            self.merged_image_matrix = np.empty(shape=(3000, 3000))
-            self.merged_image_matrix.fill(0)
+            self.reset_merge_image_matrix()
 
         else:
             print("Command not found")
@@ -215,6 +213,16 @@ class MainController:
 
     def stop_thread(self):
         self._running = False
+
+    def merge_image_matrix(self):
+        self.update_image_matrix()
+        self.merged_image_matrix += np.where(self.merged_image_matrix == 0, self.image_matrix, 0)
+        self.image_matrix = copy.deepcopy(self.merged_image_matrix)
+
+    def reset_merge_image_matrix(self):
+        self.merged_image_matrix = np.empty(shape=(3000, 3000))
+        self.merged_image_matrix.fill(0)
+        self.reload_view()
 
     def reload_view(self):
         threading.Thread(target=self.reload_view_wrapper).start()
@@ -247,7 +255,12 @@ class MainController:
         self.view.set_footer_label("... Loading ...")
         start = time.time()
 
-        self.update_image_matrix()
+        if self.merge:
+            self.merge_image_matrix()
+        else:
+            self.update_image_matrix()
+
+        self.merge = False
 
         if self.app_state == 1:
             self.print_psf()
@@ -628,12 +641,13 @@ class MainController:
 
         return amp_rel
 
-    def update_cell_values(self):
+    def update_cell_values(self, merge=False):
         cell_name_value = self.view.cell_selector.get_cell_name()
         self.view.cell_selector.set_cell_name(str(cell_name_value))
         state_list_value = self.view.cell_selector.get_state_list()
 
         self.def_file = None
+        self.merge = merge
 
         if cell_name_value is not None and cell_name_value != "":
             self.cell_name = cell_name_value
