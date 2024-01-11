@@ -138,7 +138,7 @@ Here are the following accepted command in the command line interface:
 ``merge``                                  To merge the propagation into the precedent matrix
 ``reset``                                  To reset the merged matrix to 0
 ``rcv``                                    To calculate the rcv value of the current matrix. You can use the {export} argument to save it in export/rcv.csv
-``plot {name, rcv, psf, save}``            To plot the matrix. You can also plot the rcv, or the lase. If you add the argument {save} it will apply the configuration before plotting it
+``plot {name, rcv, psf, eofm, save}``            To plot the matrix. You can also plot the rcv, or the lase. If you add the argument {save} it will apply the configuration before plotting it
 ``export``                                 To export the numpy array matrix
 ``exit, quit``                             To quit Auto-OPS
 ======================================== =========================================
