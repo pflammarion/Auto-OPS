@@ -17,14 +17,6 @@ Start Auto-OPS
 
 Auto-OPS find and export the actives and reflective regions of a design based on the applied input.
 
-Usage example of Auto-OPS:
-
-.. code-block:: bash
-
-   python3 main.py auto_ops --cell_list INV_X1 --input 1 --std_file input/stdcells.gds --lib_file input/stdcells.lib --layer_list "[[1, 0], [5, 0], [9, 0], [[10, 0]], [[11, 0]], [[11, 0]]]" --output reflection_over_cell --verbose
-
-Which export you the reflective regions of the INVERTER gate of the NangateOpenCellLibrary with 45nm technology.
-
 All available parameters can be listed by the following command:
 
 .. code-block:: bash
@@ -56,6 +48,21 @@ All available parameters can be listed by the following command:
  ``--verbose``          Enable verbose mode
  ``--unit_test``        Perform cell technology unit test (Ex: 45)
 ====================== =========================================
+
+Usage example of Auto-OPS:
+
+.. code-block:: bash
+
+   python3 main.py auto_ops --cell_list INV_X1 --input 1 --std_file input/stdcells.gds --lib_file input/stdcells.lib --layer_list "[[1, 0], [5, 0], [9, 0], [[10, 0]], [[11, 0]], [[11, 0]]]" --output reflection_over_cell --verbose
+
+Which export you the reflective regions of the INVERTER gate of the NangateOpenCellLibrary with 45nm technology.
+
+The output will be the following image:
+
+.. image:: /assets/INV_X1_overlay__A_1.svg
+   :align: center
+   :alt: INV_X1 cell active regions with state 1
+   :width: 300
 
 
 Start Auto-OPS GUI
@@ -133,6 +140,7 @@ Here are the following accepted command in the command line interface:
 ``rcv``                                    To calculate the rcv value of the current matrix. You can use the {export} argument to save it in export/rcv.csv
 ``plot {name, rcv, psf, save}``            To plot the matrix. You can also plot the rcv, or the lase. If you add the argument {save} it will apply the configuration before plotting it
 ``export``                                 To export the numpy array matrix
+``exit, quit``                             To quit Auto-OPS
 ======================================== =========================================
 
 
