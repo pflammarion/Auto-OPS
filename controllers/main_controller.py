@@ -134,8 +134,8 @@ class MainController:
                   "save: To save to save the propagation in the matrix•\n"
                   "merge To merge the propagation into the precedent matrix\n"
                   "reset: To reset the merged matrix to 0\n"
-                  "rcv: To calculate the rcv value of the current matrix. You can use the {save} argument to save it in export/rcv.csv\n"
-                  "plot: {original, rcv, psf, save} to plot the matrix\n"
+                  "rcv: To calculate the rcv value of the current matrix. You can use the {export} argument to save it in export/rcv.csv\n"
+                  "plot: {original, rcv, psf, eofm{-abs}, save} to plot the matrix\n"
                   "export: To export the numpy array matrix\n"
                   "-----------------------------------------")
 
@@ -152,7 +152,7 @@ class MainController:
 
             print(value)
 
-            if variable == "save":
+            if variable == "export":
                 csv_file_path = os.path.join("export/rcv.csv")
                 with open(csv_file_path, mode='a', newline='') as csv_file:
                     csv_writer = csv.writer(csv_file)
@@ -169,16 +169,36 @@ class MainController:
                 print("No Title set")
 
             value = ""
+            result = None
 
-            if variable == "rcv":
-                result, value = self.print_rcv_image()
-            elif variable == "save" or self.image_matrix is None:
-                self.update_image_matrix()
-                result = self.image_matrix
+            try:
+                if variable == "rcv":
+                    result, rcv_value = self.print_rcv_image()
+                    value = f": {rcv_value}"
+
+                elif variable == "eofm":
+                    result = self.print_EOFM_image()
+
+                elif variable == "eofm-abs":
+                    result = np.abs(self.print_EOFM_image())
+
+                elif variable == "psf":
+                    result = self.print_psf()
+
+                elif variable == "save" or self.image_matrix is None:
+                    self.update_image_matrix()
+                    result = self.image_matrix
+
+                else:
+                    result = self.image_matrix
+
+            except ValueError:
+                print("Error !")
+
+            if result is None:
+                print("No result plotted, verify your information or save them")
             else:
-                result = self.image_matrix
-
-            gui_parser.plot(result, self, variable + ": " + str(value))
+                gui_parser.plot(result, self, variable + value)
 
         elif command == "export":
             self.export_np_array()
@@ -263,14 +283,18 @@ class MainController:
         self.merge = False
 
         if self.app_state == 1:
-            self.print_psf()
+            L = self.print_psf()
+            self.view.display_image(L, self.is_plot_export, "LPS - " + self.main_label_value, True)
 
         elif self.app_state == 2:
             result, _ = self.print_rcv_image()
             self.view.display_image(result, self.is_plot_export, self.main_label_value)
 
         elif self.app_state == 3:
-            self.print_EOFM_image()
+            R = self.print_EOFM_image()
+            self.view.display_image(R, self.is_plot_export, "EOFM - " + self.main_label_value)
+            inverted_image = np.abs(R)
+            self.view.display_second_image(inverted_image, self.is_plot_export, "Absolute EOFM - " + self.main_label_value)
 
         elif self.app_state == 4:
             self.plot_rcv_calc()
@@ -786,13 +810,14 @@ class MainController:
 
     def print_EOFM_image(self):
         self.dataframe = None
-        self.update_settings()
+
+        if not self.command_line:
+            self.update_settings()
+
         L = self.calc_and_plot_EOFM()
         R = fftconvolve(self.image_matrix, L, mode='same')
 
-        self.view.display_image(R, self.is_plot_export, "EOFM - " + self.main_label_value)
-        inverted_image = np.abs(R)
-        self.view.display_second_image(inverted_image, self.is_plot_export, "Absolute EOFM - " + self.main_label_value)
+        return R
 
     def update_settings(self):
         laser_values = self.view.laser_layout.get_laser_values()
@@ -817,7 +842,8 @@ class MainController:
 
     def print_psf(self):
         self.dataframe = None
-        self.update_settings()
+        if not self.command_line:
+            self.update_settings()
         lam = self.lam_value
         NA = self.NA_value
         is_confocal = self.is_confocal
@@ -826,7 +852,8 @@ class MainController:
         FOV = 2000
         self.main_label_value = "FWHM = %.02f, is_confocal = %s" % (FWHM, is_confocal)
         L = self.psf_2d(FOV, lam, NA, FWHM // 2 if is_confocal else np.inf)
-        self.view.display_image(L, self.is_plot_export, "LPS - " + self.main_label_value, True)
+
+        return L
 
     def get_view(self):
         return self.view

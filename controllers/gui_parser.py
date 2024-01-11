@@ -3,6 +3,12 @@ from matplotlib_scalebar.scalebar import ScaleBar
 from matplotlib.ticker import MultipleLocator
 
 def parse_info(obj):
+
+    if obj.def_file is None:
+        is_def_file = "No"
+    else:
+        is_def_file = "Yes"
+
     info_str = (
         "\nInformation:\n\n"
         f"cell_name: {obj.cell_name}\n"
@@ -27,6 +33,7 @@ def parse_info(obj):
         f"selected_area: {obj.selected_area}\n"
         f"selected_patch_size: {obj.selected_patch_size}\n"
         f"vpi_extraction: {obj.vpi_extraction}\n"
+        f"Is def file ?: {is_def_file}"
     )
 
     print(info_str)
@@ -73,8 +80,9 @@ def update_variable(obj, prompt):
 
 def plot(image, obj, prompt):
     try:
-        if prompt == "lps":
-            plt.imshow(image, cmap='Reds', origin='lower')
+        if prompt == "psf":
+            im = plt.imshow(image, cmap='Reds', origin='lower')
+            plt.colorbar(im)
         else:
             plt.imshow(image, cmap='gist_gray', origin='lower')
 
