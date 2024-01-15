@@ -7,6 +7,7 @@ import os
 import sys
 import threading
 import time
+import random
 
 import gdspy
 from PyQt5.QtWidgets import QFileDialog
@@ -471,8 +472,9 @@ class MainController:
 
         current_time = datetime.datetime.now()
         timestamp_string = current_time.strftime("%Y%m%d%H%M%S")
+        random_number = random.randint(0, 100)
 
-        name += "_" + str(timestamp_string)
+        name += "_" + str(timestamp_string) + "_" + str(random_number)
 
         np.save(f'export/np_arrays/{name}.npy', self.image_matrix)
 
