@@ -28,7 +28,7 @@ import subprocess
 
 
 class MainController:
-    def __init__(self, command_line, script=None):
+    def __init__(self, command_line, config, script=None):
 
         self.merge = False
         self.script = script
@@ -75,7 +75,10 @@ class MainController:
         self.NA_value = 0.75
         self.is_confocal = True
 
-        self.data = self.load_settings_from_json("config/config.json")
+        if config is None or config == "":
+            config = "config/config.json"
+
+        self.data = self.load_settings_from_json(config)
 
         if self.gds_cell_list is None or self.lib_reader is None or self.selected_layer is None and not command_line:
             self.init_op_object()
