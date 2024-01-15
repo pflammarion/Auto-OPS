@@ -72,7 +72,7 @@ def run_gui(command_line, script):
     if not command_line:
         app = QApplication(sys.argv)
         controller = MainController(False)
-        app.setApplicationName("CMOS-INV-GUI")
+        app.setApplicationName("Auto-OPS GUI")
         app.setWindowIcon(QIcon('resources/app_logo.png'))
         view = controller.get_view()
         view.show()
