@@ -1,4 +1,4 @@
-# CMOS INV GUI
+# Auto-OPS
 
 To start the program install requirements.txt 
 
