@@ -47,17 +47,6 @@ The Auto-OPS project is a graphical interface which was developed to provide an 
 
 Auto-OPS is created to be fast with a low ressources consumption.
 
-The Auto-OPS flow is described as follow:
-
-.. image:: /assets/auto-ops-flow.png
-   :align: center
-   :alt: Auto-OPS Flow
-   :width: 100%
-
-.. raw:: html
-
-   <br/><br/>
-
 
 .. toctree::
    :maxdepth: 2
@@ -71,9 +60,8 @@ The Auto-OPS flow is described as follow:
    :maxdepth: 2
    :hidden:
    :caption: THE Auto-OPS PROJECT
-
+   auto-ops/propagation
    auto-ops/user-interface
-   auto-ops/simulation-workflow
    auto-ops/advanced-features
 
 .. toctree::

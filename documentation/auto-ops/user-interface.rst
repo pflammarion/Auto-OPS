@@ -87,7 +87,7 @@ This parameters are then stored in the active regions area to compute Optical Pr
 
    <br/><br/>
 
-.. _gui_rcv:
+.. _Reflection Caliber Value:
 
 Reflection Caliber Value (RCV)
 ==============================
