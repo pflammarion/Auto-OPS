@@ -346,7 +346,7 @@ def export_reflection_to_png(op_object) -> None:
     plt.close()
 
 
-def benchmark_matrix(object_list, def_extract, G1, G2, vpi_extraction=None, area=0):
+def benchmark_matrix(object_list, def_extract, G1, G2, vpi_extraction=None, area=0, nm_scale=None):
 
     patch_size = def_extract[0]["patch_size"]
 
@@ -368,7 +368,10 @@ def benchmark_matrix(object_list, def_extract, G1, G2, vpi_extraction=None, area
     origin_x = def_zone['position_x']
     origin_y = def_zone['position_y']
 
-    scale_up = int(3000/max(width, height))
+    if nm_scale is not None:
+        scale_up = int(1000/nm_scale)
+    else:
+        scale_up = int(3000/max(width, height))
 
     width = int(width*scale_up)
     height = int(height*scale_up)
@@ -419,11 +422,17 @@ def benchmark_matrix(object_list, def_extract, G1, G2, vpi_extraction=None, area
     start_col = (large_matrix_columns - width) // 2
     large_matrix[start_row:start_row + height, start_col:start_col + width] = layout
 
-    return large_matrix, scale_up
+    nm_scale = int(1000/scale_up)
+
+    return large_matrix, nm_scale
 
 
-def export_matrix_reflection(op_object, G1, G2):
-    scale_up = 500
+def export_matrix_reflection(op_object, G1, G2, nm_scale=None):
+    if nm_scale is not None:
+        scale_up = int(1000/nm_scale)
+    else:
+        scale_up = 500
+
     width = int(op_object.get_width()*scale_up)
     height = int(op_object.get_height()*scale_up)
     layout = np.zeros((height, width))
@@ -457,7 +466,9 @@ def export_matrix_reflection(op_object, G1, G2):
     start_col = (large_matrix_columns - width) // 2
     large_matrix[start_row:start_row + height, start_col:start_col + width] = layout
 
-    return large_matrix, scale_up
+    nm_scale = int(1000/scale_up)
+
+    return large_matrix, nm_scale
 
 
 def export_reflection_to_png_over_gds_cell(op_object, reflection_draw=False, with_axes=True, flip_flop=None) -> None:

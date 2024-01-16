@@ -29,7 +29,7 @@ def parse_info(obj):
         f"noise_percentage: {obj.noise_percentage}\n"
         "------------------------------------\n"
         f"patch_counter: {obj.patch_counter}\n"
-        f"scale_up: {obj.scale_up}\n"
+        f"nm_scale: {obj.nm_scale}\n"
         f"selected_area: {obj.selected_area}\n"
         f"selected_patch_size: {obj.selected_patch_size}\n"
         f"vpi_extraction: {obj.vpi_extraction}\n"
@@ -47,39 +47,43 @@ def update_variable(obj, prompt):
         variable = variable.strip()
         value = value.strip()
 
+        if value is None or value == "":
+            value = None
+
         if hasattr(obj, variable):
-
-            if variable == "cell_name" or variable == "state_list":
-                obj.def_file = None
-                value = str(value)
-
-            elif variable == "is_confocal":
-                value = bool(value)
-
-            elif variable == "patch_counter":
-                value = list(value)
-
-            elif variable == "flip_flop":
-                if value is None or value == "":
-                    value = None
-                else:
-                    value = int(value)
-
-            elif variable == "vpi_extraction":
-                with open(value, 'r') as file:
-                    extract = {}
-                    for line in file:
-                        key, state = line.strip().split(',')
-                        extract[key] = state
-
-                value = extract
+            if value is None or value == "":
+                value = None
 
             else:
-                value = float(value)
+                if variable == "cell_name" or variable == "state_list":
+                    obj.def_file = None
+                    value = str(value)
+
+                elif variable == "is_confocal":
+                    value = bool(value)
+
+                elif variable == "patch_counter":
+                    value = list(value)
+
+                elif variable == "flip_flop":
+                    value = int(value)
+
+                elif variable == "vpi_extraction":
+                    with open(value, 'r') as file:
+                        extract = {}
+                        for line in file:
+                            key, state = line.strip().split(',')
+                            extract[key] = state
+
+                    value = extract
+
+                else:
+                    value = float(value)
 
             setattr(obj, variable, value)
 
-            print(f"Updated {variable} to: {value}")
+            print(f"Updated {variable} to: {value}\n"
+                  f"Don't forget to save before exporting or plotting to apply all changed values")
         else:
             print(f"Variable {variable} does not exist in the object.")
     except ValueError:
@@ -94,13 +98,13 @@ def plot(image, obj, prompt):
         else:
             plt.imshow(image, cmap='gist_gray', origin='lower')
 
-        if obj.scale_up is not None:
-            scale = obj.scale_up
-            scalebar = ScaleBar(1 / scale, units="um", location="lower left", label=f"1:{scale}")
+        if obj.nm_scale is not None:
+            scale = obj.nm_scale
+            scalebar = ScaleBar(scale, units="nm", location="lower left", label=f"1:{scale}nm")
             plt.gca().add_artist(scalebar)
             plt.grid(True, which='both', linestyle='-', linewidth=0.5, color='darkgrey')
-            plt.gca().xaxis.set_major_locator(MultipleLocator(scale))
-            plt.gca().yaxis.set_major_locator(MultipleLocator(scale))
+            plt.gca().xaxis.set_major_locator(MultipleLocator(scale*100))
+            plt.gca().yaxis.set_major_locator(MultipleLocator(scale*100))
 
         plt.title(prompt)
         plt.xlabel("x")
