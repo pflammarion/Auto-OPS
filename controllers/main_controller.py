@@ -76,6 +76,8 @@ class MainController:
         self.NA_value = 0.75
         self.is_confocal = True
 
+        self.flip_flop = None
+
         if config is None or config == "":
             config = "config/config.json"
 
@@ -935,7 +937,7 @@ class MainController:
                 draw_inputs[inp] = cell_input[index]
 
             op_object = copy.deepcopy(self.op_master)
-            op_object.apply_state(draw_inputs)
+            op_object.apply_state(draw_inputs, self.flip_flop)
 
             if self.def_file is not None:
                 op_object.calculate_orientations()

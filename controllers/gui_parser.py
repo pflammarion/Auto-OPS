@@ -33,7 +33,9 @@ def parse_info(obj):
         f"selected_area: {obj.selected_area}\n"
         f"selected_patch_size: {obj.selected_patch_size}\n"
         f"vpi_extraction: {obj.vpi_extraction}\n"
-        f"Is def file ?: {is_def_file}"
+        f"flip_flop: {obj.flip_flop}  (if cell has a clock, set the output to 0 or 1)\n"
+        "------------------------------------\n"
+        f"Is def file ?: {is_def_file} (Can't be changed)"
     )
 
     print(info_str)
@@ -56,6 +58,12 @@ def update_variable(obj, prompt):
 
             elif variable == "patch_counter":
                 value = list(value)
+
+            elif variable == "flip_flop":
+                if value is None or value == "":
+                    value = None
+                else:
+                    value = int(value)
 
             elif variable == "vpi_extraction":
                 with open(value, 'r') as file:
