@@ -175,7 +175,7 @@ def count_unknown_states(op_object) -> None:
     print(f"\033[1;33m \n {op_object.name}, {op_object.inputs}, None states = {state_counter}, Loop counter = {op_object.loop_counter}")
 
 
-def benchmark(object_list, def_extract, plot, vpi_extraction=None, area=None, patch_size=None) -> None:
+def benchmark(object_list, def_extract, plot, vpi_extraction=None) -> None:
     ur_x = def_extract[0]["ur_x"]
     ll_x = def_extract[0]["ll_x"]
     ur_y = def_extract[0]["ur_y"]
@@ -187,49 +187,40 @@ def benchmark(object_list, def_extract, plot, vpi_extraction=None, area=None, pa
         plt.gca().set_facecolor('black')
         plt.gca().set_aspect('equal', adjustable='box')
 
-    if area and patch_size:
-        def_zone = def_extract[1][area]
-
-        origin_x = def_zone['position_x']
-        origin_y = def_zone['position_y']
-        plt.xlim(origin_x, origin_x + patch_size)
-        plt.ylim(origin_y, origin_y + patch_size)
-
-    else:
         plt.xlim(ll_x - 1, ur_x + 1)
         plt.ylim(ll_y - 1, ur_y + 1)
 
-        for i in range(len(def_extract[1])):
-            def_zone = def_extract[1][i]
-            plt.pause(0.0001)
-            plt.draw()
+    for i in range(len(def_extract[1])):
+        def_zone = def_extract[1][i]
+        plt.pause(0.0001)
+        plt.draw()
 
-            for cell_name, cell_place in def_zone['gates'].items():
-                if cell_name in object_list.keys():
-                    for position in cell_place:
-                        if vpi_extraction:
-                            op_object = vpi_object_extractor(object_list[cell_name], cell_name, vpi_extraction, position)
-                        else:
-                            key = list(object_list[cell_name].keys())[0]
-                            op_object = object_list[cell_name][key]
+        for cell_name, cell_place in def_zone['gates'].items():
+            if cell_name in object_list.keys():
+                for position in cell_place:
+                    if vpi_extraction:
+                        op_object = vpi_object_extractor(object_list[cell_name], cell_name, vpi_extraction, position)
+                    else:
+                        key = list(object_list[cell_name].keys())[0]
+                        op_object = object_list[cell_name][key]
 
-                        for zone in op_object.orientation_list[position['Orientation']]:
-                            x, y = zone["coords"]
-                            x_adder, y_adder = position['Coordinates']
-                            x = tuple([element + x_adder for element in x])
-                            y = tuple([element + y_adder for element in y])
+                    for zone in op_object.orientation_list[position['Orientation']]:
+                        x, y = zone["coords"]
+                        x_adder, y_adder = position['Coordinates']
+                        x = tuple([element + x_adder for element in x])
+                        y = tuple([element + y_adder for element in y])
 
-                            state = zone["state"]
+                        state = zone["state"]
 
-                            if zone["diff_type"] == ShapeType.PMOS:
-                                if state is None:
-                                    reflect = False
-                                else:
-                                    reflect = not state
+                        if zone["diff_type"] == ShapeType.PMOS:
+                            if state is None:
+                                reflect = False
                             else:
-                                reflect = state
-                            if bool(reflect) and plot:
-                                plt.fill(x, y, facecolor='white', alpha=1)
+                                reflect = not state
+                        else:
+                            reflect = state
+                        if bool(reflect) and plot:
+                            plt.fill(x, y, facecolor='white', alpha=1)
 
     if plot:
         plt.show()

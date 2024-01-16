@@ -70,7 +70,7 @@ class MainView(QMainWindow):
 
     def init_ui(self):
 
-        self.setWindowTitle("CMOS-INV-GUI")
+        self.setWindowTitle("Auto-OPS GUI")
         self.setGeometry(0, 0, 1000, 800)
         self.showFullScreen()
         self.setStyleSheet(open("resources/styles.css").read())
