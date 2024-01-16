@@ -60,9 +60,10 @@ Auto-OPS is created to be fast with a low ressources consumption.
    :maxdepth: 2
    :hidden:
    :caption: THE Auto-OPS PROJECT
+
    auto-ops/propagation
    auto-ops/user-interface
-   auto-ops/advanced-features
+   auto-ops/gui-cli
 
 .. toctree::
    :maxdepth: 2

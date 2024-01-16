@@ -111,6 +111,7 @@ The in the file config/config.json you will find the default configuration and a
         }
     }
 
+.. _Start Auto-OPS GUI CLI:
 Start Auto-OPS GUI {Command line}
 =================================
 
@@ -145,6 +146,25 @@ Here are the following accepted command in the command line interface:
 ``export``                                 To export the numpy array matrix
 ``exit, quit``                             To quit Auto-OPS
 ======================================== =========================================
+
+
+To automate some experiments processes you can import bash scripts
+
+.. code-block:: bash
+
+   python3 main.py gui -cli --script myscriptfolder/script.sh
+
+And/Or even other GUI JSON configuration file to start multiple Auto-OPS instances
+
+.. code-block:: bash
+
+   python3 main.py gui -cli --config myconfigfolder/new_config.json
+
+
+
+
+
+
 
 
 

@@ -2,6 +2,9 @@
 Auto-OPS propagation library
 =============================
 
+.. contents::
+    :local:
+
 To build the Auto-OPS framework we started by the automation of the body voltage propagation over a cell and then compute a complete design from it.
 
 The usage of the Auto-OPS propagation has been explained in the section :ref:`Start Auto-OPS`
