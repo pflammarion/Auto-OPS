@@ -374,13 +374,13 @@ class MainView(QMainWindow):
         else:
             ax.imshow(image_matrix, cmap='gist_gray', origin='lower', )
 
-        if self.controller.scale_up is not None:
-            scale = self.controller.scale_up
-            scalebar = ScaleBar(1 / scale, units="um", location="lower left", label=f"1:{scale}")
+        if self.controller.nm_scale is not None:
+            scale = self.controller.nm_scale
+            scalebar = ScaleBar(scale, units="nm", location="lower left", label=f"1:{scale}nm")
             ax.add_artist(scalebar)
             ax.grid(True, which='both', linestyle='-', linewidth=0.5, color='darkgrey')
-            ax.xaxis.set_major_locator(MultipleLocator(scale))
-            ax.yaxis.set_major_locator(MultipleLocator(scale))
+            ax.xaxis.set_major_locator(MultipleLocator(scale*100))
+            ax.yaxis.set_major_locator(MultipleLocator(scale*100))
 
         ax.set_title(str(title))
         ax.set_xlabel("x")

@@ -39,7 +39,7 @@ class MainController:
         self.merged_image_matrix.fill(0)
 
         self.patch_counter = [1, 1]
-        self.scale_up = None
+        self.nm_scale = 2
         self.gds_cell_list = None
         self.lib_reader = None
         self.selected_layer = None
@@ -259,10 +259,11 @@ class MainController:
                                                     self.Pl_value)
             if self.cell_name is not None and self.cell_name != "" or self.def_file is not None:
                 if self.def_file is not None:
-                    self.image_matrix, self.scale_up = gds_drawing.benchmark_matrix(self.object_storage_list,
+                    self.image_matrix, self.nm_scale = gds_drawing.benchmark_matrix(self.object_storage_list,
                                                                                     self.def_file, G1, G2,
                                                                                     self.vpi_extraction,
-                                                                                    self.selected_area)
+                                                                                    self.selected_area,
+                                                                                    nm_scale=self.nm_scale)
                 else:
                     if self.cell_name not in self.object_storage_list.keys():
                         self.extract_op_cell(self.cell_name)
@@ -271,13 +272,15 @@ class MainController:
                         self.apply_state_op(self.state_list)
 
                     op_object = self.object_storage_list[self.cell_name][self.state_list]
-                    self.image_matrix, self.scale_up = gds_drawing.export_matrix_reflection(op_object, G1, G2)
+                    self.image_matrix, self.nm_scale = gds_drawing.export_matrix_reflection(op_object,
+                                                                                            G1, G2,
+                                                                                            nm_scale=self.nm_scale)
 
             else:
                 self.image_matrix = self.draw_layout(lam, G1, G2, Gap)
 
     def reload_view_wrapper(self):
-        self.scale_up = None
+        self.nm_scale = 2
         self.view.set_footer_label("... Loading ...")
         start = time.time()
 
