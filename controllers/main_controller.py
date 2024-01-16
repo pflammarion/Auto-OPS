@@ -7,6 +7,7 @@ import os
 import sys
 import threading
 import time
+import random
 
 import gdspy
 from PyQt5.QtWidgets import QFileDialog
@@ -28,10 +29,14 @@ import subprocess
 
 
 class MainController:
-    def __init__(self, command_line, script=None):
+    def __init__(self, command_line, config, script=None):
 
+        self.merge = False
         self.script = script
         self.command_line = command_line
+
+        self.merged_image_matrix = np.empty(shape=(3000, 3000))
+        self.merged_image_matrix.fill(0)
 
         self.patch_counter = [1, 1]
         self.scale_up = None
@@ -71,7 +76,12 @@ class MainController:
         self.NA_value = 0.75
         self.is_confocal = True
 
-        self.data = self.load_settings_from_json("config/config.json")
+        self.flip_flop = None
+
+        if config is None or config == "":
+            config = "config/config.json"
+
+        self.data = self.load_settings_from_json(config)
 
         if self.gds_cell_list is None or self.lib_reader is None or self.selected_layer is None and not command_line:
             self.init_op_object()
@@ -127,8 +137,11 @@ class MainController:
                   "Commands available: info, update, rcv, plot, export.\n\n"
                   "info: To get the current variables information\n"
                   "update: {variable_name} {new_value} to update a variable with a new value\n"
-                  "rcv: To calculate the rcv value of the current matrix. You can use the {save} argument to save it in export/rcv.csv\n"
-                  "plot: {original, rcv, psf} to plot the matrix\n"
+                  "save: To save to save the propagation in the matrix•\n"
+                  "merge To merge the propagation into the precedent matrix\n"
+                  "reset: To reset the merged matrix to 0\n"
+                  "rcv: To calculate the rcv value of the current matrix. You can use the {export} argument to save it in export/rcv.csv\n"
+                  "plot: {original, rcv, psf, eofm{-abs}, save} to plot the matrix\n"
                   "export: To export the numpy array matrix\n"
                   "-----------------------------------------")
 
@@ -145,7 +158,7 @@ class MainController:
 
             print(value)
 
-            if variable == "save":
+            if variable == "export":
                 csv_file_path = os.path.join("export/rcv.csv")
                 with open(csv_file_path, mode='a', newline='') as csv_file:
                     csv_writer = csv.writer(csv_file)
@@ -153,21 +166,57 @@ class MainController:
                 print(f"Result saved in export/rcv.csv")
 
         elif command.startswith("plot"):
-            _, variable = command.split(' ', 1)
-            variable = variable.strip()
+            variable = ""
+            try:
+                _, variable = command.split(' ', 1)
+                variable = variable.strip()
 
-            self.update_image_matrix()
+            except ValueError:
+                print("No Title set")
+
             value = ""
+            result = None
 
-            if variable == "rcv":
-                result, value = self.print_rcv_image()
+            try:
+                if variable == "rcv":
+                    result, rcv_value = self.print_rcv_image()
+                    value = f": {rcv_value}"
+
+                elif variable == "eofm":
+                    result = self.print_EOFM_image()
+
+                elif variable == "eofm-abs":
+                    result = np.abs(self.print_EOFM_image())
+
+                elif variable == "psf":
+                    result = self.print_psf()
+
+                elif variable == "save" or self.image_matrix is None:
+                    self.update_image_matrix()
+                    result = self.image_matrix
+
+                else:
+                    result = self.image_matrix
+
+            except ValueError:
+                print("Error !")
+
+            if result is None:
+                print("No result plotted, verify your information or save them")
             else:
-                result = self.image_matrix
-
-            gui_parser.plot(result, self, variable + ": " + str(value))
+                gui_parser.plot(result, self, variable + value)
 
         elif command == "export":
             self.export_np_array()
+
+        elif command == "save":
+            self.update_image_matrix()
+
+        elif command == "merge":
+            self.merge_image_matrix()
+
+        elif command == "reset":
+            self.reset_merge_image_matrix()
 
         else:
             print("Command not found")
@@ -191,6 +240,16 @@ class MainController:
     def stop_thread(self):
         self._running = False
 
+    def merge_image_matrix(self):
+        self.update_image_matrix()
+        self.merged_image_matrix += np.where(self.merged_image_matrix == 0, self.image_matrix, 0)
+        self.image_matrix = copy.deepcopy(self.merged_image_matrix)
+
+    def reset_merge_image_matrix(self):
+        self.merged_image_matrix = np.empty(shape=(3000, 3000))
+        self.merged_image_matrix.fill(0)
+        self.reload_view()
+
     def reload_view(self):
         threading.Thread(target=self.reload_view_wrapper).start()
 
@@ -198,7 +257,7 @@ class MainController:
         if not self.imported_image:
             lam, G1, G2, Gap = self.parameters_init(self.Kn_value, self.Kp_value, self.voltage_value, self.beta_value,
                                                     self.Pl_value)
-            if self.cell_name is not None and self.cell_name != "":
+            if self.cell_name is not None and self.cell_name != "" or self.def_file is not None:
                 if self.def_file is not None:
                     self.image_matrix, self.scale_up = gds_drawing.benchmark_matrix(self.object_storage_list,
                                                                                     self.def_file, G1, G2,
@@ -222,17 +281,26 @@ class MainController:
         self.view.set_footer_label("... Loading ...")
         start = time.time()
 
-        self.update_image_matrix()
+        if self.merge:
+            self.merge_image_matrix()
+        else:
+            self.update_image_matrix()
+
+        self.merge = False
 
         if self.app_state == 1:
-            self.print_psf()
+            L = self.print_psf()
+            self.view.display_image(L, self.is_plot_export, "LPS - " + self.main_label_value, True)
 
         elif self.app_state == 2:
             result, _ = self.print_rcv_image()
             self.view.display_image(result, self.is_plot_export, self.main_label_value)
 
         elif self.app_state == 3:
-            self.print_EOFM_image()
+            R = self.print_EOFM_image()
+            self.view.display_image(R, self.is_plot_export, "EOFM - " + self.main_label_value)
+            inverted_image = np.abs(R)
+            self.view.display_second_image(inverted_image, self.is_plot_export, "Absolute EOFM - " + self.main_label_value)
 
         elif self.app_state == 4:
             self.plot_rcv_calc()
@@ -406,8 +474,9 @@ class MainController:
 
         current_time = datetime.datetime.now()
         timestamp_string = current_time.strftime("%Y%m%d%H%M%S")
+        random_number = random.randint(0, 100)
 
-        name += "_" + str(timestamp_string)
+        name += "_" + str(timestamp_string) + "_" + str(random_number)
 
         np.save(f'export/np_arrays/{name}.npy', self.image_matrix)
 
@@ -420,7 +489,6 @@ class MainController:
             self.view.set_footer_label(f"Execution time for NP array export: {end - start:.2f} seconds")
         else:
             print(message)
-
 
     def upload_image(self):
         file_dialog = QFileDialog()
@@ -604,12 +672,13 @@ class MainController:
 
         return amp_rel
 
-    def update_cell_values(self):
+    def update_cell_values(self, merge=False):
         cell_name_value = self.view.cell_selector.get_cell_name()
         self.view.cell_selector.set_cell_name(str(cell_name_value))
         state_list_value = self.view.cell_selector.get_state_list()
 
         self.def_file = None
+        self.merge = merge
 
         if cell_name_value is not None and cell_name_value != "":
             self.cell_name = cell_name_value
@@ -748,13 +817,14 @@ class MainController:
 
     def print_EOFM_image(self):
         self.dataframe = None
-        self.update_settings()
+
+        if not self.command_line:
+            self.update_settings()
+
         L = self.calc_and_plot_EOFM()
         R = fftconvolve(self.image_matrix, L, mode='same')
 
-        self.view.display_image(R, self.is_plot_export, "EOFM - " + self.main_label_value)
-        inverted_image = np.abs(R)
-        self.view.display_second_image(inverted_image, self.is_plot_export, "Absolute EOFM - " + self.main_label_value)
+        return R
 
     def update_settings(self):
         laser_values = self.view.laser_layout.get_laser_values()
@@ -779,7 +849,8 @@ class MainController:
 
     def print_psf(self):
         self.dataframe = None
-        self.update_settings()
+        if not self.command_line:
+            self.update_settings()
         lam = self.lam_value
         NA = self.NA_value
         is_confocal = self.is_confocal
@@ -788,7 +859,8 @@ class MainController:
         FOV = 2000
         self.main_label_value = "FWHM = %.02f, is_confocal = %s" % (FWHM, is_confocal)
         L = self.psf_2d(FOV, lam, NA, FWHM // 2 if is_confocal else np.inf)
-        self.view.display_image(L, self.is_plot_export, "LPS - " + self.main_label_value, True)
+
+        return L
 
     def get_view(self):
         return self.view
@@ -865,7 +937,7 @@ class MainController:
                 draw_inputs[inp] = cell_input[index]
 
             op_object = copy.deepcopy(self.op_master)
-            op_object.apply_state(draw_inputs)
+            op_object.apply_state(draw_inputs, self.flip_flop)
 
             if self.def_file is not None:
                 op_object.calculate_orientations()

@@ -15,3 +15,12 @@ for x in {0..1}; do
   done
 done
 
+: <<'END_COMMENT'
+echo "update cell_name NAND2_X1"
+echo "update state_list 00"
+echo "merge"
+echo "update state_list 01"
+echo "merge"
+echo "plot Both"
+END_COMMENT
+

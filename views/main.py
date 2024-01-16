@@ -58,6 +58,8 @@ class MainView(QMainWindow):
         self.cell_selector = CellLayout(self.controller.gds_cell_list)
         self.cell_selector.filterLineEdit.textChanged.connect(lambda: self.cell_selector.filter_items())
         self.cell_selector.cell_button.clicked.connect(lambda: self.controller.update_cell_values())
+        self.cell_selector.merge_button.clicked.connect(lambda: self.controller.update_cell_values(merge=True))
+        self.cell_selector.reset_button.clicked.connect(lambda: self.controller.reset_merge_image_matrix())
         self.cell_selector.set_cell_name(str(self.controller.cell_name))
         self.cell_selector.set_state_list(str(self.controller.state_list))
 
@@ -288,7 +290,7 @@ class MainView(QMainWindow):
     def init_menu_bar(self):
         menubar = self.menuBar()
 
-        window_menu = QMenu('Import / Export', self)
+        window_menu = QMenu('Auto-OPS Menu', self)
         menubar.addMenu(window_menu)
 
         exit_action = QAction("Stop Auto-OPS", self)

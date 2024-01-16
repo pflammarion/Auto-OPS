@@ -5,7 +5,7 @@ CMOS-INV-GUI.iml
 /try
 /tmp
 /documentation/_build
-/__pycache__
+**/__pycache__/
 /benchmarks.log
 /output.log
 /benchmarks/EPFL/Hyp

@@ -3,6 +3,12 @@ from matplotlib_scalebar.scalebar import ScaleBar
 from matplotlib.ticker import MultipleLocator
 
 def parse_info(obj):
+
+    if obj.def_file is None:
+        is_def_file = "No"
+    else:
+        is_def_file = "Yes"
+
     info_str = (
         "\nInformation:\n\n"
         f"cell_name: {obj.cell_name}\n"
@@ -27,6 +33,9 @@ def parse_info(obj):
         f"selected_area: {obj.selected_area}\n"
         f"selected_patch_size: {obj.selected_patch_size}\n"
         f"vpi_extraction: {obj.vpi_extraction}\n"
+        f"flip_flop: {obj.flip_flop}  (if cell has a clock, set the output to 0 or 1)\n"
+        "------------------------------------\n"
+        f"Is def file ?: {is_def_file} (Can't be changed)"
     )
 
     print(info_str)
@@ -42,12 +51,28 @@ def update_variable(obj, prompt):
 
             if variable == "cell_name" or variable == "state_list":
                 obj.def_file = None
+                value = str(value)
 
             elif variable == "is_confocal":
                 value = bool(value)
 
             elif variable == "patch_counter":
                 value = list(value)
+
+            elif variable == "flip_flop":
+                if value is None or value == "":
+                    value = None
+                else:
+                    value = int(value)
+
+            elif variable == "vpi_extraction":
+                with open(value, 'r') as file:
+                    extract = {}
+                    for line in file:
+                        key, state = line.strip().split(',')
+                        extract[key] = state
+
+                value = extract
 
             else:
                 value = float(value)
@@ -63,8 +88,9 @@ def update_variable(obj, prompt):
 
 def plot(image, obj, prompt):
     try:
-        if prompt == "lps":
-            plt.imshow(image, cmap='Reds', origin='lower')
+        if prompt == "psf":
+            im = plt.imshow(image, cmap='Reds', origin='lower')
+            plt.colorbar(im)
         else:
             plt.imshow(image, cmap='gist_gray', origin='lower')
 
