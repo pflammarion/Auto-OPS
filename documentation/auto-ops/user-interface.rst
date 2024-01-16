@@ -136,15 +136,15 @@ Both EOFM and absolute EOFM are shown to the user based on the laser and the phy
 Cell Voltage Modulation
 =======================
 
-To go further in the simluation Auto-OPS includs a voltage modulation for the selected cell.
+To go further in the simulation Auto-OPS includes a voltage modulation for the selected cell.
 
-This mode is calucalting, based on a csv file which store the voltage in function of time, the RCV value with  all the set parametters.
+This mode is calculating, based on a csv file which store the voltage in function of time, the RCV value with  all the set parametters.
 
-To have a more realistic output, Auto-OPS embbed a gaussian distributed noise which can be attapted in the physics parametters.
+To have a more realistic output, Auto-OPS embed a gaussian distributed noise which can be attapted in the physics parametters.
 
-The csv file can contains multiple columns and they can be selected and updated direclty from the GUI.
+The csv file can contains multiple columns and they can be selected and updated directly from the GUI.
 
-This feature can take more or less time based on the lenght of the csv file because it calculate all the RCV values for each modulation of the voltage.
+This feature can take more or less time based on the length of the csv file because it calculate all the RCV values for each modulation of the voltage.
 
 .. image:: /assets/csv_view.png
    :align: center
