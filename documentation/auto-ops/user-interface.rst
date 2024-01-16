@@ -1,6 +1,6 @@
-========================
-User Interface Overview
-========================
+==================================
+Graphical User Interface Overview
+==================================
 
 The Graphical User Interface (GUI) is split in 5 main windows.
 
@@ -20,8 +20,11 @@ The selected cell and state can be updated or merged. Merging a cell state means
 .. image:: /assets/research_bar.png
    :align: center
    :alt: Research bar image
-   :width: 100px
+   :width: 200px
 
+.. raw:: html
+
+   <br/><br/>
 
 .. _gui_lps:
 
