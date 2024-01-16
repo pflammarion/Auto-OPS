@@ -35,7 +35,7 @@ The Auto-OPS project
 .. image:: /assets/auto-ops.png
    :align: center
    :alt: Auto-OPS project
-   :width: 600
+   :width: 70%
 
 .. raw:: html
 
@@ -45,7 +45,18 @@ Nowadays, doing some optical probing demonstration are laborious and costly.
 
 The Auto-OPS project is a graphical interface which was developed to provide an easy to use and complete tool to perform optical probing simulation.
 
-Auto-OPS is created to be fast with a low ressources consuption
+Auto-OPS is created to be fast with a low ressources consumption.
+
+The Auto-OPS flow is described as follow:
+
+.. image:: /assets/auto-ops-flow.png
+   :align: center
+   :alt: Auto-OPS Flow
+   :width: 100%
+
+.. raw:: html
+
+   <br/><br/>
 
 
 .. toctree::
