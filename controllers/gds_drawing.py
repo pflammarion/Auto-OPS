@@ -226,7 +226,7 @@ def benchmark(object_list, def_extract, plot, vpi_extraction=None) -> None:
         plt.show()
 
 
-def vpi_object_extractor(cell_object, cell_name, vpi_extraction, position) -> Op:
+def vpi_object_extractor(cell_object, cell_name, vpi_extraction, position) -> AutoOPSPropagation:
     try:
         input_combination = vpi_extraction[position['GateID']]
         propagation_object = cell_object[input_combination]
