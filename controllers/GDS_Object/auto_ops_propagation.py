@@ -15,22 +15,26 @@ class AutoOPSPropagation:
     Represents an object usable to perform body voltage propagation simulation from a GDS-II (Graphics Data System) layout.
 
     Args:
-        cell_name (str): The name of the gate in the gds file in the Cells' list.
+        cell_name (str): The name of the cell in the gds file in the Cells' list.
         gds_cell (GdsLibrary): Dictionary of cells in the library's object, indexed by name.
         layer_list (list[list[int]): Diffusion layer, N well layer, poly silicon layer, via layers, metal layers and label layers.
-        truthtable (dict{list[set(dict)]})): A list containing the information the output based on the input for a gate.
+        truthtable (dict{list[set(dict)]})): A list containing the information the output based on the input for a cell.
         voltage(list[dict]): Contains the voltage names and types.
-        inputs_list(list(str)): contains the inputs names.
+        inputs_list(list(str)): Contains the inputs names.
     Attributes:
-        name (str): The name of the gate in the gds file in the Cells' list.
-        inputs(dict): Contains the inputs names and values.
+        name (str): The name of the cell in the gds file in the Cells' list.
+        truthtable (dict{list[set(dict)]})): A list containing the information the output based on the input for a cell.
+        inputs_list(list(str)): Contains the inputs names.
         truthtable (dict): The truthtable is a list containing the information the output based on the input for a gate.
+
+
         via_element_list(list) Contains all the extracted via elements converted to objects.
         element_list(list): Contains all the extracted elements converted to objects.
-        reflection_list(list): Contains all reflecting elements as diffusion's zones and poly-silicon's overlapping.
+        reflection_list(list): Contains all reflecting elements such as diffusion's zones and poly-silicon's overlapping.
+        orientation_list(dict): Contains all cell orientation reflective zones and states
 
     Example:
-        To create a GdsDrawing instance:
+        To create a AutoOPSPropagation instance:
         >>> import gdspy
         >>> lib = gdspy.GdsLibrary()
         >>> gds_cell = lib.read_gds("Platforms/PDK45nm/stdcells.gds").cells["INV_X1"]
@@ -43,8 +47,8 @@ class AutoOPSPropagation:
         >>>         ['A']
         >>>     )
 
-    This class create an object from a GDS input and store information as the optical state of each gate,
-     depending on the position and gates states.
+    This class create an object from a GDS input and store information as the body voltage propagation of the selected cell,
+     depending on the position and cell states.
     """
 
     def __init__(self, cell_name, gds_cell, layer_list, truthtable, voltage, inputs_list):
@@ -53,8 +57,6 @@ class AutoOPSPropagation:
         self.inputs_list = inputs_list
         self.via_element_list = []
         self.orientation_list = {}
-
-        self.inputs = {}
 
         self.element_list = element_extractor(gds_cell, layer_list)
         self.reflection_list = []
@@ -119,8 +121,6 @@ class AutoOPSPropagation:
                     )
 
     def apply_state(self, inputs, flip_flop=0):
-
-        self.inputs = inputs
 
         if flip_flop is None:
             flip_flop = 0
