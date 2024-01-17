@@ -8,7 +8,7 @@ import argparse
 import gdspy
 
 from controllers import gds_drawing
-from controllers.GDS_Object.op import Op
+from controllers.GDS_Object.auto_ops_propagation import AutoOPSPropagation
 from controllers.def_parser import get_gates_info_from_def_file
 from controllers.lib_reader import LibReader
 
@@ -155,7 +155,8 @@ def run_auto_ops(std_file, lib_file, def_file, cell_input, layer_list, cell_name
 
             try:
                 truth_table, voltage, input_names = lib_reader.extract_truth_table(gds_cell_name)
-                op_master = Op(gds_cell_name, gds_cell, layer_list, truth_table, voltage, input_names)
+                op_master = AutoOPSPropagation(gds_cell_name, gds_cell, layer_list, truth_table, voltage, input_names)
+                print(gds_cell_name, gds_cell, layer_list, truth_table, voltage, input_names)
 
                 draw_inputs = {}
 

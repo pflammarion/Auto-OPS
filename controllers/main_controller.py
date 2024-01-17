@@ -17,7 +17,7 @@ import pandas as pd
 from scipy.signal import fftconvolve
 
 from controllers import gds_drawing, def_parser, gui_parser
-from controllers.GDS_Object.op import Op
+from controllers.GDS_Object.auto_ops_propagation import AutoOPSPropagation
 from controllers.lib_reader import LibReader
 from views.dialogs.column_dialog import ColumnSelectionDialog
 from views.dialogs.layer_list_dialog import LayerSelectionDialog
@@ -922,7 +922,7 @@ class MainController:
 
             try:
                 truth_table, voltage, input_names = self.lib_reader.extract_truth_table(gds_cell_name)
-                self.op_master = Op(gds_cell_name, gds_cell, self.selected_layer, truth_table, voltage, input_names)
+                self.op_master = AutoOPSPropagation(gds_cell_name, gds_cell, self.selected_layer, truth_table, voltage, input_names)
 
                 self.object_storage_list[gds_cell_name] = {}
 

@@ -1,32 +1,26 @@
-import time
-
-from shapely.lib import difference
-import matplotlib.pyplot as plt
-
-from controllers import gds_drawing
 from controllers.GDS_Object.attribute import Attribute
 from controllers.GDS_Object.diffusion import Diffusion
 from controllers.GDS_Object.label import Label
 from controllers.GDS_Object.shape import Shape
 
-from shapely.geometry import Polygon, Point, MultiPolygon
-from shapely.ops import unary_union, cascaded_union
+from shapely.geometry import Polygon, Point
+from shapely.ops import unary_union
 
 from controllers.GDS_Object.type import ShapeType
 from controllers.GDS_Object.zone import Zone
 
 
-class Op:
+class AutoOPSPropagation:
     """
-    Represents an object usable to perform Optical probing simulation from a GDS (Graphics Data System) layout.
+    Represents an object usable to perform body voltage propagation simulation from a GDS-II (Graphics Data System) layout.
 
     Args:
         cell_name (str): The name of the gate in the gds file in the Cells' list.
         gds_cell (GdsLibrary): Dictionary of cells in the library's object, indexed by name.
-        layer_list (list[list[int]): Diffusion layer, N well layer, poly silicon layer, via layer, metal layer and label layer.
+        layer_list (list[list[int]): Diffusion layer, N well layer, poly silicon layer, via layers, metal layers and label layers.
         truthtable (dict{list[set(dict)]})): A list containing the information the output based on the input for a gate.
         voltage(list[dict]): Contains the voltage names and types.
-        inputs(dict): contains the inputs values.
+        inputs_list(list(str)): contains the inputs names.
     Attributes:
         name (str): The name of the gate in the gds file in the Cells' list.
         inputs(dict): Contains the inputs names and values.
@@ -40,14 +34,13 @@ class Op:
         >>> import gdspy
         >>> lib = gdspy.GdsLibrary()
         >>> gds_cell = lib.read_gds("Platforms/PDK45nm/stdcells.gds").cells["INV_X1"]
-        >>> drawing = Op(
+        >>> drawing = AutoOPSPropagation(
         >>>         "INV_X1",
         >>>         gds_cell,
-        >>>         [1,0], [31,0], [5,0], [6,0], [8,0], [8,25],
+        >>>         [[1, 0], [5, 0], [9, 0], [[10, 0]], [[11, 0]], [[11, 0]]],
         >>>         {'ZN': [({'A': True}, {'ZN': False}), ({'A': False}, {'ZN': True})]},
         >>>         [{'name': 'VDD', 'type': 'primary_power'}, {'name': 'VSS', 'type': 'primary_ground'}],
-        >>>         {'A1': 1, 'A2': 1}
-        >>>         1
+        >>>         ['A']
         >>>     )
 
     This class create an object from a GDS input and store information as the optical state of each gate,
