@@ -10,7 +10,7 @@ import numpy as np
 
 from controllers.GDS_Object.attribute import Attribute
 from controllers.GDS_Object.label import Label
-from controllers.GDS_Object.op import Op
+from controllers.GDS_Object.auto_ops_propagation import AutoOPSPropagation
 from controllers.GDS_Object.shape import Shape
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -20,7 +20,7 @@ from controllers.GDS_Object.type import ShapeType
 import matplotlib.patches as patches
 
 
-def plot_elements(op_object) -> None:
+def plot_elements(propagation_object) -> None:
     """
     Plots elements based on their coordinates and types.
 
@@ -30,8 +30,8 @@ def plot_elements(op_object) -> None:
 
     Parameters:
     -----------
-    op_object: Op
-        Op object which contains the information to be extracted
+    propagation_object: AutoOPSPropagation
+        AutoOPS object which contains the information to be extracted
 
     Returns:
     --------
@@ -41,7 +41,7 @@ def plot_elements(op_object) -> None:
     -------
     Any relevant exceptions that may occur.
     """
-    for element in op_object.element_list:
+    for element in propagation_object.element_list:
         x, y = element.coordinates
         if isinstance(element, Label):
             plt.scatter(x, y)
@@ -49,11 +49,11 @@ def plot_elements(op_object) -> None:
         else:
             plt.plot(x, y)
 
-    plt.title(op_object.name)
+    plt.title(propagation_object.name)
     plt.show()
 
 
-def plot_reflection(op_object) -> None:
+def plot_reflection(propagation_object) -> None:
     """
     Plots reflection zones based on their coordinates and state.
 
@@ -62,8 +62,8 @@ def plot_reflection(op_object) -> None:
 
     Parameters:
     -----------
-    op_object: Op
-        Op object which contains the information to be extracted
+    propagation_object: AutoOPSPropagation
+        AutoOPSPropagation object which contains the information to be extracted
 
     Returns:
     --------
@@ -76,7 +76,7 @@ def plot_reflection(op_object) -> None:
     """
     color_list = ['black', 'white']
     fig, ax = plt.subplots()
-    for reflection in op_object.reflection_list:
+    for reflection in propagation_object.reflection_list:
         x, y = reflection.polygon.exterior.xy
         plt.plot(x, y)
 
@@ -95,11 +95,11 @@ def plot_reflection(op_object) -> None:
             if bool(reflect):
                 ax.fill(x, y, facecolor=color_list[state], alpha=0.2, edgecolor='black', linewidth=1)
 
-    plt.title(op_object.name)
+    plt.title(propagation_object.name)
     plt.show()
 
 
-def plot_show_case(op_object) -> None:
+def plot_show_case(propagation_object) -> None:
     """
     Plots elements based on their coordinates and types.
 
@@ -109,8 +109,8 @@ def plot_show_case(op_object) -> None:
 
     Parameters:
     -----------
-    op_object: Op
-        Op object which contains the information to be extracted
+    propagation_object: AutoOPSPropagation
+        AutoOPS object which contains the information to be extracted
 
     Returns:
     --------
@@ -121,7 +121,7 @@ def plot_show_case(op_object) -> None:
     ValueError
         If a zone state is None, an exception is raised with the gate name.
     """
-    for element in op_object.element_list:
+    for element in propagation_object.element_list:
         x, y = element.coordinates
 
         color = "black"
@@ -159,20 +159,20 @@ def plot_show_case(op_object) -> None:
             plt.scatter(x, y, color="black")
             plt.annotate(element.name, (x, y))
 
-    plt.title(op_object.name)
-    path_name = "tmp/" + op_object.name
+    plt.title(propagation_object.name)
+    path_name = "tmp/" + propagation_object.name
     plt.savefig(path_name)
     plt.close()
 
 
-def count_unknown_states(op_object) -> None:
+def count_unknown_states(propagation_object) -> None:
     state_counter = 0
-    for reflection in op_object.reflection_list:
+    for reflection in propagation_object.reflection_list:
         for zone in reflection.zone_list:
             if zone.state is None:
                 state_counter += 1
 
-    print(f"\033[1;33m \n {op_object.name}, {op_object.inputs}, None states = {state_counter}, Loop counter = {op_object.loop_counter}")
+    print(f"\033[1;33m \n {propagation_object.name}, {propagation_object.inputs}, None states = {state_counter}, Loop counter = {propagation_object.loop_counter}")
 
 
 def benchmark(object_list, def_extract, plot, vpi_extraction=None) -> None:
@@ -199,12 +199,12 @@ def benchmark(object_list, def_extract, plot, vpi_extraction=None) -> None:
             if cell_name in object_list.keys():
                 for position in cell_place:
                     if vpi_extraction:
-                        op_object = vpi_object_extractor(object_list[cell_name], cell_name, vpi_extraction, position)
+                        propagation_object = vpi_object_extractor(object_list[cell_name], cell_name, vpi_extraction, position)
                     else:
                         key = list(object_list[cell_name].keys())[0]
-                        op_object = object_list[cell_name][key]
+                        propagation_object = object_list[cell_name][key]
 
-                    for zone in op_object.orientation_list[position['Orientation']]:
+                    for zone in propagation_object.orientation_list[position['Orientation']]:
                         x, y = zone["coords"]
                         x_adder, y_adder = position['Coordinates']
                         x = tuple([element + x_adder for element in x])
@@ -229,21 +229,21 @@ def benchmark(object_list, def_extract, plot, vpi_extraction=None) -> None:
 def vpi_object_extractor(cell_object, cell_name, vpi_extraction, position) -> Op:
     try:
         input_combination = vpi_extraction[position['GateID']]
-        op_object = cell_object[input_combination]
+        propagation_object = cell_object[input_combination]
     except KeyError as key_error:
         key = list(cell_object.keys())[0]
-        op_object = cell_object[key]
+        propagation_object = cell_object[key]
         print(f"KeyError: {key_error}. Default gate applied for {cell_name}, {position['Coordinates']}")
     except IndexError as index_error:
         key = list(cell_object.keys())[0]
-        op_object = cell_object[key]
+        propagation_object = cell_object[key]
         print(f"IndexError: {index_error}. Default gate applied for {cell_name}, {position['Coordinates']}")
     except Exception as e:
         key = list(cell_object.keys())[0]
-        op_object = cell_object[key]
+        propagation_object = cell_object[key]
         print(f"An unexpected error occurred: {e}. Default gate applied for {cell_name}, {position['Coordinates']}")
 
-    return op_object
+    return propagation_object
 
 
 def benchmark_export_data(def_extract, ex_time, def_name):
@@ -265,11 +265,11 @@ def benchmark_export_data(def_extract, ex_time, def_name):
         #f.write(f"{def_name} & {execution_time} \\\\ \cline{{2-8}} \n")
 
 
-def test_orientation(op_object):
+def test_orientation(propagation_object):
     orientation_list = ["N", "FN", "E", "FE", "S", "FS", "W", "FW"]
     #orientation_list = ["S", "FS"]
     for orientation in orientation_list:
-        for zone in op_object.orientation_list[orientation]:
+        for zone in propagation_object.orientation_list[orientation]:
             x, y = zone["coords"]
             state = zone["state"]
             if zone["diff_type"] == ShapeType.PMOS:
@@ -285,14 +285,14 @@ def test_orientation(op_object):
             else:
                 plt.fill(x, y, facecolor="grey", alpha=1, edgecolor='grey', linewidth=1)
 
-        file_name = str(op_object.name) + "__" + orientation
+        file_name = str(propagation_object.name) + "__" + orientation
         path_name = "tmp/" + file_name + ".svg"
         plt.title(file_name)
         plt.savefig(path_name, format='svg')
         plt.close()
 
 
-def export_reflection_to_png(op_object) -> None:
+def export_reflection_to_png(propagation_object) -> None:
     """
     Export as a PNG the reflection zones based on their coordinates and state.
     The title of the figure is defined from the gate name, inputs names, and inputs states.
@@ -304,8 +304,8 @@ def export_reflection_to_png(op_object) -> None:
 
     Parameters:
     -----------
-    op_object: Op
-        Op object which contains the information to be extracted
+    propagation_object: AutoOPSPropagation
+        AutoOPS object which contains the information to be extracted
 
     Returns:
     --------
@@ -322,7 +322,7 @@ def export_reflection_to_png(op_object) -> None:
     as it will attempt to write the PNG file to this location.
     """
     color_list = ['white', 'black']
-    for reflection in op_object.reflection_list:
+    for reflection in propagation_object.reflection_list:
         for zone in reflection.zone_list:
             x, y = zone.coordinates
             state = zone.state
@@ -337,9 +337,9 @@ def export_reflection_to_png(op_object) -> None:
             if bool(reflect):
                 plt.fill(x, y, facecolor=color_list[state], alpha=1, edgecolor='grey', linewidth=1)
 
-    string_list = [f"{key}_{value}" for key, value in sorted(op_object.inputs.items())]
+    string_list = [f"{key}_{value}" for key, value in sorted(propagation_object.inputs.items())]
     result_string = "_".join(string_list)
-    file_name = str(op_object.name) + "__" + result_string
+    file_name = str(propagation_object.name) + "__" + result_string
     path_name = "tmp/" + file_name
     plt.title(file_name)
     plt.savefig(path_name)
@@ -388,13 +388,13 @@ def benchmark_matrix(object_list, def_extract, G1, G2, vpi_extraction=None, area
         if cell_name in object_list.keys():
             for position in cell_place:
                 if vpi_extraction:
-                    op_object = vpi_object_extractor(object_list[cell_name], cell_name, vpi_extraction, position)
+                    propagation_object = vpi_object_extractor(object_list[cell_name], cell_name, vpi_extraction, position)
                 else:
                     key_list = list(object_list[cell_name].keys())
                     key = key_list[0]
-                    op_object = object_list[cell_name][key]
+                    propagation_object = object_list[cell_name][key]
 
-                for zone in op_object.orientation_list[position['Orientation']]:
+                for zone in propagation_object.orientation_list[position['Orientation']]:
                     x, y = zone["coords"]
                     x_adder, y_adder = position['Coordinates']
                     x = tuple([int(((element + x_adder)-origin_x)*scale_up) for element in x])
@@ -427,18 +427,18 @@ def benchmark_matrix(object_list, def_extract, G1, G2, vpi_extraction=None, area
     return large_matrix, nm_scale
 
 
-def export_matrix_reflection(op_object, G1, G2, nm_scale=None):
+def export_matrix_reflection(propagation_object, G1, G2, nm_scale=None):
     if nm_scale is not None:
         scale_up = int(1000/nm_scale)
     else:
         scale_up = 500
 
-    width = int(op_object.get_width()*scale_up)
-    height = int(op_object.get_height()*scale_up)
+    width = int(propagation_object.get_width()*scale_up)
+    height = int(propagation_object.get_height()*scale_up)
     layout = np.zeros((height, width))
     x_m, y_m = np.meshgrid(np.arange(width), np.arange(height))
 
-    for reflection in op_object.reflection_list:
+    for reflection in propagation_object.reflection_list:
         for zone in reflection.zone_list:
             x, y = zone.coordinates
 
@@ -471,10 +471,10 @@ def export_matrix_reflection(op_object, G1, G2, nm_scale=None):
     return large_matrix, nm_scale
 
 
-def export_reflection_to_png_over_gds_cell(op_object, reflection_draw=False, with_axes=True, flip_flop=None) -> None:
+def export_reflection_to_png_over_gds_cell(propagation_object, reflection_draw=False, with_axes=True, flip_flop=None) -> None:
     plt.figure(figsize=(6, 8))
 
-    for element in op_object.element_list:
+    for element in propagation_object.element_list:
         x, y = element.coordinates
 
         color = "grey"
@@ -512,11 +512,11 @@ def export_reflection_to_png_over_gds_cell(op_object, reflection_draw=False, wit
             plt.fill(x, y, color=color, alpha=alpha)
 
         elif isinstance(element, Label):
-            if element.name in op_object.truthtable.keys():
-                for outputs in op_object.truthtable:
-                    for truthtable_inputs, output in op_object.truthtable[outputs]:
-                        if element.name in output and truthtable_inputs == op_object.inputs:
-                            if any("CK" in name or "RESET" in name or "GATE" in name or "CLK" in name for name in list(op_object.inputs.keys())) or "Q" in outputs:
+            if element.name in propagation_object.truthtable.keys():
+                for outputs in propagation_object.truthtable:
+                    for truthtable_inputs, output in propagation_object.truthtable[outputs]:
+                        if element.name in output and truthtable_inputs == propagation_object.inputs:
+                            if any("CK" in name or "RESET" in name or "GATE" in name or "CLK" in name for name in list(propagation_object.inputs.keys())) or "Q" in outputs:
                                 if "N" in str(element.name):
                                     # if None this will be 1 and the else 0
                                     value = int(bool(not flip_flop))
@@ -528,8 +528,8 @@ def export_reflection_to_png_over_gds_cell(op_object, reflection_draw=False, wit
                             edge_color = 'lightblue'
                             background_color = (228 / 255, 239 / 255, 255 / 255)
 
-            elif element.name in op_object.inputs.keys():
-                text = str(element.name) + " = " + str(int(op_object.inputs[element.name]))
+            elif element.name in propagation_object.inputs.keys():
+                text = str(element.name) + " = " + str(int(propagation_object.inputs[element.name]))
                 background_color = 'yellow'
             else:
                 edge_color = (110 / 255, 140 / 255, 255 / 255)
@@ -546,13 +546,13 @@ def export_reflection_to_png_over_gds_cell(op_object, reflection_draw=False, wit
                          color='black', fontsize=18)
             #, fontname='Times New Roman'
 
-    for via in op_object.via_element_list:
+    for via in propagation_object.via_element_list:
         x, y = via.coordinates
         plt.plot(x, y, color='none')
         plt.fill(x, y, color="white", alpha=0.8)
 
     if reflection_draw:
-        for reflection in op_object.reflection_list:
+        for reflection in propagation_object.reflection_list:
             for zone in reflection.zone_list:
                 x, y = zone.coordinates
                 state = zone.state
@@ -570,11 +570,11 @@ def export_reflection_to_png_over_gds_cell(op_object, reflection_draw=False, wit
                 if reflect is None:
                     plt.fill(x, y, facecolor="none", edgecolor="red", hatch='////', alpha=0.8)
 
-    string_list = [f"{key}_{value}" for key, value in sorted(op_object.inputs.items())]
+    string_list = [f"{key}_{value}" for key, value in sorted(propagation_object.inputs.items())]
     result_string = "_".join(string_list)
     if flip_flop is not None:
         result_string += "_" + "Q_" + str(flip_flop)
-    file_name = str(op_object.name) + "_overlay__" + result_string + ".svg"
+    file_name = str(propagation_object.name) + "_overlay__" + result_string + ".svg"
     path_name = "tmp/" + file_name
 
     if with_axes:
@@ -676,9 +676,9 @@ def unit_test_generator(processed_cells):
         json.dump(json_test, json_file, indent=4)
 
 
-def export_reflection_to_json(op_object) -> None:
+def export_reflection_to_json(propagation_object) -> None:
     """
-    This function retrieves reflection data from the op_object and exports it to a JSON file.
+    This function retrieves reflection data from the propagation_object and exports it to a JSON file.
     It constructs a dictionary 'data' containing cell_name, inputs, and reflection information. The 'reflection'
     key in 'data' stores a list of reflections, each having a 'type' and a list of 'zone_list' elements.
 
@@ -690,8 +690,8 @@ def export_reflection_to_json(op_object) -> None:
 
     Parameters:
     -----------
-    op_object: Op
-        Op object which contains the information to be extracted
+    propagation_object: AutoOPSPropagation
+        AutoOPS object which contains the information to be extracted
 
     Returns:
     --------
@@ -708,8 +708,8 @@ def export_reflection_to_json(op_object) -> None:
 
     """
 
-    data = {'cell_name': op_object.name, 'inputs': op_object.inputs, 'reflection': []}
-    for diffusion in op_object.reflection_list:
+    data = {'cell_name': propagation_object.name, 'inputs': propagation_object.inputs, 'reflection': []}
+    for diffusion in propagation_object.reflection_list:
 
         ref_type = str(diffusion.shape_type)
         zone_list = []
@@ -722,16 +722,16 @@ def export_reflection_to_json(op_object) -> None:
 
         data['reflection'].append({'type': ref_type, 'zone_list': zone_list})
 
-    string_list = [f"{key}_{value}" for key, value in sorted(op_object.inputs.items())]
+    string_list = [f"{key}_{value}" for key, value in sorted(propagation_object.inputs.items())]
     result_string = "_".join(string_list)
-    file_name = str(op_object.name) + "__" + result_string + ".json"
+    file_name = str(propagation_object.name) + "__" + result_string + ".json"
     path_name = "tmp/" + file_name
 
     with open(path_name, 'w') as json_file:
         json.dump(data, json_file, indent=4)
 
 
-def data_export_csv(cell_name, time_extraction, cumulative_time_op, op_object, hand_input):
+def data_export_csv(cell_name, time_extraction, cumulative_time_op, propagation_object, hand_input):
 
     current_date = datetime.now().strftime('%Y-%m-%d_%H')
     filename = f"tmp/export_{current_date}.csv"
@@ -741,10 +741,10 @@ def data_export_csv(cell_name, time_extraction, cumulative_time_op, op_object, h
     prefix_number = np.nan
 
     number_of_zone = 0
-    for diff in op_object.reflection_list:
+    for diff in propagation_object.reflection_list:
         number_of_zone += len(diff.zone_list)
 
-    number_of_input = len(op_object.inputs.keys())
+    number_of_input = len(propagation_object.inputs.keys())
 
     avg_time_op = cumulative_time_op / 2 ** number_of_input
 

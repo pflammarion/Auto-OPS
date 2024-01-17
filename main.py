@@ -155,8 +155,7 @@ def run_auto_ops(std_file, lib_file, def_file, cell_input, layer_list, cell_name
 
             try:
                 truth_table, voltage, input_names = lib_reader.extract_truth_table(gds_cell_name)
-                op_master = AutoOPSPropagation(gds_cell_name, gds_cell, layer_list, truth_table, voltage, input_names)
-                print(gds_cell_name, gds_cell, layer_list, truth_table, voltage, input_names)
+                propagation_master = AutoOPSPropagation(gds_cell_name, gds_cell, layer_list, truth_table, voltage, input_names)
 
                 draw_inputs = {}
 
@@ -164,11 +163,11 @@ def run_auto_ops(std_file, lib_file, def_file, cell_input, layer_list, cell_name
                     for index, inp in enumerate(input_names):
                         draw_inputs[inp] = cell_input[index]
 
-                    op_object = copy.deepcopy(op_master)
-                    op_object.apply_state(draw_inputs, flip_flop)
+                    propagation_object = copy.deepcopy(propagation_master)
+                    propagation_object.apply_state(draw_inputs, flip_flop)
 
                     if output == "reflection_over_cell":
-                        gds_drawing.export_reflection_to_png_over_gds_cell(op_object, True, False, flip_flop)
+                        gds_drawing.export_reflection_to_png_over_gds_cell(propagation_object, True, False, flip_flop)
 
                     state_counter += 1
 
@@ -184,19 +183,19 @@ def run_auto_ops(std_file, lib_file, def_file, cell_input, layer_list, cell_name
                         for index, inp in enumerate(input_names):
                             draw_inputs[inp] = combination[index]
                         try:
-                            op_object = copy.deepcopy(op_master)
-                            op_object.apply_state(draw_inputs, flip_flop)
+                            propagation_object = copy.deepcopy(propagation_master)
+                            propagation_object.apply_state(draw_inputs, flip_flop)
 
                             if output == "reflection_over_cell":
-                                gds_drawing.export_reflection_to_png_over_gds_cell(op_object, True, False, flip_flop)
+                                gds_drawing.export_reflection_to_png_over_gds_cell(propagation_object, True, False, flip_flop)
 
                             if def_file:
-                                op_object.calculate_orientations()
+                                propagation_object.calculate_orientations()
                                 key = ''.join(map(str, combination))
-                                multiple_exporting_dict[gds_cell_name][key] = copy.deepcopy(op_object)
+                                multiple_exporting_dict[gds_cell_name][key] = copy.deepcopy(propagation_object)
 
                             if unit_test:
-                                multiple_exporting_dict[gds_cell_name].append(copy.deepcopy(op_object))
+                                multiple_exporting_dict[gds_cell_name].append(copy.deepcopy(propagation_object))
 
                             state_counter += 1
 

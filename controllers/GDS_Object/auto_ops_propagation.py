@@ -82,7 +82,21 @@ class AutoOPSPropagation:
         for diffusion in self.reflection_list:
             connect_diffusion_to_metal(self.element_list, diffusion)
 
-    def get_height(self):
+    def get_height(self) -> float:
+        """
+        This function is to get the height of the cell for the composition stage.
+
+        Returns:
+        --------
+        cell_height: float
+            The height of the cell.
+
+        Raises:
+        -------
+        Any relevant exceptions that may occur
+
+        """
+
         min_y = float("inf")
         max_y = 0
         for diff in self.reflection_list:
@@ -94,7 +108,21 @@ class AutoOPSPropagation:
 
         return min_y + max_y
 
-    def get_width(self):
+    def get_width(self) -> float:
+        """
+        This function is to get the width of the cell for the composition stage.
+
+        Returns:
+        --------
+        cell_width: float
+            The width of the cell.
+
+        Raises:
+        -------
+        Any relevant exceptions that may occur
+
+        """
+
         min_x = float("inf")
         max_x = 0
         for diff in self.reflection_list:
@@ -106,7 +134,26 @@ class AutoOPSPropagation:
 
         return min_x + max_x
 
-    def calculate_orientations(self):
+    def calculate_orientations(self) -> None:
+        """
+        This function is to fill the orientation list to be able to get the cell_state for each of them.
+
+        Possible orientation are N, FN, E, FE, S, FS, W, FW.
+
+        To get the cell orientation from the propagation object:
+
+        propagation_object.orientation_list["N"]
+
+
+        Returns:
+        --------
+        None
+
+        Raises:
+        -------
+        Any relevant exceptions that may occur
+
+        """
         orientation_side = ["N", "FN", "E", "FE", "S", "FS", "W", "FW"]
 
         cell_height = self.get_height()

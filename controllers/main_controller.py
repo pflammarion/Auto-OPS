@@ -43,7 +43,7 @@ class MainController:
         self.gds_cell_list = None
         self.lib_reader = None
         self.selected_layer = None
-        self.op_master = None
+        self.propagation_master = None
         self.def_file = None
         self.vpi_extraction = None
         self.selected_area = 0
@@ -84,7 +84,7 @@ class MainController:
         self.data = self.load_settings_from_json(config)
 
         if self.gds_cell_list is None or self.lib_reader is None or self.selected_layer is None and not command_line:
-            self.init_op_object()
+            self.init_propagation_object()
 
         if self.def_file is None:
             self.extract_op_cell(self.cell_name)
@@ -269,10 +269,10 @@ class MainController:
                         self.extract_op_cell(self.cell_name)
 
                     if self.state_list not in self.object_storage_list[self.cell_name].keys():
-                        self.apply_state_op(self.state_list)
+                        self.apply_state_propagation(self.state_list)
 
-                    op_object = self.object_storage_list[self.cell_name][self.state_list]
-                    self.image_matrix, self.nm_scale = gds_drawing.export_matrix_reflection(op_object,
+                    propagation_object = self.object_storage_list[self.cell_name][self.state_list]
+                    self.image_matrix, self.nm_scale = gds_drawing.export_matrix_reflection(propagation_object,
                                                                                             G1, G2,
                                                                                             nm_scale=self.nm_scale)
 
@@ -383,10 +383,10 @@ class MainController:
                         self.patch_counter = self.def_file[3]
                         for cell_name in cell_name_list:
                             self.extract_op_cell(cell_name)
-                            combinations = list(itertools.product([0, 1], repeat=len(self.op_master.inputs_list)))
+                            combinations = list(itertools.product([0, 1], repeat=len(self.propagation_master.inputs_list)))
                             for input_combination in combinations:
                                 input_str = ''.join(map(str, input_combination))
-                                self.apply_state_op(input_str)
+                                self.apply_state_propagation(input_str)
 
                 return data
 
@@ -902,7 +902,7 @@ class MainController:
 
             threading.Thread(target=self.plot_rcv_calc_wrapper).start()
 
-    def init_op_object(self):
+    def init_propagation_object(self):
         technology_dialog = TechnologySelectionDialog()
         if technology_dialog.exec():
             std_file, lib_file = technology_dialog.get_selected_technology()
@@ -922,16 +922,16 @@ class MainController:
 
             try:
                 truth_table, voltage, input_names = self.lib_reader.extract_truth_table(gds_cell_name)
-                self.op_master = AutoOPSPropagation(gds_cell_name, gds_cell, self.selected_layer, truth_table, voltage, input_names)
+                self.propagation_master = AutoOPSPropagation(gds_cell_name, gds_cell, self.selected_layer, truth_table, voltage, input_names)
 
                 self.object_storage_list[gds_cell_name] = {}
 
             except Exception as e:
                 print(f"Error {e}")
 
-    def apply_state_op(self, cell_input_string):
+    def apply_state_propagation(self, cell_input_string):
         draw_inputs = {}
-        inputs_list = self.op_master.inputs_list
+        inputs_list = self.propagation_master.inputs_list
 
         cell_input = [int(char) for char in cell_input_string]
 
@@ -939,10 +939,10 @@ class MainController:
             for index, inp in enumerate(inputs_list):
                 draw_inputs[inp] = cell_input[index]
 
-            op_object = copy.deepcopy(self.op_master)
-            op_object.apply_state(draw_inputs, self.flip_flop)
+            propagation_object = copy.deepcopy(self.propagation_master)
+            propagation_object.apply_state(draw_inputs, self.flip_flop)
 
             if self.def_file is not None:
-                op_object.calculate_orientations()
+                propagation_object.calculate_orientations()
 
-            self.object_storage_list[self.op_master.name][cell_input_string] = copy.deepcopy(op_object)
+            self.object_storage_list[self.propagation_master.name][cell_input_string] = copy.deepcopy(propagation_object)
