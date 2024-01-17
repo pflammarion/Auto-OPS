@@ -303,7 +303,8 @@ class MainController:
             R = self.print_EOFM_image()
             self.view.display_image(R, self.is_plot_export, "EOFM - " + self.main_label_value)
             inverted_image = np.abs(R)
-            self.view.display_second_image(inverted_image, self.is_plot_export, "Absolute EOFM - " + self.main_label_value)
+            self.view.display_second_image(inverted_image, self.is_plot_export,
+                                           "Absolute EOFM - " + self.main_label_value)
 
         elif self.app_state == 4:
             self.plot_rcv_calc()
@@ -383,7 +384,8 @@ class MainController:
                         self.patch_counter = self.def_file[3]
                         for cell_name in cell_name_list:
                             self.extract_op_cell(cell_name)
-                            combinations = list(itertools.product([0, 1], repeat=len(self.propagation_master.inputs_list)))
+                            combinations = list(
+                                itertools.product([0, 1], repeat=len(self.propagation_master.inputs_list)))
                             for input_combination in combinations:
                                 input_str = ''.join(map(str, input_combination))
                                 self.apply_state_propagation(input_str)
@@ -600,25 +602,6 @@ class MainController:
     def round(self, i):
         return int(np.rint(i))
 
-    def draw_one_gate_layout(self, G1, draw_lam):
-
-        layout_width = 3000
-        layout_height = 3000
-
-        layout = np.empty(shape=(layout_height, layout_width))
-        layout.fill(0)
-
-        x = self.round(2 * draw_lam)
-        y = self.round(4 * draw_lam)
-
-        start_x = (layout_width - x) // 2
-        start_y = (layout_height - y) // 2
-
-        layout[start_y:start_y + y, start_x:start_x + x] = G1
-
-        return layout
-
-    # TODO update sajjad code to be nicer and do not duplicate with the draw_one_gate_layout func
     def draw_layout(self, lam, G1, G2, Gap):
         layout = np.empty(shape=(1000, 1000))
         layout.fill(0)
@@ -630,11 +613,9 @@ class MainController:
         layout[x:x + self.round(4 * lam), 1:self.round(4 * lam)].fill(G1)
 
         x = x + self.round(4 * lam)
-        y = self.round(4 * lam)
         layout[x:x + self.round(12 * lam), 1:self.round(4 * lam)].fill(Gap)
 
         x = x + self.round(12 * lam)
-        y = self.round(4 * lam)
         layout[x:x + self.round(4 * lam), 1:self.round(4 * lam)].fill(0)
         x = x + self.round(4 * lam)
         layout[x:x + self.round(2 * lam), 1:self.round(4 * lam)].fill(G2)
@@ -922,7 +903,8 @@ class MainController:
 
             try:
                 truth_table, voltage, input_names = self.lib_reader.extract_truth_table(gds_cell_name)
-                self.propagation_master = AutoOPSPropagation(gds_cell_name, gds_cell, self.selected_layer, truth_table, voltage, input_names)
+                self.propagation_master = AutoOPSPropagation(gds_cell_name, gds_cell, self.selected_layer, truth_table,
+                                                             voltage, input_names)
 
                 self.object_storage_list[gds_cell_name] = {}
 
@@ -945,4 +927,5 @@ class MainController:
             if self.def_file is not None:
                 propagation_object.calculate_orientations()
 
-            self.object_storage_list[self.propagation_master.name][cell_input_string] = copy.deepcopy(propagation_object)
+            self.object_storage_list[self.propagation_master.name][cell_input_string] = copy.deepcopy(
+                propagation_object)
