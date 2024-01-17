@@ -17,21 +17,21 @@ class AutoOPSPropagation:
     Args:
         cell_name (str): The name of the cell in the gds file in the Cells' list.
         gds_cell (GdsLibrary): Dictionary of cells in the library's object, indexed by name.
-        layer_list (list[list[int]): Diffusion layer, N well layer, poly silicon layer, via layers, metal layers and label layers.
-        truthtable (dict{list[set(dict)]})): A list containing the information the output based on the input for a cell.
+        layer_list (list[list[int]]): Diffusion layer, N well layer, poly silicon layer, via layers, metal layers and label layers.
+        truthtable (dict{list[set(dict)]}): A list containing the information the output based on the input for a cell.
         voltage(list[dict]): Contains the voltage names and types.
         inputs_list(list(str)): Contains the inputs names.
     Attributes:
         name (str): The name of the cell in the gds file in the Cells' list.
-        truthtable (dict{list[set(dict)]})): A list containing the information the output based on the input for a cell.
+        truthtable (dict{list[set(dict)]}): A list containing the information the output based on the input for a cell.
         inputs_list(list(str)): Contains the inputs names.
-        truthtable (dict): The truthtable is a list containing the information the output based on the input for a gate.
 
 
         via_element_list(list) Contains all the extracted via elements converted to objects.
         element_list(list): Contains all the extracted elements converted to objects.
         reflection_list(list): Contains all reflecting elements such as diffusion's zones and poly-silicon's overlapping.
         orientation_list(dict): Contains all cell orientation reflective zones and states
+        inputs(dict): Contains all aplied inputs values
 
     Example:
         To create a AutoOPSPropagation instance:
@@ -60,6 +60,8 @@ class AutoOPSPropagation:
 
         self.element_list = element_extractor(gds_cell, layer_list)
         self.reflection_list = []
+
+        self.inputs = {}
 
         # list without the filtering of unused diffusion zones
         temp_reflection_list = element_sorting(self.element_list, inputs_list, truthtable, voltage)
@@ -167,7 +169,30 @@ class AutoOPSPropagation:
                         {'coords': [x, y], 'state': zone.state, "diff_type": reflection.shape_type}
                     )
 
-    def apply_state(self, inputs, flip_flop=0):
+    def apply_state(self, inputs, flip_flop=0) -> None:
+        """
+        This function is to propagate the body voltage based on the applied inputs.
+
+        Parameters:
+        -----------
+        inputs: dict
+            Setting the input propagation to the initiate propagation object. Ex: {'A': 1}
+
+        flip_flop: int
+            The flip_flop variable stand for clock gates which doesn't have a truth table in the liberty file.
+            The body voltage is then also spread from the output. This variable is an int (0 or 1).
+
+        Returns:
+        --------
+        None
+
+        Raises:
+        -------
+        Any relevant exceptions that may occur
+
+        """
+
+        self.inputs = inputs
 
         if flip_flop is None:
             flip_flop = 0
@@ -213,7 +238,33 @@ class AutoOPSPropagation:
             none_loop_counter += 1
 
 
-def apply_transformation(coordinates, transformation, width, height):
+def apply_transformation(coordinates, transformation, width, height) -> tuple[tuple, tuple]:
+    """
+    This function is doing symetry of the cell reflective areas coordinates
+
+    Parameters:
+    -----------
+    coordinates: tuple
+        Containing the reflective areas coordinates of the cell state
+
+    transformation: str
+        The transformation to apply to the coordinates: N, FN, E, FE, S, FS, W, FW.
+
+    width: float
+        The width of the cell
+
+    height: float
+        The height of the cell
+
+    Returns:
+    --------
+    tuple: x and y position tuple with the applied transformation
+
+    Raises:
+    -------
+    Any relevant exceptions that may occur
+
+    """
 
     x, y = coordinates
 
@@ -266,14 +317,14 @@ def element_sorting(element_list, inputs_list, truthtable, voltage) -> list:
      element_list: list
         Contains all the extracted elements converted to objects.
 
-     inputs: dict
-        Contains the inputs names and values.
+     inputs_list: list(str)
+        Contains the inputs name.
 
-     truthtable: dict
-        The truthtable is a list containing the information the output based on the input for a gate.
+     truthtable:  dict{list[set(dict)]}
+        A list containing the information the output based on the input for a cell.
 
      voltage: list[dict]
-        Contains all the extracted via elements converted to objects.
+        Contains the voltage names and types.
 
     Returns:
     --------
@@ -370,65 +421,6 @@ def merge_polygons(polygons) -> list[Polygon]:
     return merged_polygons
 
 
-def init_diffusion_zones(diffusion) -> None:
-    """
-    WARNING old function useless
-
-    Function to create reflections zones from diffusion shapes and intersection with poly silicons.
-
-    Extracting the left and right poly silicons intersections and create new zones on top of that.
-
-    Parameters:
-    -----------
-    diffusion : Diffusion
-        Objects in the class reflection list instance which hold the reflection zone objects
-
-    Returns:
-    --------
-    None
-
-    Raises:
-    -------
-    Any relevant exceptions that may occur.
-    """
-
-    temp_zone_to_add = []
-    diffusion.zone_list = sorted(diffusion.zone_list, key=lambda selected_zone: selected_zone.get_min_x_coord())
-
-    coords = diffusion.get_left_points_coords() + diffusion.get_zone_by_index(0).get_left_points_coords()
-    new_zone = Zone(ShapeType.DIFFUSION)
-    new_zone.set_coordinates_from_list(coords)
-    temp_zone_to_add.append(new_zone)
-
-    for index, zone in enumerate(diffusion.zone_list):
-        if index == len(diffusion.zone_list) - 1:
-            coords = diffusion.get_right_points_coords() + diffusion.get_zone_by_index(index).get_right_points_coords()
-
-        else:
-            coords = diffusion.get_zone_by_index(index).get_right_points_coords() + diffusion.get_zone_by_index(
-                index + 1).get_left_points_coords()
-
-        new_zone = Zone(ShapeType.DIFFUSION)
-        new_zone.set_coordinates_from_list(coords)
-        temp_zone_to_add.append(new_zone)
-
-        # To handle non square polygones shapes
-        unique_y_values = set(point[1] for point in coords)
-
-        if len(unique_y_values) > 2:
-            min_x = new_zone.get_min_x_coord()
-            max_x = new_zone.get_max_x_coord()
-
-            for x, y in zip(*diffusion.polygon.exterior.xy):
-                if min_x < x < max_x:
-                    coords.append((x, y))
-
-            new_zone.set_coordinates_from_list(coords)
-
-    for zone in temp_zone_to_add:
-        diffusion.set_zone(zone)
-
-
 def element_extractor(gds_cell, layer_list) -> list:
     """
     Function to init the class by extracting every needed polygones for the reflection calculation.
@@ -497,17 +489,17 @@ def is_connected(element_list, inputs_list, truthtable, voltage, element) -> Non
 
     Parameters:
     -----------
-    element_list: list
+     element_list: list
         Contains all the extracted elements converted to objects.
 
-    inputs: dict
-        Contains the inputs names and values.
+     inputs_list: list(str)
+        Contains the inputs name.
 
-    truthtable: dict
-        The truthtable is a list containing the information the output based on the input for a gate.
+     truthtable:  dict{list[set(dict)]}
+        A list containing the information the output based on the input for a cell.
 
-    voltage: list[dict]
-        Contains all the extracted via elements converted to objects.
+     voltage: list[dict]
+        Contains the voltage names and types.
 
     element : Shape | Label
         Objects in the class element list instance
@@ -669,7 +661,32 @@ def connect_diffusion_to_metal(element_list, diffusion) -> None:
             add_connection_zone(element_list, zone.connected_to[0], zone)
 
 
-def add_connection_zone(element_list, element, zone):
+def add_connection_zone(element_list, element, zone) -> None:
+    """
+    While not all element are reflecting, this function is to link an element connected to a reflective zone.
+
+    Parameters:
+    -----------
+     element_list: list
+        Contains all the extracted elements converted to objects.
+
+    element : Shape | Label
+        Objects in the class element list instance
+
+    zone: Zone
+        The zone object with all the properties
+
+    Returns:
+    --------
+    None
+
+    Raises:
+    -------
+    Exception
+        Any relevant exceptions that may occur.
+
+    """
+
     for next_element in element_list:
         if (
                 isinstance(next_element, Shape)
@@ -781,6 +798,33 @@ def set_zone_states(reflection_list) -> int:
 
 
 def find_incoherent_states(diffusion, zone_index, zone) -> None:
+    """
+    This function is to find incoherent states while processing the body voltage propagation.
+
+    If the body voltage should pass through a transistor but the left and right substrates are not in the same state,
+    it raises an exception. This methode is helpfully to validate the voltage propagation based on the applied inputs.
+
+    Parameters:
+    -----------
+    diffusion : Diffusion
+        The diffusion part where the searching algorithm is going to be performed.
+
+    zone_index: int
+        The initial start index of the zone the algorthm wants to apply a state
+
+    zone: Zone
+        The zone object with all the properties
+
+    Returns:
+    --------
+    None
+
+    Raises:
+    -------
+    Exception
+        Any state missmatch found between neighbor states
+    """
+
     if 1 <= zone_index < len(diffusion.zone_list) - 1:
         left_neighbor_state = diffusion.zone_list[zone_index - 1].state
         right_neighbor_state = diffusion.zone_list[zone_index + 1].state
