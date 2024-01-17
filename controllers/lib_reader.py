@@ -10,31 +10,26 @@ class LibReader:
     The `LibReader` class is designed to extract truth tables from a library (.lib) file,
     automatically identifying input and output names based on the provided gate name.
 
-    Attributes:
-        gate_name (str): The name of the gate for which the truth table is to be extracted.
+    Args:
         lib_file_path (str): The path to the library file (.lib) containing gate definitions.
 
+    Attributes:
+        lib_file: Liberty object
+
     Methods:
-        extract_truth_table():
+        extract_truth_table(gate_name):
             Extracts the truth table for the specified gate from the library file.
 
     Example usage:
-        >>> lib_reader = LibReader("AND2_X1", "library.lib")
-        >>> truth_table = lib_reader.extract_truth_table()
-        >>> print(truth_table)
+        >>> lib_reader = LibReader("library.lib")
+        >>> output_truth_table, voltage, input_names = lib_reader.extract_truth_table("INV_X1")
+        >>> print(output_truth_table)
     """
 
     def __init__(self, lib_file_path):
-        """
-        Initializes a new `LibReader` instance with the provided gate name and library file groupe previously extracted.
-
-        Args:
-            gate_name (str): The name of the gate for which the truth table is to be extracted.
-            lib_file_path (str): The path to the library file (.lib) containing gate definitions.
-        """
         self.lib_file = parse_liberty(open(lib_file_path).read())
 
-    def extract_truth_table(self, gate_name):
+    def extract_truth_table(self, gate_name) -> tuple[dict[Any, list], list[dict[str, Any]], list[Any]]:
         """
         Extracts the truth table for the specified gate from the library file.
 
@@ -67,49 +62,54 @@ class LibReader:
 
         output_truth_table = {}
         for output_key in output_function:
-            output_truth_table[output_key] = self.calculateOutputFunction(output_function[output_key], output_key, input_names)
+            output_truth_table[output_key] = calculateOutputFunction(output_function[output_key],
+                                                                     output_key,
+                                                                     input_names)
 
         return output_truth_table, voltage, input_names
 
 
-    def calculateOutputFunction(self, function, pin_name, input_names):
-        if any("CK" in name or "RESET" in name or "GATE" in name or "CLK" in name for name in input_names) or "Q" in pin_name:
-            input_symbols = input_names
+def calculateOutputFunction(function, pin_name, input_names) -> list:
+
+    if any("CK" in name or "RESET" in name or "GATE" in name or "CLK" in name for name in
+           input_names) or "Q" in pin_name:
+        input_symbols = input_names
+    else:
+        input_symbols = re.findall(r'\w+', function)
+
+    input_symbols = sorted(set(input_symbols))
+
+    input_combinations = list(itertools.product([True, False], repeat=len(input_symbols)))
+
+    truth_table = []
+
+    for inputs in input_combinations:
+        input_values = {symbol: value for symbol, value in zip(input_symbols, inputs)}
+
+        if any("CK" in name or "RESET" in name or "GATE" in name or "CLK" in name for name in
+               input_names) or "Q" in pin_name:
+            truth_table.append((input_values, {pin_name: None}))
+
         else:
-            input_symbols = re.findall(r'\w+', function)
+            eval_expression = function
 
-        input_symbols = sorted(set(input_symbols))
+            for symbol, value in input_values.items():
+                eval_expression = eval_expression.replace(symbol, str(value))
 
-        input_combinations = list(itertools.product([True, False], repeat=len(input_symbols)))
+            eval_expression = eval_expression.replace('"', '')
+            eval_expression = parse_boolean_function(eval_expression)
+            eval_expression = str(format_boolean_function(eval_expression))
+            eval_expression = eval_expression.replace("!", " not ").replace("&", " and ").replace("*",
+                                                                                                  " and ").replace(
+                "+", " or ")
+            result = eval(eval_expression)
+            # Hot fix problem of xor
+            if result == 0 or result == 1:
+                result = bool(result)
 
-        truth_table = []
+            if not isinstance(result, bool):
+                raise ValueError("Truthtable result is not of type bool")
 
-        for inputs in input_combinations:
-            input_values = {symbol: value for symbol, value in zip(input_symbols, inputs)}
+            truth_table.append((input_values, {pin_name: result}))
 
-            if any("CK" in name or "RESET" in name or "GATE" in name or "CLK" in name for name in input_names) or "Q" in pin_name:
-                truth_table.append((input_values, {pin_name: None}))
-
-            else:
-                eval_expression = function
-
-                for symbol, value in input_values.items():
-                    eval_expression = eval_expression.replace(symbol, str(value))
-
-                eval_expression = eval_expression.replace('"', '')
-                eval_expression = parse_boolean_function(eval_expression)
-                eval_expression = str(format_boolean_function(eval_expression))
-                eval_expression = eval_expression.replace("!", " not ").replace("&", " and ").replace("*", " and ").replace("+", " or ")
-                result = eval(eval_expression)
-                # Hot fix problem of xor
-                if result == 0 or result == 1:
-                    result = bool(result)
-
-                if not isinstance(result, bool):
-                    raise ValueError("Truthtable result is not of type bool")
-
-                truth_table.append((input_values, {pin_name: result}))
-
-        return truth_table
-
-
+    return truth_table

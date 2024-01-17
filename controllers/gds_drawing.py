@@ -1,5 +1,3 @@
-import random
-
 import pytest
 from datetime import datetime
 import json
@@ -16,8 +14,6 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 from controllers.GDS_Object.type import ShapeType
-
-import matplotlib.patches as patches
 
 
 def plot_elements(propagation_object) -> None:
@@ -63,7 +59,7 @@ def plot_reflection(propagation_object) -> None:
     Parameters:
     -----------
     propagation_object: AutoOPSPropagation
-        AutoOPSPropagation object which contains the information to be extracted
+        AutoOPS Propagation object which contains the information to be extracted
 
     Returns:
     --------
@@ -172,7 +168,9 @@ def count_unknown_states(propagation_object) -> None:
             if zone.state is None:
                 state_counter += 1
 
-    print(f"\033[1;33m \n {propagation_object.name}, {propagation_object.inputs}, None states = {state_counter}, Loop counter = {propagation_object.loop_counter}")
+    print(
+        f"\033[1;33m \n {propagation_object.name}, {propagation_object.inputs}, None states = {state_counter}, "
+        f"Loop counter = {propagation_object.loop_counter}")
 
 
 def benchmark(object_list, def_extract, plot, vpi_extraction=None) -> None:
@@ -181,7 +179,7 @@ def benchmark(object_list, def_extract, plot, vpi_extraction=None) -> None:
     ur_y = def_extract[0]["ur_y"]
     ll_y = def_extract[0]["ll_y"]
 
-    #plt.figure(figsize=(8, 8))
+    # plt.figure(figsize=(8, 8))
 
     if plot:
         plt.gca().set_facecolor('black')
@@ -199,7 +197,8 @@ def benchmark(object_list, def_extract, plot, vpi_extraction=None) -> None:
             if cell_name in object_list.keys():
                 for position in cell_place:
                     if vpi_extraction:
-                        propagation_object = vpi_object_extractor(object_list[cell_name], cell_name, vpi_extraction, position)
+                        propagation_object = vpi_object_extractor(object_list[cell_name], cell_name, vpi_extraction,
+                                                                  position)
                     else:
                         key = list(object_list[cell_name].keys())[0]
                         propagation_object = object_list[cell_name][key]
@@ -247,7 +246,6 @@ def vpi_object_extractor(cell_object, cell_name, vpi_extraction, position) -> Au
 
 
 def benchmark_export_data(def_extract, ex_time, def_name):
-
     number_op_coord = 0
     ll_x = def_extract[0]["ll_x"]
     ur_x = def_extract[0]["ur_x"]
@@ -261,13 +259,14 @@ def benchmark_export_data(def_extract, ex_time, def_name):
 
     with open('benchmarks.log', 'a') as f:
         execution_time = round(ex_time, 4)
-        f.write(f"& {def_name} & & & {len(def_extract[2])} & {number_op_coord} & {area_square_meters} & {execution_time} \\\\ \cline{{2-8}} \n")
-        #f.write(f"{def_name} & {execution_time} \\\\ \cline{{2-8}} \n")
+        f.write(
+            f"& {def_name} & & & {len(def_extract[2])} & {number_op_coord} & {area_square_meters} & {execution_time} \\\\ \cline{{2-8}} \n")
+        # f.write(f"{def_name} & {execution_time} \\\\ \cline{{2-8}} \n")
 
 
 def test_orientation(propagation_object):
     orientation_list = ["N", "FN", "E", "FE", "S", "FS", "W", "FW"]
-    #orientation_list = ["S", "FS"]
+    # orientation_list = ["S", "FS"]
     for orientation in orientation_list:
         for zone in propagation_object.orientation_list[orientation]:
             x, y = zone["coords"]
@@ -347,7 +346,6 @@ def export_reflection_to_png(propagation_object) -> None:
 
 
 def benchmark_matrix(object_list, def_extract, G1, G2, vpi_extraction=None, area=0, nm_scale=None):
-
     patch_size = def_extract[0]["patch_size"]
 
     def_zone = def_extract[1][area]
@@ -369,12 +367,12 @@ def benchmark_matrix(object_list, def_extract, G1, G2, vpi_extraction=None, area
     origin_y = def_zone['position_y']
 
     if nm_scale is not None:
-        scale_up = int(1000/nm_scale)
+        scale_up = int(1000 / nm_scale)
     else:
-        scale_up = int(3000/max(width, height))
+        scale_up = int(3000 / max(width, height))
 
-    width = int(width*scale_up)
-    height = int(height*scale_up)
+    width = int(width * scale_up)
+    height = int(height * scale_up)
 
     if width > 3000:
         width = 3000
@@ -388,7 +386,8 @@ def benchmark_matrix(object_list, def_extract, G1, G2, vpi_extraction=None, area
         if cell_name in object_list.keys():
             for position in cell_place:
                 if vpi_extraction:
-                    propagation_object = vpi_object_extractor(object_list[cell_name], cell_name, vpi_extraction, position)
+                    propagation_object = vpi_object_extractor(object_list[cell_name], cell_name, vpi_extraction,
+                                                              position)
                 else:
                     key_list = list(object_list[cell_name].keys())
                     key = key_list[0]
@@ -397,8 +396,8 @@ def benchmark_matrix(object_list, def_extract, G1, G2, vpi_extraction=None, area
                 for zone in propagation_object.orientation_list[position['Orientation']]:
                     x, y = zone["coords"]
                     x_adder, y_adder = position['Coordinates']
-                    x = tuple([int(((element + x_adder)-origin_x)*scale_up) for element in x])
-                    y = tuple([int(((element + y_adder)-origin_y)*scale_up) for element in y])
+                    x = tuple([int(((element + x_adder) - origin_x) * scale_up) for element in x])
+                    y = tuple([int(((element + y_adder) - origin_y) * scale_up) for element in y])
 
                     state = zone["state"]
 
@@ -422,19 +421,19 @@ def benchmark_matrix(object_list, def_extract, G1, G2, vpi_extraction=None, area
     start_col = (large_matrix_columns - width) // 2
     large_matrix[start_row:start_row + height, start_col:start_col + width] = layout
 
-    nm_scale = int(1000/scale_up)
+    nm_scale = int(1000 / scale_up)
 
     return large_matrix, nm_scale
 
 
 def export_matrix_reflection(propagation_object, G1, G2, nm_scale=None):
     if nm_scale is not None:
-        scale_up = int(1000/nm_scale)
+        scale_up = int(1000 / nm_scale)
     else:
         scale_up = 500
 
-    width = int(propagation_object.get_width()*scale_up)
-    height = int(propagation_object.get_height()*scale_up)
+    width = int(propagation_object.get_width() * scale_up)
+    height = int(propagation_object.get_height() * scale_up)
     layout = np.zeros((height, width))
     x_m, y_m = np.meshgrid(np.arange(width), np.arange(height))
 
@@ -466,12 +465,13 @@ def export_matrix_reflection(propagation_object, G1, G2, nm_scale=None):
     start_col = (large_matrix_columns - width) // 2
     large_matrix[start_row:start_row + height, start_col:start_col + width] = layout
 
-    nm_scale = int(1000/scale_up)
+    nm_scale = int(1000 / scale_up)
 
     return large_matrix, nm_scale
 
 
-def export_reflection_to_png_over_gds_cell(propagation_object, reflection_draw=False, with_axes=True, flip_flop=None) -> None:
+def export_reflection_to_png_over_gds_cell(propagation_object, reflection_draw=False, with_axes=True,
+                                           flip_flop=None) -> None:
     plt.figure(figsize=(6, 8))
 
     for element in propagation_object.element_list:
@@ -516,7 +516,8 @@ def export_reflection_to_png_over_gds_cell(propagation_object, reflection_draw=F
                 for outputs in propagation_object.truthtable:
                     for truthtable_inputs, output in propagation_object.truthtable[outputs]:
                         if element.name in output and truthtable_inputs == propagation_object.inputs:
-                            if any("CK" in name or "RESET" in name or "GATE" in name or "CLK" in name for name in list(propagation_object.inputs.keys())) or "Q" in outputs:
+                            if any("CK" in name or "RESET" in name or "GATE" in name or "CLK" in name for name in
+                                   list(propagation_object.inputs.keys())) or "Q" in outputs:
                                 if "N" in str(element.name):
                                     # if None this will be 1 and the else 0
                                     value = int(bool(not flip_flop))
@@ -542,9 +543,11 @@ def export_reflection_to_png_over_gds_cell(propagation_object, reflection_draw=F
                 else:
                     text = element.name
 
-            plt.annotate(text, (x, y), bbox=dict(facecolor=background_color, edgecolor=edge_color, boxstyle='round,pad=0.2', linewidth=2),
+            plt.annotate(text, (x, y),
+                         bbox=dict(facecolor=background_color, edgecolor=edge_color, boxstyle='round,pad=0.2',
+                                   linewidth=2),
                          color='black', fontsize=18)
-            #, fontname='Times New Roman'
+            # , fontname='Times New Roman'
 
     for via in propagation_object.via_element_list:
         x, y = via.coordinates
@@ -606,7 +609,10 @@ def unit_test(processed_cells, unit_test_technology):
         differences_found = False
 
         if cell_name not in ref_data:
-            print(f"{red_color}{test_counter}/{test_length} Failure: Key '{cell_name}' not found in generated file.{reset_color}")
+            print(
+                f"{red_color}{test_counter}/{test_length} Failure: "
+                f"Key '{cell_name}' not found in generated file.{reset_color}")
+
             differences_found = True
 
         for state_index, state in enumerate(states_list):
@@ -640,12 +646,19 @@ def unit_test(processed_cells, unit_test_technology):
                     zone_counter += 1
 
         if not reflection_list:
-            print(f"{red_color}{test_counter}/{test_length} Failure: Reflection list empty for '{cell_name}'{reset_color}")
+            print(
+                f"{red_color}{test_counter}/{test_length} Failure: "
+                f"Reflection list empty for '{cell_name}'{reset_color}")
+
             differences_list.append(cell_name)
+
         elif not differences_found:
             print(f"{green_color}{test_counter}/{test_length} Test Passed for '{cell_name}'.{reset_color}")
         else:
-            print(f"{red_color}{test_counter}/{test_length} Failure: Type or state mismatch for '{cell_name}'{reset_color}")
+            print(
+                f"{red_color}{test_counter}/{test_length} Failure: "
+                f"Type or state mismatch for '{cell_name}'{reset_color}")
+
             differences_list.append(cell_name)
 
     if len(differences_list) == 0:
@@ -732,7 +745,6 @@ def export_reflection_to_json(propagation_object) -> None:
 
 
 def data_export_csv(cell_name, time_extraction, cumulative_time_op, propagation_object, hand_input):
-
     current_date = datetime.now().strftime('%Y-%m-%d_%H')
     filename = f"tmp/export_{current_date}.csv"
 
@@ -808,7 +820,11 @@ def data_export_csv(cell_name, time_extraction, cumulative_time_op, propagation_
     print(f"Data successfully exported to {filename}.")
 
 
-def write_output_log(start_time, end_time, state_counter=1, filtered_cells=None, time_counter_ex=None, time_counter_op=None, error_cell_list=[]):
+def write_output_log(start_time, end_time, state_counter=1, filtered_cells=None, time_counter_ex=None,
+                     time_counter_op=None, error_cell_list=None):
+    if error_cell_list is None:
+        error_cell_list = []
+
     with open('output.log', 'a') as f:
 
         execution_time = round(end_time - start_time, 2)
@@ -823,7 +839,7 @@ def write_output_log(start_time, end_time, state_counter=1, filtered_cells=None,
 
         if time_counter_op is not None:
             execution_time_op = round(time_counter_op, 4)
-            time_per_sate = round(execution_time_op/state_counter, 4)
+            time_per_sate = round(execution_time_op / state_counter, 4)
             f.write(f"OP Execution time: {execution_time_op} seconds\n")
             f.write(f"Avg Time per state : {time_per_sate} seconds\n")
 
@@ -836,7 +852,7 @@ def write_output_log(start_time, end_time, state_counter=1, filtered_cells=None,
             f.write(f"Number of cell processed: {number_of_gate} \n")
 
             if number_of_gate > 0:
-                time_per_gate = round(execution_time/number_of_gate, 4)
+                time_per_gate = round(execution_time / number_of_gate, 4)
                 f.write(f"Avg Time/Cell : {time_per_gate} seconds\n\n")
 
         f.write("-----------------------------------------------------------\n\n")
