@@ -190,8 +190,9 @@ def benchmark(object_list, def_extract, plot, vpi_extraction=None) -> None:
 
     for i in range(len(def_extract[1])):
         def_zone = def_extract[1][i]
-        plt.pause(0.0001)
-        plt.draw()
+        if plot:
+            plt.pause(0.0001)
+            plt.draw()
 
         for cell_name, cell_place in def_zone['gates'].items():
             if cell_name in object_list.keys():
