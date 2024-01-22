@@ -40,7 +40,7 @@ class MainController:
         self.merged_image_matrix.fill(0)
 
         self.patch_counter = [1, 1]
-        self.nm_scale = 2
+        self.nm_scale = 1
         self.gds_cell_list = None
         self.lib_reader = None
         self.selected_layer = None
@@ -579,11 +579,13 @@ class MainController:
         def std_dev(std_lam, std_na):
             return 0.37 * std_lam / std_na
 
-        r = np.sqrt(np.square(x - xc) + np.square(y - yc))
+        r_squared = (np.square(x - xc) + np.square(y - yc)) * np.square(self.nm_scale)
+
+        r = np.sqrt(r_squared)
         ind = r <= radius_max
 
         y = 1 / np.sqrt(2 * np.pi * np.square(std_dev(lam, na))) * np.exp(
-            -(np.square(x - xc) + np.square(y - yc)) / (2 * np.square(std_dev(lam, na))))
+            -r_squared / (2 * np.square(std_dev(lam, na))))
 
         # Clear values outside of radius_max
         y = y * ind
