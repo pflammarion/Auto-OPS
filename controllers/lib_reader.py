@@ -22,14 +22,14 @@ class LibReader:
 
     Example usage:
         >>> lib_reader = LibReader("library.lib")
-        >>> output_truth_table, voltage, input_names = lib_reader.extract_truth_table("INV_X1")
+        >>> output_truth_table, voltage, input_names, is_flip_flop = lib_reader.extract_truth_table("INV_X1")
         >>> print(output_truth_table)
     """
 
     def __init__(self, lib_file_path):
         self.lib_file = parse_liberty(open(lib_file_path).read())
 
-    def extract_truth_table(self, gate_name) -> tuple[dict[Any, list], list[dict[str, Any]], list[Any]]:
+    def extract_truth_table(self, gate_name) -> tuple[dict[Any, list], list[dict[str, Any]], list[Any], bool]:
         """
         Extracts the truth table for the specified gate from the library file.
 
@@ -62,18 +62,21 @@ class LibReader:
 
         output_truth_table = {}
         for output_key in output_function:
-            output_truth_table[output_key] = calculateOutputFunction(output_function[output_key],
-                                                                     output_key,
-                                                                     input_names)
+            output_truth_table[output_key], is_flip_flop = calculateOutputFunction(output_function[output_key],
+                                                                                   output_key,
+                                                                                   input_names)
 
-        return output_truth_table, voltage, input_names
+        return output_truth_table, voltage, input_names, is_flip_flop
 
 
 def calculateOutputFunction(function, pin_name, input_names) -> list:
+    is_flip_flop = False
 
     if any("CK" in name or "RESET" in name or "GATE" in name or "CLK" in name for name in
            input_names) or "Q" in pin_name:
         input_symbols = input_names
+        is_flip_flop = True
+
     else:
         input_symbols = re.findall(r'\w+', function)
 
@@ -112,4 +115,4 @@ def calculateOutputFunction(function, pin_name, input_names) -> list:
 
             truth_table.append((input_values, {pin_name: result}))
 
-    return truth_table
+    return truth_table, is_flip_flop

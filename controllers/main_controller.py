@@ -31,6 +31,7 @@ import subprocess
 class MainController:
     def __init__(self, command_line, config, script=None):
 
+        self.is_flip_flop = False
         self.merge = False
         self.script = script
         self.command_line = command_line
@@ -269,7 +270,7 @@ class MainController:
                         self.extract_op_cell(self.cell_name)
 
                     if self.state_list not in self.object_storage_list[self.cell_name].keys():
-                        self.apply_state_propagation(self.state_list)
+                        self.apply_state_propagation(self.state_list, self.flip_flop)
 
                     propagation_object = self.object_storage_list[self.cell_name][self.state_list]
                     self.image_matrix, self.nm_scale = gds_drawing.export_matrix_reflection(propagation_object,
@@ -375,8 +376,8 @@ class MainController:
                         self.vpi_extraction = {}
                         with open(vpi_file, 'r') as file:
                             for line in file:
-                                key, value = line.strip().split(',')
-                                self.vpi_extraction[key] = value
+                                key, inputs, outputs = line.strip().split(',')
+                                self.vpi_extraction[key] = {'inputs': inputs, 'outputs': outputs}
 
                     if def_file is not None and def_file != "":
                         self.def_file = def_parser.get_gates_info_from_def_file(def_file, self.selected_patch_size)
@@ -388,7 +389,9 @@ class MainController:
                                 itertools.product([0, 1], repeat=len(self.propagation_master.inputs_list)))
                             for input_combination in combinations:
                                 input_str = ''.join(map(str, input_combination))
-                                self.apply_state_propagation(input_str)
+                                self.apply_state_propagation(input_str, 0)
+                                if self.is_flip_flop:
+                                    self.apply_state_propagation(input_str, 1)
 
                 return data
 
@@ -902,7 +905,8 @@ class MainController:
                 continue
 
             try:
-                truth_table, voltage, input_names = self.lib_reader.extract_truth_table(gds_cell_name)
+                truth_table, voltage, input_names, self.is_flip_flop = self.lib_reader.extract_truth_table(
+                    gds_cell_name)
                 self.propagation_master = AutoOPSPropagation(gds_cell_name, gds_cell, self.selected_layer, truth_table,
                                                              voltage, input_names)
 
@@ -911,7 +915,7 @@ class MainController:
             except Exception as e:
                 print(f"Error {e}")
 
-    def apply_state_propagation(self, cell_input_string):
+    def apply_state_propagation(self, cell_input_string, flip_flop):
         draw_inputs = {}
         inputs_list = self.propagation_master.inputs_list
 
@@ -922,10 +926,14 @@ class MainController:
                 draw_inputs[inp] = cell_input[index]
 
             propagation_object = copy.deepcopy(self.propagation_master)
-            propagation_object.apply_state(draw_inputs, self.flip_flop)
+            propagation_object.apply_state(draw_inputs, flip_flop)
 
             if self.def_file is not None:
                 propagation_object.calculate_orientations()
+
+            if self.is_flip_flop:
+                # format of key for a flip-flop is "inputs_output" -> "01010_1"
+                cell_input_string = cell_input_string + "_" + str(flip_flop)
 
             self.object_storage_list[self.propagation_master.name][cell_input_string] = copy.deepcopy(
                 propagation_object)

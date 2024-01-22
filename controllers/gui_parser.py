@@ -72,8 +72,8 @@ def update_variable(obj, prompt):
                     with open(value, 'r') as file:
                         extract = {}
                         for line in file:
-                            key, state = line.strip().split(',')
-                            extract[key] = state
+                            key, inputs, outputs = line.strip().split(',')
+                            extract[key] = {'inputs': inputs, 'outputs': outputs}
 
                     value = extract
 

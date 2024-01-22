@@ -228,7 +228,11 @@ def benchmark(object_list, def_extract, plot, vpi_extraction=None) -> None:
 
 def vpi_object_extractor(cell_object, cell_name, vpi_extraction, position) -> AutoOPSPropagation:
     try:
-        input_combination = vpi_extraction[position['GateID']]
+        input_combination = vpi_extraction[position['GateID']]['inputs']
+        output_combination = vpi_extraction[position['GateID']]['outputs']
+        if len(output_combination):
+            input_combination = input_combination + "_" + output_combination
+
         propagation_object = cell_object[input_combination]
     except KeyError as key_error:
         key = list(cell_object.keys())[0]
