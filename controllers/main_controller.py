@@ -40,7 +40,7 @@ class MainController:
         self.merged_image_matrix.fill(0)
 
         self.patch_counter = [1, 1]
-        self.nm_scale = 1
+        self.nm_scale = 2
         self.gds_cell_list = None
         self.lib_reader = None
         self.selected_layer = None
@@ -163,7 +163,7 @@ class MainController:
                 csv_file_path = os.path.join("export/rcv.csv")
                 with open(csv_file_path, mode='a', newline='') as csv_file:
                     csv_writer = csv.writer(csv_file)
-                    csv_writer.writerow([self.cell_name, self.state_list, self.x_position, self.y_position, value])
+                    csv_writer.writerow([self.cell_name, self.state_list, self.flip_flop, self.x_position, self.y_position, value])
                 print(f"Result saved in export/rcv.csv")
 
         elif command.startswith("plot"):
@@ -272,7 +272,12 @@ class MainController:
                     if self.state_list not in self.object_storage_list[self.cell_name].keys():
                         self.apply_state_propagation(self.state_list, self.flip_flop)
 
-                    propagation_object = self.object_storage_list[self.cell_name][self.state_list]
+                    if self.is_flip_flop:
+                        # format of key for a flip-flop is "inputs_output" -> "01010_1"
+                        cell_input_string = self.state_list + "_" + str(self.flip_flop)
+                    else:
+                        cell_input_string = self.state_list
+                    propagation_object = self.object_storage_list[self.cell_name][cell_input_string]
                     self.image_matrix, self.nm_scale = gds_drawing.export_matrix_reflection(propagation_object,
                                                                                             G1, G2,
                                                                                             nm_scale=self.nm_scale)
