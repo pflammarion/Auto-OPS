@@ -24,9 +24,9 @@ class MainView(QMainWindow):
         self.controller = controller
 
         # fill infos from controller
-        self.laser_layout = LaserLayout({'lam_value': self.controller.lam_value,
-                                         'NA_value': self.controller.NA_value,
-                                         'is_confocal': self.controller.is_confocal
+        self.laser_layout = LaserLayout({'lam_value': self.controller.simulation.lam_value,
+                                         'NA_value': self.controller.simulation.NA_value,
+                                         'is_confocal': self.controller.simulation.is_confocal
                                          })
 
         self.gate_layout = GateLayout({'Kn_value': self.controller.Kn_value,
@@ -374,8 +374,8 @@ class MainView(QMainWindow):
         else:
             ax.imshow(image_matrix, cmap='gist_gray', origin='lower', )
 
-        if self.controller.nm_scale is not None:
-            scale = self.controller.nm_scale
+        if self.controller.simulation.nm_scale is not None:
+            scale = self.controller.simulation.nm_scale
             scalebar = ScaleBar(scale, units="nm", location="lower left", label=f"1:{scale}nm")
             ax.add_artist(scalebar)
             ax.grid(True, which='both', linestyle='-', linewidth=0.5, color='darkgrey')
@@ -480,9 +480,9 @@ class MainView(QMainWindow):
         self.controller.stop_thread()
 
     def update_inputs_values(self):
-        self.laser_layout.update_inputs({'lam_value': self.controller.lam_value,
-                                         'NA_value': self.controller.NA_value,
-                                         'is_confocal': self.controller.is_confocal
+        self.laser_layout.update_inputs({'lam_value': self.controller.simulation.lam_value,
+                                         'NA_value': self.controller.simulation.NA_value,
+                                         'is_confocal': self.controller.simulation.is_confocal
                                          })
 
         self.gate_layout.update_inputs({'Kn_value': self.controller.Kn_value,

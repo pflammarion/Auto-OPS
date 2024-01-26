@@ -19,6 +19,7 @@ from scipy.signal import fftconvolve
 from controllers import gds_drawing, def_parser, gui_parser
 from controllers.GDS_Object.auto_ops_propagation import AutoOPSPropagation
 from controllers.lib_reader import LibReader
+from controllers.simulation import Simulation
 from views.dialogs.column_dialog import ColumnSelectionDialog
 from views.dialogs.layer_list_dialog import LayerSelectionDialog
 from views.main import MainView
@@ -40,7 +41,6 @@ class MainController:
         self.merged_image_matrix.fill(0)
 
         self.patch_counter = [1, 1]
-        self.nm_scale = 2
         self.gds_cell_list = None
         self.lib_reader = None
         self.selected_layer = None
@@ -70,12 +70,11 @@ class MainController:
         self.high_gate_state_layout = None
 
         # to initialize the value and the rcv mask
+
         self.x_position = 1500
         self.y_position = 1500
 
-        self.lam_value = 1300
-        self.NA_value = 0.75
-        self.is_confocal = True
+        self.simulation = Simulation()
 
         self.flip_flop = None
 
@@ -260,11 +259,11 @@ class MainController:
                                                     self.Pl_value)
             if self.cell_name is not None and self.cell_name != "" or self.def_file is not None:
                 if self.def_file is not None:
-                    self.image_matrix, self.nm_scale = gds_drawing.benchmark_matrix(self.object_storage_list,
+                    self.image_matrix, self.simulation.nm_scale = gds_drawing.benchmark_matrix(self.object_storage_list,
                                                                                     self.def_file, G1, G2,
                                                                                     self.vpi_extraction,
                                                                                     self.selected_area,
-                                                                                    nm_scale=self.nm_scale)
+                                                                                    nm_scale=self.simulation.nm_scale)
                 else:
                     if self.cell_name not in self.object_storage_list.keys():
                         self.extract_op_cell(self.cell_name)
@@ -278,15 +277,15 @@ class MainController:
                     else:
                         cell_input_string = self.state_list
                     propagation_object = self.object_storage_list[self.cell_name][cell_input_string]
-                    self.image_matrix, self.nm_scale = gds_drawing.export_matrix_reflection(propagation_object,
+                    self.image_matrix, self.simulation.nm_scale = gds_drawing.export_matrix_reflection(propagation_object,
                                                                                             G1, G2,
-                                                                                            nm_scale=self.nm_scale)
+                                                                                            nm_scale=self.simulation.nm_scale)
 
             else:
                 self.image_matrix = self.draw_layout(lam, G1, G2, Gap)
 
     def reload_view_wrapper(self):
-        self.nm_scale = 2
+        self.simulation.nm_scale = 2
         self.view.set_footer_label("... Loading ...")
         start = time.time()
 
@@ -342,9 +341,9 @@ class MainController:
                     self.technology_value = data["technology"]
 
                 if "laser_config" in data:
-                    self.lam_value = data["laser_config"]["lamda"]
-                    self.NA_value = data["laser_config"]["NA"]
-                    self.is_confocal = data["laser_config"]["is_confocal"]
+                    self.simulation.lam_value = data["laser_config"]["lamda"]
+                    self.simulation.NA_value = data["laser_config"]["NA"]
+                    self.simulation.is_confocal = data["laser_config"]["is_confocal"]
                     self.x_position = data["laser_config"]["x_position"]
                     self.y_position = data["laser_config"]["y_position"]
                 if "gate_config" in data:
@@ -432,13 +431,14 @@ class MainController:
 
         self.view.display_optional_image(layout, f"Selected Patch N°{self.selected_area}/{patch_counter - 1}", False)
 
+    # TODO update this save
     def save_settings_to_json(self):
         json_data = {
             "technology": self.technology_value,
             "laser_config": {
-                "lamda": self.lam_value,
-                "NA": self.NA_value,
-                "is_confocal": self.is_confocal,
+                "lamda": self.simulation.lam_value,
+                "NA": self.simulation.NA_value,
+                "is_confocal": self.simulation.is_confocal,
                 "x_position": self.x_position,
                 "y_position": self.y_position
             },
@@ -583,7 +583,7 @@ class MainController:
         def std_dev(std_lam, std_na):
             return 0.37 * std_lam / std_na
 
-        r_squared = (np.square(x - xc) + np.square(y - yc)) * np.square(self.nm_scale)
+        r_squared = (np.square(x - xc) + np.square(y - yc)) * np.square(self.simulation.nm_scale)
 
         y = 1 / np.sqrt(2 * np.pi * np.square(std_dev(lam, na))) * np.exp(
             -r_squared / (2 * np.square(std_dev(lam, na))))
@@ -732,9 +732,9 @@ class MainController:
 
     def calc_and_plot_RCV(self, offset=None):
 
-        lam = self.lam_value
-        NA = self.NA_value
-        is_confocal = self.is_confocal
+        lam = self.simulation.lam_value
+        NA = self.simulation.NA_value
+        is_confocal = self.simulation.is_confocal
 
         FWHM = 1.22 / np.sqrt(2) * lam / NA
         FOV = 3000
@@ -798,9 +798,9 @@ class MainController:
         return result, value
 
     def calc_and_plot_EOFM(self):
-        lam = self.lam_value
-        NA = self.NA_value
-        is_confocal = self.is_confocal
+        lam = self.simulation.lam_value
+        NA = self.simulation.NA_value
+        is_confocal = self.simulation.is_confocal
         FWHM = 1.22 / np.sqrt(2) * lam / NA
         FOV = 3000
 
@@ -826,19 +826,19 @@ class MainController:
         confocal_input = laser_values['is_confocal']
 
         if lam_input is not None and lam_input != "":
-            self.lam_value = float(lam_input)
+            self.simulation.lam_value = float(lam_input)
         else:
-            self.lam_value = self.data["laser_config"]["lam"]
+            self.simulation.lam_value = self.data["laser_config"]["lam"]
 
         if NA_input is not None and NA_input != "":
-            self.NA_value = float(NA_input)
+            self.simulation.NA_value = float(NA_input)
         else:
-            self.NA_value = self.data["laser_config"]["NA"]
+            self.simulation.NA_value = self.data["laser_config"]["NA"]
 
         if confocal_input is not None and confocal_input != "":
-            self.is_confocal = bool(confocal_input)
+            self.simulation.is_confocal = bool(confocal_input)
         else:
-            self.is_confocal = self.data["laser_config"]["is_confocal"]
+            self.simulation.is_confocal = self.data["laser_config"]["is_confocal"]
 
     def print_psf(self):
         self.dataframe = None
