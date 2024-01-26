@@ -51,6 +51,9 @@ def update_variable(obj, prompt):
         if value is None or value == "":
             value = None
 
+        if variable == "vpi_file":
+            variable = "vpi_extraction"
+
         if hasattr(obj, variable) or hasattr(obj.simulation, variable):
             if value is None or value == "":
                 value = None
@@ -69,7 +72,7 @@ def update_variable(obj, prompt):
                 elif variable == "flip_flop" or variable == "FOV":
                     value = int(value)
 
-                elif variable == "vpi_file":
+                elif variable == "vpi_extraction":
                     with open(value, 'r') as file:
                         extract = {}
                         for line in file:
