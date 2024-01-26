@@ -17,7 +17,7 @@ import pandas as pd
 from scipy.signal import fftconvolve
 
 from controllers import gds_drawing, def_parser, gui_parser
-from controllers.GDS_Object.op import Op
+from controllers.GDS_Object.auto_ops_propagation import AutoOPSPropagation
 from controllers.lib_reader import LibReader
 from views.dialogs.column_dialog import ColumnSelectionDialog
 from views.dialogs.layer_list_dialog import LayerSelectionDialog
@@ -31,6 +31,7 @@ import subprocess
 class MainController:
     def __init__(self, command_line, config, script=None):
 
+        self.is_flip_flop = False
         self.merge = False
         self.script = script
         self.command_line = command_line
@@ -43,7 +44,7 @@ class MainController:
         self.gds_cell_list = None
         self.lib_reader = None
         self.selected_layer = None
-        self.op_master = None
+        self.propagation_master = None
         self.def_file = None
         self.vpi_extraction = None
         self.selected_area = 0
@@ -84,7 +85,7 @@ class MainController:
         self.data = self.load_settings_from_json(config)
 
         if self.gds_cell_list is None or self.lib_reader is None or self.selected_layer is None and not command_line:
-            self.init_op_object()
+            self.init_propagation_object()
 
         if self.def_file is None:
             self.extract_op_cell(self.cell_name)
@@ -162,7 +163,7 @@ class MainController:
                 csv_file_path = os.path.join("export/rcv.csv")
                 with open(csv_file_path, mode='a', newline='') as csv_file:
                     csv_writer = csv.writer(csv_file)
-                    csv_writer.writerow([self.cell_name, self.state_list, self.x_position, self.y_position, value])
+                    csv_writer.writerow([self.cell_name, self.state_list, self.flip_flop, self.x_position, self.y_position, value])
                 print(f"Result saved in export/rcv.csv")
 
         elif command.startswith("plot"):
@@ -269,10 +270,15 @@ class MainController:
                         self.extract_op_cell(self.cell_name)
 
                     if self.state_list not in self.object_storage_list[self.cell_name].keys():
-                        self.apply_state_op(self.state_list)
+                        self.apply_state_propagation(self.state_list, self.flip_flop)
 
-                    op_object = self.object_storage_list[self.cell_name][self.state_list]
-                    self.image_matrix, self.nm_scale = gds_drawing.export_matrix_reflection(op_object,
+                    if self.is_flip_flop:
+                        # format of key for a flip-flop is "inputs_output" -> "01010_1"
+                        cell_input_string = self.state_list + "_" + str(self.flip_flop)
+                    else:
+                        cell_input_string = self.state_list
+                    propagation_object = self.object_storage_list[self.cell_name][cell_input_string]
+                    self.image_matrix, self.nm_scale = gds_drawing.export_matrix_reflection(propagation_object,
                                                                                             G1, G2,
                                                                                             nm_scale=self.nm_scale)
 
@@ -303,7 +309,8 @@ class MainController:
             R = self.print_EOFM_image()
             self.view.display_image(R, self.is_plot_export, "EOFM - " + self.main_label_value)
             inverted_image = np.abs(R)
-            self.view.display_second_image(inverted_image, self.is_plot_export, "Absolute EOFM - " + self.main_label_value)
+            self.view.display_second_image(inverted_image, self.is_plot_export,
+                                           "Absolute EOFM - " + self.main_label_value)
 
         elif self.app_state == 4:
             self.plot_rcv_calc()
@@ -374,8 +381,8 @@ class MainController:
                         self.vpi_extraction = {}
                         with open(vpi_file, 'r') as file:
                             for line in file:
-                                key, value = line.strip().split(',')
-                                self.vpi_extraction[key] = value
+                                key, inputs, outputs = line.strip().split(',')
+                                self.vpi_extraction[key] = {'inputs': inputs, 'outputs': outputs}
 
                     if def_file is not None and def_file != "":
                         self.def_file = def_parser.get_gates_info_from_def_file(def_file, self.selected_patch_size)
@@ -383,10 +390,13 @@ class MainController:
                         self.patch_counter = self.def_file[3]
                         for cell_name in cell_name_list:
                             self.extract_op_cell(cell_name)
-                            combinations = list(itertools.product([0, 1], repeat=len(self.op_master.inputs_list)))
+                            combinations = list(
+                                itertools.product([0, 1], repeat=len(self.propagation_master.inputs_list)))
                             for input_combination in combinations:
                                 input_str = ''.join(map(str, input_combination))
-                                self.apply_state_op(input_str)
+                                self.apply_state_propagation(input_str, 0)
+                                if self.is_flip_flop:
+                                    self.apply_state_propagation(input_str, 1)
 
                 return data
 
@@ -570,15 +580,16 @@ class MainController:
                 self.volage_column_dialog()
 
     def psf_xy(self, lam, na, x, y, xc, yc, radius_max=np.inf):
-
         def std_dev(std_lam, std_na):
             return 0.37 * std_lam / std_na
 
-        r = np.sqrt(np.square(x - xc) + np.square(y - yc))
-        ind = r <= radius_max
+        r_squared = (np.square(x - xc) + np.square(y - yc)) * np.square(self.nm_scale)
 
         y = 1 / np.sqrt(2 * np.pi * np.square(std_dev(lam, na))) * np.exp(
-            -(np.square(x - xc) + np.square(y - yc)) / (2 * np.square(std_dev(lam, na))))
+            -r_squared / (2 * np.square(std_dev(lam, na))))
+
+        r = np.sqrt(r_squared)
+        ind = r <= radius_max
 
         # Clear values outside of radius_max
         y = y * ind
@@ -600,25 +611,6 @@ class MainController:
     def round(self, i):
         return int(np.rint(i))
 
-    def draw_one_gate_layout(self, G1, draw_lam):
-
-        layout_width = 3000
-        layout_height = 3000
-
-        layout = np.empty(shape=(layout_height, layout_width))
-        layout.fill(0)
-
-        x = self.round(2 * draw_lam)
-        y = self.round(4 * draw_lam)
-
-        start_x = (layout_width - x) // 2
-        start_y = (layout_height - y) // 2
-
-        layout[start_y:start_y + y, start_x:start_x + x] = G1
-
-        return layout
-
-    # TODO update sajjad code to be nicer and do not duplicate with the draw_one_gate_layout func
     def draw_layout(self, lam, G1, G2, Gap):
         layout = np.empty(shape=(1000, 1000))
         layout.fill(0)
@@ -630,11 +622,9 @@ class MainController:
         layout[x:x + self.round(4 * lam), 1:self.round(4 * lam)].fill(G1)
 
         x = x + self.round(4 * lam)
-        y = self.round(4 * lam)
         layout[x:x + self.round(12 * lam), 1:self.round(4 * lam)].fill(Gap)
 
         x = x + self.round(12 * lam)
-        y = self.round(4 * lam)
         layout[x:x + self.round(4 * lam), 1:self.round(4 * lam)].fill(0)
         x = x + self.round(4 * lam)
         layout[x:x + self.round(2 * lam), 1:self.round(4 * lam)].fill(G2)
@@ -902,7 +892,7 @@ class MainController:
 
             threading.Thread(target=self.plot_rcv_calc_wrapper).start()
 
-    def init_op_object(self):
+    def init_propagation_object(self):
         technology_dialog = TechnologySelectionDialog()
         if technology_dialog.exec():
             std_file, lib_file = technology_dialog.get_selected_technology()
@@ -920,18 +910,21 @@ class MainController:
             if gds_cell_name != cell_name:
                 continue
 
+            self.is_flip_flop = False
             try:
-                truth_table, voltage, input_names = self.lib_reader.extract_truth_table(gds_cell_name)
-                self.op_master = Op(gds_cell_name, gds_cell, self.selected_layer, truth_table, voltage, input_names)
+                truth_table, voltage, input_names, self.is_flip_flop = self.lib_reader.extract_truth_table(
+                    gds_cell_name)
+                self.propagation_master = AutoOPSPropagation(gds_cell_name, gds_cell, self.selected_layer, truth_table,
+                                                             voltage, input_names)
 
                 self.object_storage_list[gds_cell_name] = {}
 
             except Exception as e:
                 print(f"Error {e}")
 
-    def apply_state_op(self, cell_input_string):
+    def apply_state_propagation(self, cell_input_string, flip_flop):
         draw_inputs = {}
-        inputs_list = self.op_master.inputs_list
+        inputs_list = self.propagation_master.inputs_list
 
         cell_input = [int(char) for char in cell_input_string]
 
@@ -939,10 +932,15 @@ class MainController:
             for index, inp in enumerate(inputs_list):
                 draw_inputs[inp] = cell_input[index]
 
-            op_object = copy.deepcopy(self.op_master)
-            op_object.apply_state(draw_inputs, self.flip_flop)
+            propagation_object = copy.deepcopy(self.propagation_master)
+            propagation_object.apply_state(draw_inputs, flip_flop)
 
             if self.def_file is not None:
-                op_object.calculate_orientations()
+                propagation_object.calculate_orientations()
 
-            self.object_storage_list[self.op_master.name][cell_input_string] = copy.deepcopy(op_object)
+            if self.is_flip_flop:
+                # format of key for a flip-flop is "inputs_output" -> "01010_1"
+                cell_input_string = cell_input_string + "_" + str(flip_flop)
+
+            self.object_storage_list[self.propagation_master.name][cell_input_string] = copy.deepcopy(
+                propagation_object)

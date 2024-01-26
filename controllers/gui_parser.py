@@ -2,8 +2,8 @@ import matplotlib.pyplot as plt
 from matplotlib_scalebar.scalebar import ScaleBar
 from matplotlib.ticker import MultipleLocator
 
-def parse_info(obj):
 
+def parse_info(obj):
     if obj.def_file is None:
         is_def_file = "No"
     else:
@@ -72,8 +72,8 @@ def update_variable(obj, prompt):
                     with open(value, 'r') as file:
                         extract = {}
                         for line in file:
-                            key, state = line.strip().split(',')
-                            extract[key] = state
+                            key, inputs, outputs = line.strip().split(',')
+                            extract[key] = {'inputs': inputs, 'outputs': outputs}
 
                     value = extract
 
@@ -103,8 +103,8 @@ def plot(image, obj, prompt):
             scalebar = ScaleBar(scale, units="nm", location="lower left", label=f"1:{scale}nm")
             plt.gca().add_artist(scalebar)
             plt.grid(True, which='both', linestyle='-', linewidth=0.5, color='darkgrey')
-            plt.gca().xaxis.set_major_locator(MultipleLocator(scale*100))
-            plt.gca().yaxis.set_major_locator(MultipleLocator(scale*100))
+            plt.gca().xaxis.set_major_locator(MultipleLocator(scale * 100))
+            plt.gca().yaxis.set_major_locator(MultipleLocator(scale * 100))
 
         plt.title(prompt)
         plt.xlabel("x")

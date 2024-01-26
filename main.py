@@ -8,7 +8,7 @@ import argparse
 import gdspy
 
 from controllers import gds_drawing
-from controllers.GDS_Object.op import Op
+from controllers.GDS_Object.auto_ops_propagation import AutoOPSPropagation
 from controllers.def_parser import get_gates_info_from_def_file
 from controllers.lib_reader import LibReader
 
@@ -106,8 +106,8 @@ def run_auto_ops(std_file, lib_file, def_file, cell_input, layer_list, cell_name
         vpi_extraction = {}
         with open(vpi_file, 'r') as file:
             for line in file:
-                key, value = line.strip().split(',')
-                vpi_extraction[key] = value
+                key, inputs, outputs = line.strip().split(',')
+                vpi_extraction[key] = {'inputs': inputs, 'outputs': outputs}
 
     def_extract = []
     if def_file:
@@ -154,8 +154,8 @@ def run_auto_ops(std_file, lib_file, def_file, cell_input, layer_list, cell_name
             # end progress bar
 
             try:
-                truth_table, voltage, input_names = lib_reader.extract_truth_table(gds_cell_name)
-                op_master = Op(gds_cell_name, gds_cell, layer_list, truth_table, voltage, input_names)
+                truth_table, voltage, input_names, is_flip_flop = lib_reader.extract_truth_table(gds_cell_name)
+                propagation_master = AutoOPSPropagation(gds_cell_name, gds_cell, layer_list, truth_table, voltage, input_names)
 
                 draw_inputs = {}
 
@@ -163,16 +163,20 @@ def run_auto_ops(std_file, lib_file, def_file, cell_input, layer_list, cell_name
                     for index, inp in enumerate(input_names):
                         draw_inputs[inp] = cell_input[index]
 
-                    op_object = copy.deepcopy(op_master)
-                    op_object.apply_state(draw_inputs, flip_flop)
+                    propagation_object = copy.deepcopy(propagation_master)
+                    propagation_object.apply_state(draw_inputs, flip_flop)
 
                     if output == "reflection_over_cell":
-                        gds_drawing.export_reflection_to_png_over_gds_cell(op_object, True, False, flip_flop)
+                        gds_drawing.export_reflection_to_png_over_gds_cell(propagation_object, True, False, flip_flop)
 
                     state_counter += 1
 
                 else:
-                    combinations = list(itertools.product([0, 1], repeat=len(input_names)))
+                    input_number = len(input_names)
+                    if is_flip_flop:
+                        input_number += 1
+
+                    combinations = list(itertools.product([0, 1], repeat=input_number))
 
                     if unit_test:
                         multiple_exporting_dict[gds_cell_name] = []
@@ -183,19 +187,24 @@ def run_auto_ops(std_file, lib_file, def_file, cell_input, layer_list, cell_name
                         for index, inp in enumerate(input_names):
                             draw_inputs[inp] = combination[index]
                         try:
-                            op_object = copy.deepcopy(op_master)
-                            op_object.apply_state(draw_inputs, flip_flop)
+                            if is_flip_flop:
+                                flip_flop = combination[-1]
+
+                            propagation_object = copy.deepcopy(propagation_master)
+                            propagation_object.apply_state(draw_inputs, flip_flop)
 
                             if output == "reflection_over_cell":
-                                gds_drawing.export_reflection_to_png_over_gds_cell(op_object, True, False, flip_flop)
+                                gds_drawing.export_reflection_to_png_over_gds_cell(propagation_object, True, False, flip_flop)
 
                             if def_file:
-                                op_object.calculate_orientations()
+                                propagation_object.calculate_orientations()
                                 key = ''.join(map(str, combination))
-                                multiple_exporting_dict[gds_cell_name][key] = copy.deepcopy(op_object)
+                                if is_flip_flop:
+                                    key = key + "_" + str(flip_flop)
+                                multiple_exporting_dict[gds_cell_name][key] = copy.deepcopy(propagation_object)
 
                             if unit_test:
-                                multiple_exporting_dict[gds_cell_name].append(copy.deepcopy(op_object))
+                                multiple_exporting_dict[gds_cell_name].append(copy.deepcopy(propagation_object))
 
                             state_counter += 1
 
