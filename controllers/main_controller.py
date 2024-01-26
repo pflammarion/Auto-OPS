@@ -151,8 +151,11 @@ class MainController:
             gui_parser.update_variable(self, command)
         elif command.startswith("rcv"):
             self.update_image_matrix()
-            result, value = self.print_rcv_image()
-
+            result, value, self.main_label_value = self.simulation.overlay_psf_rcv(
+                                                            self.image_matrix,
+                                                            self.x_position,
+                                                            self.y_position
+                                                            )
             _, variable = command.split(' ', 1)
             variable = variable.strip()
 
@@ -189,7 +192,7 @@ class MainController:
                     result = np.abs(self.print_EOFM_image())
 
                 elif variable == "psf":
-                    result = self.print_psf()
+                    result, self.main_label_value = self.print_psf()
 
                 elif variable == "save" or self.image_matrix is None:
                     self.update_image_matrix()
@@ -579,35 +582,6 @@ class MainController:
                 self.dataframe = pd.read_csv(file_path)
                 self.volage_column_dialog()
 
-    def psf_xy(self, lam, na, x, y, xc, yc, radius_max=np.inf):
-        def std_dev(std_lam, std_na):
-            return 0.37 * std_lam / std_na
-
-        r_squared = (np.square(x - xc) + np.square(y - yc)) * np.square(self.simulation.nm_scale)
-
-        y = 1 / np.sqrt(2 * np.pi * np.square(std_dev(lam, na))) * np.exp(
-            -r_squared / (2 * np.square(std_dev(lam, na))))
-
-        r = np.sqrt(r_squared)
-        ind = r <= radius_max
-
-        # Clear values outside of radius_max
-        y = y * ind
-
-        return y
-
-    def psf_2d_pos(self, fov, lam, na, xc, yc, clear_radius=np.inf):
-        s_x, s_y = (fov, fov)  # mat.shape
-        x, y = np.mgrid[0:s_x, 0:s_y]
-        mat = self.psf_xy(lam, na, x, y, xc, yc, clear_radius)
-        return mat
-
-    def psf_2d(self, fov, lam, na, clear_radius=np.inf):
-        s_x, s_y = (fov, fov)  # mat.shape
-        xc = s_x // 2
-        yc = s_y // 2
-        return self.psf_2d_pos(fov, lam, na, xc, yc, clear_radius)
-
     def round(self, i):
         return int(np.rint(i))
 
@@ -730,30 +704,6 @@ class MainController:
 
         self.reload_view()
 
-    def calc_and_plot_RCV(self, offset=None):
-
-        lam = self.simulation.lam_value
-        NA = self.simulation.NA_value
-        is_confocal = self.simulation.is_confocal
-
-        FWHM = 1.22 / np.sqrt(2) * lam / NA
-        FOV = 3000
-        if not offset:
-            L = self.psf_2d(FOV, lam, NA, FWHM // 2 if is_confocal else np.inf)
-        else:
-            L = self.psf_2d_pos(FOV, lam, NA, offset[0], offset[1], FWHM // 2 if is_confocal else np.inf)
-
-        amp_abs = np.sum(self.image_matrix * L)
-
-        # This is only correct if the full laser spot is in L (if it is not truncated)
-        # if is_confocal:
-        num_pix_under_laser = np.sum(L > 0)
-
-        amp_rel = amp_abs / num_pix_under_laser
-        self.main_label_value = "RCV (per nm²) = %.6f" % amp_rel
-
-        return np.where(L > 0, 1, 0), L, amp_rel
-
     def update_rcv_position(self):
         input_values = self.view.laser_position_layout.get_input_values()
         x_input = input_values['input_x']
@@ -790,23 +740,9 @@ class MainController:
         if not self.command_line:
             self.update_settings()
 
-        points = np.where(self.image_matrix != 0, 1, 0)
-        mask, _, value = self.calc_and_plot_RCV(offset=[self.y_position, self.x_position])
-
-        result = cv2.addWeighted(points, 1, mask, 1, 0)
+        result, value, self.main_label_value = self.simulation.overlay_psf_rcv(self.image_matrix, self.x_position, self.y_position)
 
         return result, value
-
-    def calc_and_plot_EOFM(self):
-        lam = self.simulation.lam_value
-        NA = self.simulation.NA_value
-        is_confocal = self.simulation.is_confocal
-        FWHM = 1.22 / np.sqrt(2) * lam / NA
-        FOV = 3000
-
-        self.main_label_value = "FWHM = %.02f, is_confocal = %s" % (FWHM, is_confocal)
-
-        return self.psf_2d(FOV, lam, NA, FWHM // 2 if is_confocal else np.inf)
 
     def print_EOFM_image(self):
         self.dataframe = None
@@ -814,8 +750,7 @@ class MainController:
         if not self.command_line:
             self.update_settings()
 
-        L = self.calc_and_plot_EOFM()
-        R = fftconvolve(self.image_matrix, L, mode='same')
+        R, self.main_label_value = self.simulation.print_EOFM_image(self.image_matrix)
 
         return R
 
@@ -844,14 +779,8 @@ class MainController:
         self.dataframe = None
         if not self.command_line:
             self.update_settings()
-        lam = self.lam_value
-        NA = self.NA_value
-        is_confocal = self.is_confocal
 
-        FWHM = 1.22 / np.sqrt(2) * lam / NA
-        FOV = 2000
-        self.main_label_value = "FWHM = %.02f, is_confocal = %s" % (FWHM, is_confocal)
-        L = self.psf_2d(FOV, lam, NA, FWHM // 2 if is_confocal else np.inf)
+        L, self.main_label_value = self.simulation.get_psf(FOV=3000)
 
         return L
 
@@ -865,7 +794,7 @@ class MainController:
 
         selected_columns = self.selected_columns
 
-        mask, L, _ = self.calc_and_plot_RCV(offset=[self.y_position, self.x_position])
+        mask, L, _, _ = self.simulation.calc_RCV(self.image_matrix, offset=[self.y_position, self.x_position])
 
         _, old_G1, old_G2, _ = self.parameters_init(self.Kn_value, self.Kp_value, self.voltage_value, self.beta_value,
                                                     self.Pl_value)

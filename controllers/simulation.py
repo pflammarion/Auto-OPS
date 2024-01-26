@@ -19,21 +19,21 @@ class Simulation:
         self.is_confocal = True
 
     def print_EOFM_image(self, propagation_object):
-        L, _ = self.get_psf(FOV=3000)
+        L, psf_label = self.get_psf(FOV=3000)
         R = fftconvolve(propagation_object, L, mode='same')
 
-        return R
+        return R, psf_label
 
     def overlay_psf_rcv(self, propagation_object, x_position=1500, y_position=1500):
 
         points = np.where(propagation_object != 0, 1, 0)
 
-        # TODO check if it works x and y
-        mask, _, value, _ = self.calc_RCV(propagation_object, offset=[y_position, x_position])
+        # X and y are reversed because we are using the matrix with origin lower
+        mask, _, value, rcv_label = self.calc_RCV(propagation_object, offset=[y_position, x_position])
 
         result = cv2.addWeighted(points, 1, mask, 1, 0)
 
-        return result, value
+        return result, value, rcv_label
 
     def get_psf(self, offset=None, FOV=3000):
 
