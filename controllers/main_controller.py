@@ -580,17 +580,16 @@ class MainController:
                 self.volage_column_dialog()
 
     def psf_xy(self, lam, na, x, y, xc, yc, radius_max=np.inf):
-
         def std_dev(std_lam, std_na):
             return 0.37 * std_lam / std_na
 
         r_squared = (np.square(x - xc) + np.square(y - yc)) * np.square(self.nm_scale)
 
-        r = np.sqrt(r_squared)
-        ind = r <= radius_max
-
         y = 1 / np.sqrt(2 * np.pi * np.square(std_dev(lam, na))) * np.exp(
             -r_squared / (2 * np.square(std_dev(lam, na))))
+
+        r = np.sqrt(r_squared)
+        ind = r <= radius_max
 
         # Clear values outside of radius_max
         y = y * ind
@@ -911,6 +910,7 @@ class MainController:
             if gds_cell_name != cell_name:
                 continue
 
+            self.is_flip_flop = False
             try:
                 truth_table, voltage, input_names, self.is_flip_flop = self.lib_reader.extract_truth_table(
                     gds_cell_name)

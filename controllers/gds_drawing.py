@@ -439,6 +439,13 @@ def export_matrix_reflection(propagation_object, G1, G2, nm_scale=None):
 
     width = int(propagation_object.get_width() * scale_up)
     height = int(propagation_object.get_height() * scale_up)
+
+    if width > 3000:
+        width = 3000
+
+    if height > 3000:
+        height = 3000
+
     layout = np.zeros((height, width))
     x_m, y_m = np.meshgrid(np.arange(width), np.arange(height))
 
