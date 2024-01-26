@@ -17,9 +17,9 @@ def parse_info(obj):
         "------------------------------------\n"
         f"x_position: {obj.x_position}\n"
         f"y_position: {obj.y_position}\n"
-        f"lam_value: {obj.lam_value}\n"
-        f"NA_value: {obj.NA_value}\n"
-        f"is_confocal: {obj.is_confocal}\n"
+        f"lam_value: {obj.simulation.lam_value}\n"
+        f"NA_value: {obj.simulation.NA_value}\n"
+        f"is_confocal: {obj.simulation.is_confocal}\n"
         "------------------------------------\n"
         f"Kn_value: {obj.Kn_value}\n"
         f"Kp_value: {obj.Kp_value}\n"
@@ -29,7 +29,7 @@ def parse_info(obj):
         f"noise_percentage: {obj.noise_percentage}\n"
         "------------------------------------\n"
         f"patch_counter: {obj.patch_counter}\n"
-        f"nm_scale: {obj.nm_scale}\n"
+        f"nm_scale: {obj.simulation.nm_scale}\n"
         f"selected_area: {obj.selected_area}\n"
         f"selected_patch_size: {obj.selected_patch_size}\n"
         f"vpi_extraction: {obj.vpi_extraction}\n"
@@ -80,7 +80,10 @@ def update_variable(obj, prompt):
                 else:
                     value = float(value)
 
-            setattr(obj, variable, value)
+            if variable == "lam_value" or variable == "NA_value" or variable == "is_confocal" or variable == "nm_scale":
+                setattr(obj.simulation, variable, value)
+            else:
+                setattr(obj, variable, value)
 
             print(f"Updated {variable} to: {value}\n"
                   f"Don't forget to save before exporting or plotting to apply all changed values")
@@ -98,8 +101,8 @@ def plot(image, obj, prompt):
         else:
             plt.imshow(image, cmap='gist_gray', origin='lower')
 
-        if obj.nm_scale is not None:
-            scale = obj.nm_scale
+        if obj.simulation.nm_scale is not None:
+            scale = obj.simulation.nm_scale
             scalebar = ScaleBar(scale, units="nm", location="lower left", label=f"1:{scale}nm")
             plt.gca().add_artist(scalebar)
             plt.grid(True, which='both', linestyle='-', linewidth=0.5, color='darkgrey')
