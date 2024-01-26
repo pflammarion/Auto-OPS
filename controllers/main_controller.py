@@ -14,12 +14,11 @@ from PyQt5.QtWidgets import QFileDialog
 import cv2
 import numpy as np
 import pandas as pd
-from scipy.signal import fftconvolve
 
-from controllers import gds_drawing, def_parser, gui_parser
+from controllers import def_parser, gui_parser
 from controllers.GDS_Object.auto_ops_propagation import AutoOPSPropagation
 from controllers.lib_reader import LibReader
-from controllers.simulation import Simulation
+from controllers.simulation import Simulation, benchmark_simulation_object, rcv_parameter, export_simulation_object
 from views.dialogs.column_dialog import ColumnSelectionDialog
 from views.dialogs.layer_list_dialog import LayerSelectionDialog
 from views.main import MainView
@@ -152,10 +151,10 @@ class MainController:
         elif command.startswith("rcv"):
             self.update_image_matrix()
             result, value, self.main_label_value = self.simulation.overlay_psf_rcv(
-                                                            self.image_matrix,
-                                                            self.x_position,
-                                                            self.y_position
-                                                            )
+                self.image_matrix,
+                self.x_position,
+                self.y_position
+            )
             _, variable = command.split(' ', 1)
             variable = variable.strip()
 
@@ -165,7 +164,8 @@ class MainController:
                 csv_file_path = os.path.join("export/rcv.csv")
                 with open(csv_file_path, mode='a', newline='') as csv_file:
                     csv_writer = csv.writer(csv_file)
-                    csv_writer.writerow([self.cell_name, self.state_list, self.flip_flop, self.x_position, self.y_position, value])
+                    csv_writer.writerow(
+                        [self.cell_name, self.state_list, self.flip_flop, self.x_position, self.y_position, value])
                 print(f"Result saved in export/rcv.csv")
 
         elif command.startswith("plot"):
@@ -258,15 +258,16 @@ class MainController:
 
     def update_image_matrix(self):
         if not self.imported_image:
-            lam, G1, G2, Gap = self.parameters_init(self.Kn_value, self.Kp_value, self.voltage_value, self.beta_value,
-                                                    self.Pl_value)
+            G1 = rcv_parameter(self.Kn_value, self.voltage_value, self.beta_value, self.Pl_value)
+            G2 = rcv_parameter(self.Kp_value, self.voltage_value, self.beta_value, self.Pl_value)
             if self.cell_name is not None and self.cell_name != "" or self.def_file is not None:
                 if self.def_file is not None:
-                    self.image_matrix, self.simulation.nm_scale = gds_drawing.benchmark_matrix(self.object_storage_list,
-                                                                                    self.def_file, G1, G2,
-                                                                                    self.vpi_extraction,
-                                                                                    self.selected_area,
-                                                                                    nm_scale=self.simulation.nm_scale)
+                    self.image_matrix, self.simulation.nm_scale = benchmark_simulation_object(self.object_storage_list,
+                                                                                              self.def_file, G1, G2,
+                                                                                              self.simulation.FOV,
+                                                                                              self.vpi_extraction,
+                                                                                              self.selected_area,
+                                                                                              nm_scale=self.simulation.nm_scale)
                 else:
                     if self.cell_name not in self.object_storage_list.keys():
                         self.extract_op_cell(self.cell_name)
@@ -280,12 +281,14 @@ class MainController:
                     else:
                         cell_input_string = self.state_list
                     propagation_object = self.object_storage_list[self.cell_name][cell_input_string]
-                    self.image_matrix, self.simulation.nm_scale = gds_drawing.export_matrix_reflection(propagation_object,
-                                                                                            G1, G2,
-                                                                                            nm_scale=self.simulation.nm_scale)
+                    self.image_matrix, self.simulation.nm_scale = export_simulation_object(
+                        propagation_object,
+                        G1, G2, self.simulation.FOV,
+                        nm_scale=self.simulation.nm_scale)
 
             else:
-                self.image_matrix = self.draw_layout(lam, G1, G2, Gap)
+
+                self.image_matrix = self.draw_layout(self.technology_value / 2, G1, G2, 0)
 
     def reload_view_wrapper(self):
         self.simulation.nm_scale = 2
@@ -611,18 +614,11 @@ class MainController:
 
         return layout_full
 
-    def parameters_init(self, Kn, Kp, voltage, beta, Pl):
-        lam = self.technology_value / 2
-        # RCV values
-        G1 = voltage * Kn * beta * Pl
-        G2 = voltage * Kp * beta * Pl
-        Gap = 0
-        return lam, G1, G2, Gap
-
     def calc_unique_rcv(self, voltage, L, old_G1, old_G2):
 
         # may be when the voltage is > 0,5 changing the gate state
-        lam, G1, G2, Gap = self.parameters_init(self.Kn_value, self.Kp_value, voltage, self.beta_value, self.Pl_value)
+        G1 = rcv_parameter(self.Kn_value, self.voltage_value, self.beta_value, self.Pl_value)
+        G2 = rcv_parameter(self.Kp_value, self.voltage_value, self.beta_value, self.Pl_value)
 
         generated_gate_image = np.select([self.image_matrix == old_G1, self.image_matrix == old_G2], [G1, G2],
                                          self.image_matrix)
@@ -740,7 +736,8 @@ class MainController:
         if not self.command_line:
             self.update_settings()
 
-        result, value, self.main_label_value = self.simulation.overlay_psf_rcv(self.image_matrix, self.x_position, self.y_position)
+        result, value, self.main_label_value = self.simulation.overlay_psf_rcv(self.image_matrix, self.x_position,
+                                                                               self.y_position)
 
         return result, value
 
@@ -796,8 +793,8 @@ class MainController:
 
         mask, L, _, _ = self.simulation.calc_RCV(self.image_matrix, offset=[self.y_position, self.x_position])
 
-        _, old_G1, old_G2, _ = self.parameters_init(self.Kn_value, self.Kp_value, self.voltage_value, self.beta_value,
-                                                    self.Pl_value)
+        old_G1 = rcv_parameter(self.Kn_value, self.voltage_value, self.beta_value, self.Pl_value)
+        old_G2 = rcv_parameter(self.Kp_value, self.voltage_value, self.beta_value, self.Pl_value)
 
         self.dataframe['RCV'] = self.dataframe.apply(
             lambda row: self.calc_unique_rcv(row[selected_columns[1]], L, old_G1, old_G2), axis=1)
