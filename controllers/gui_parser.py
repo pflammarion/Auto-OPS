@@ -81,7 +81,12 @@ def update_variable(obj, prompt):
                 else:
                     value = float(value)
 
-            if variable == "lam_value" or variable == "NA_value" or variable == "is_confocal" or variable == "nm_scale":
+            if (variable == "lam_value"
+                    or variable == "NA_value"
+                    or variable == "is_confocal"
+                    or variable == "nm_scale"
+                    or variable == "FOV"
+            ):
                 setattr(obj.simulation, variable, value)
             else:
                 setattr(obj, variable, value)
