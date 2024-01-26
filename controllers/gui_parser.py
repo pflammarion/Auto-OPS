@@ -20,6 +20,7 @@ def parse_info(obj):
         f"lam_value: {obj.simulation.lam_value}\n"
         f"NA_value: {obj.simulation.NA_value}\n"
         f"is_confocal: {obj.simulation.is_confocal}\n"
+        f"FOV: {obj.simulation.FOV}\n"
         "------------------------------------\n"
         f"Kn_value: {obj.Kn_value}\n"
         f"Kp_value: {obj.Kp_value}\n"
@@ -32,7 +33,7 @@ def parse_info(obj):
         f"nm_scale: {obj.simulation.nm_scale}\n"
         f"selected_area: {obj.selected_area}\n"
         f"selected_patch_size: {obj.selected_patch_size}\n"
-        f"vpi_extraction: {obj.vpi_extraction}\n"
+        f"vpi_file (extraction): {obj.vpi_extraction}\n"
         f"flip_flop: {obj.flip_flop}  (if cell has a clock, set the output to 0 or 1)\n"
         "------------------------------------\n"
         f"Is def file ?: {is_def_file} (Can't be changed)"
@@ -50,7 +51,7 @@ def update_variable(obj, prompt):
         if value is None or value == "":
             value = None
 
-        if hasattr(obj, variable):
+        if hasattr(obj, variable) or hasattr(obj.simulation, variable):
             if value is None or value == "":
                 value = None
 
@@ -65,10 +66,10 @@ def update_variable(obj, prompt):
                 elif variable == "patch_counter":
                     value = list(value)
 
-                elif variable == "flip_flop":
+                elif variable == "flip_flop" or variable == "FOV":
                     value = int(value)
 
-                elif variable == "vpi_extraction":
+                elif variable == "vpi_file":
                     with open(value, 'r') as file:
                         extract = {}
                         for line in file:
