@@ -17,9 +17,10 @@ def parse_info(obj):
         "------------------------------------\n"
         f"x_position: {obj.x_position}\n"
         f"y_position: {obj.y_position}\n"
-        f"lam_value: {obj.lam_value}\n"
-        f"NA_value: {obj.NA_value}\n"
-        f"is_confocal: {obj.is_confocal}\n"
+        f"lam_value: {obj.simulation.lam_value}\n"
+        f"NA_value: {obj.simulation.NA_value}\n"
+        f"is_confocal: {obj.simulation.is_confocal}\n"
+        f"FOV: {obj.simulation.FOV}\n"
         "------------------------------------\n"
         f"Kn_value: {obj.Kn_value}\n"
         f"Kp_value: {obj.Kp_value}\n"
@@ -29,10 +30,10 @@ def parse_info(obj):
         f"noise_percentage: {obj.noise_percentage}\n"
         "------------------------------------\n"
         f"patch_counter: {obj.patch_counter}\n"
-        f"nm_scale: {obj.nm_scale}\n"
+        f"nm_scale: {obj.simulation.nm_scale}\n"
         f"selected_area: {obj.selected_area}\n"
         f"selected_patch_size: {obj.selected_patch_size}\n"
-        f"vpi_extraction: {obj.vpi_extraction}\n"
+        f"vpi_file (extraction): {obj.vpi_extraction}\n"
         f"flip_flop: {obj.flip_flop}  (if cell has a clock, set the output to 0 or 1)\n"
         "------------------------------------\n"
         f"Is def file ?: {is_def_file} (Can't be changed)"
@@ -50,7 +51,7 @@ def update_variable(obj, prompt):
         if value is None or value == "":
             value = None
 
-        if hasattr(obj, variable):
+        if hasattr(obj, variable) or hasattr(obj.simulation, variable):
             if value is None or value == "":
                 value = None
 
@@ -65,10 +66,10 @@ def update_variable(obj, prompt):
                 elif variable == "patch_counter":
                     value = list(value)
 
-                elif variable == "flip_flop":
+                elif variable == "flip_flop" or variable == "FOV":
                     value = int(value)
 
-                elif variable == "vpi_extraction":
+                elif variable == "vpi_file":
                     with open(value, 'r') as file:
                         extract = {}
                         for line in file:
@@ -80,7 +81,15 @@ def update_variable(obj, prompt):
                 else:
                     value = float(value)
 
-            setattr(obj, variable, value)
+            if (variable == "lam_value"
+                    or variable == "NA_value"
+                    or variable == "is_confocal"
+                    or variable == "nm_scale"
+                    or variable == "FOV"
+            ):
+                setattr(obj.simulation, variable, value)
+            else:
+                setattr(obj, variable, value)
 
             print(f"Updated {variable} to: {value}\n"
                   f"Don't forget to save before exporting or plotting to apply all changed values")
@@ -98,8 +107,8 @@ def plot(image, obj, prompt):
         else:
             plt.imshow(image, cmap='gist_gray', origin='lower')
 
-        if obj.nm_scale is not None:
-            scale = obj.nm_scale
+        if obj.simulation.nm_scale is not None:
+            scale = obj.simulation.nm_scale
             scalebar = ScaleBar(scale, units="nm", location="lower left", label=f"1:{scale}nm")
             plt.gca().add_artist(scalebar)
             plt.grid(True, which='both', linestyle='-', linewidth=0.5, color='darkgrey')

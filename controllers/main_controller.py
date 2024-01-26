@@ -14,11 +14,11 @@ from PyQt5.QtWidgets import QFileDialog
 import cv2
 import numpy as np
 import pandas as pd
-from scipy.signal import fftconvolve
 
-from controllers import gds_drawing, def_parser, gui_parser
+from controllers import def_parser, gui_parser
 from controllers.GDS_Object.auto_ops_propagation import AutoOPSPropagation
 from controllers.lib_reader import LibReader
+from controllers.simulation import Simulation, benchmark_simulation_object, rcv_parameter, export_simulation_object
 from views.dialogs.column_dialog import ColumnSelectionDialog
 from views.dialogs.layer_list_dialog import LayerSelectionDialog
 from views.main import MainView
@@ -40,7 +40,6 @@ class MainController:
         self.merged_image_matrix.fill(0)
 
         self.patch_counter = [1, 1]
-        self.nm_scale = 2
         self.gds_cell_list = None
         self.lib_reader = None
         self.selected_layer = None
@@ -70,12 +69,11 @@ class MainController:
         self.high_gate_state_layout = None
 
         # to initialize the value and the rcv mask
+
         self.x_position = 1500
         self.y_position = 1500
 
-        self.lam_value = 1300
-        self.NA_value = 0.75
-        self.is_confocal = True
+        self.simulation = Simulation()
 
         self.flip_flop = None
 
@@ -152,8 +150,11 @@ class MainController:
             gui_parser.update_variable(self, command)
         elif command.startswith("rcv"):
             self.update_image_matrix()
-            result, value = self.print_rcv_image()
-
+            result, value, self.main_label_value = self.simulation.overlay_psf_rcv(
+                self.image_matrix,
+                self.x_position,
+                self.y_position
+            )
             _, variable = command.split(' ', 1)
             variable = variable.strip()
 
@@ -163,7 +164,8 @@ class MainController:
                 csv_file_path = os.path.join("export/rcv.csv")
                 with open(csv_file_path, mode='a', newline='') as csv_file:
                     csv_writer = csv.writer(csv_file)
-                    csv_writer.writerow([self.cell_name, self.state_list, self.flip_flop, self.x_position, self.y_position, value])
+                    csv_writer.writerow(
+                        [self.cell_name, self.state_list, self.flip_flop, self.x_position, self.y_position, value])
                 print(f"Result saved in export/rcv.csv")
 
         elif command.startswith("plot"):
@@ -190,7 +192,7 @@ class MainController:
                     result = np.abs(self.print_EOFM_image())
 
                 elif variable == "psf":
-                    result = self.print_psf()
+                    result, self.main_label_value = self.print_psf()
 
                 elif variable == "save" or self.image_matrix is None:
                     self.update_image_matrix()
@@ -256,15 +258,16 @@ class MainController:
 
     def update_image_matrix(self):
         if not self.imported_image:
-            lam, G1, G2, Gap = self.parameters_init(self.Kn_value, self.Kp_value, self.voltage_value, self.beta_value,
-                                                    self.Pl_value)
+            G1 = rcv_parameter(self.Kn_value, self.voltage_value, self.beta_value, self.Pl_value)
+            G2 = rcv_parameter(self.Kp_value, self.voltage_value, self.beta_value, self.Pl_value)
             if self.cell_name is not None and self.cell_name != "" or self.def_file is not None:
                 if self.def_file is not None:
-                    self.image_matrix, self.nm_scale = gds_drawing.benchmark_matrix(self.object_storage_list,
-                                                                                    self.def_file, G1, G2,
-                                                                                    self.vpi_extraction,
-                                                                                    self.selected_area,
-                                                                                    nm_scale=self.nm_scale)
+                    self.image_matrix, self.simulation.nm_scale = benchmark_simulation_object(self.object_storage_list,
+                                                                                              self.def_file, G1, G2,
+                                                                                              self.simulation.FOV,
+                                                                                              self.vpi_extraction,
+                                                                                              self.selected_area,
+                                                                                              nm_scale=self.simulation.nm_scale)
                 else:
                     if self.cell_name not in self.object_storage_list.keys():
                         self.extract_op_cell(self.cell_name)
@@ -278,15 +281,17 @@ class MainController:
                     else:
                         cell_input_string = self.state_list
                     propagation_object = self.object_storage_list[self.cell_name][cell_input_string]
-                    self.image_matrix, self.nm_scale = gds_drawing.export_matrix_reflection(propagation_object,
-                                                                                            G1, G2,
-                                                                                            nm_scale=self.nm_scale)
+                    self.image_matrix, self.simulation.nm_scale = export_simulation_object(
+                        propagation_object,
+                        G1, G2, self.simulation.FOV,
+                        nm_scale=self.simulation.nm_scale)
 
             else:
-                self.image_matrix = self.draw_layout(lam, G1, G2, Gap)
+
+                self.image_matrix = self.draw_layout(self.technology_value / 2, G1, G2, 0)
 
     def reload_view_wrapper(self):
-        self.nm_scale = 2
+        self.simulation.nm_scale = 2
         self.view.set_footer_label("... Loading ...")
         start = time.time()
 
@@ -342,9 +347,9 @@ class MainController:
                     self.technology_value = data["technology"]
 
                 if "laser_config" in data:
-                    self.lam_value = data["laser_config"]["lamda"]
-                    self.NA_value = data["laser_config"]["NA"]
-                    self.is_confocal = data["laser_config"]["is_confocal"]
+                    self.simulation.lam_value = data["laser_config"]["lamda"]
+                    self.simulation.NA_value = data["laser_config"]["NA"]
+                    self.simulation.is_confocal = data["laser_config"]["is_confocal"]
                     self.x_position = data["laser_config"]["x_position"]
                     self.y_position = data["laser_config"]["y_position"]
                 if "gate_config" in data:
@@ -432,13 +437,14 @@ class MainController:
 
         self.view.display_optional_image(layout, f"Selected Patch N°{self.selected_area}/{patch_counter - 1}", False)
 
+    # TODO update this save
     def save_settings_to_json(self):
         json_data = {
             "technology": self.technology_value,
             "laser_config": {
-                "lamda": self.lam_value,
-                "NA": self.NA_value,
-                "is_confocal": self.is_confocal,
+                "lamda": self.simulation.lam_value,
+                "NA": self.simulation.NA_value,
+                "is_confocal": self.simulation.is_confocal,
                 "x_position": self.x_position,
                 "y_position": self.y_position
             },
@@ -579,35 +585,6 @@ class MainController:
                 self.dataframe = pd.read_csv(file_path)
                 self.volage_column_dialog()
 
-    def psf_xy(self, lam, na, x, y, xc, yc, radius_max=np.inf):
-        def std_dev(std_lam, std_na):
-            return 0.37 * std_lam / std_na
-
-        r_squared = (np.square(x - xc) + np.square(y - yc)) * np.square(self.nm_scale)
-
-        y = 1 / np.sqrt(2 * np.pi * np.square(std_dev(lam, na))) * np.exp(
-            -r_squared / (2 * np.square(std_dev(lam, na))))
-
-        r = np.sqrt(r_squared)
-        ind = r <= radius_max
-
-        # Clear values outside of radius_max
-        y = y * ind
-
-        return y
-
-    def psf_2d_pos(self, fov, lam, na, xc, yc, clear_radius=np.inf):
-        s_x, s_y = (fov, fov)  # mat.shape
-        x, y = np.mgrid[0:s_x, 0:s_y]
-        mat = self.psf_xy(lam, na, x, y, xc, yc, clear_radius)
-        return mat
-
-    def psf_2d(self, fov, lam, na, clear_radius=np.inf):
-        s_x, s_y = (fov, fov)  # mat.shape
-        xc = s_x // 2
-        yc = s_y // 2
-        return self.psf_2d_pos(fov, lam, na, xc, yc, clear_radius)
-
     def round(self, i):
         return int(np.rint(i))
 
@@ -637,18 +614,11 @@ class MainController:
 
         return layout_full
 
-    def parameters_init(self, Kn, Kp, voltage, beta, Pl):
-        lam = self.technology_value / 2
-        # RCV values
-        G1 = voltage * Kn * beta * Pl
-        G2 = voltage * Kp * beta * Pl
-        Gap = 0
-        return lam, G1, G2, Gap
-
     def calc_unique_rcv(self, voltage, L, old_G1, old_G2):
 
         # may be when the voltage is > 0,5 changing the gate state
-        lam, G1, G2, Gap = self.parameters_init(self.Kn_value, self.Kp_value, voltage, self.beta_value, self.Pl_value)
+        G1 = rcv_parameter(self.Kn_value, self.voltage_value, self.beta_value, self.Pl_value)
+        G2 = rcv_parameter(self.Kp_value, self.voltage_value, self.beta_value, self.Pl_value)
 
         generated_gate_image = np.select([self.image_matrix == old_G1, self.image_matrix == old_G2], [G1, G2],
                                          self.image_matrix)
@@ -730,30 +700,6 @@ class MainController:
 
         self.reload_view()
 
-    def calc_and_plot_RCV(self, offset=None):
-
-        lam = self.lam_value
-        NA = self.NA_value
-        is_confocal = self.is_confocal
-
-        FWHM = 1.22 / np.sqrt(2) * lam / NA
-        FOV = 3000
-        if not offset:
-            L = self.psf_2d(FOV, lam, NA, FWHM // 2 if is_confocal else np.inf)
-        else:
-            L = self.psf_2d_pos(FOV, lam, NA, offset[0], offset[1], FWHM // 2 if is_confocal else np.inf)
-
-        amp_abs = np.sum(self.image_matrix * L)
-
-        # This is only correct if the full laser spot is in L (if it is not truncated)
-        # if is_confocal:
-        num_pix_under_laser = np.sum(L > 0)
-
-        amp_rel = amp_abs / num_pix_under_laser
-        self.main_label_value = "RCV (per nm²) = %.6f" % amp_rel
-
-        return np.where(L > 0, 1, 0), L, amp_rel
-
     def update_rcv_position(self):
         input_values = self.view.laser_position_layout.get_input_values()
         x_input = input_values['input_x']
@@ -790,23 +736,10 @@ class MainController:
         if not self.command_line:
             self.update_settings()
 
-        points = np.where(self.image_matrix != 0, 1, 0)
-        mask, _, value = self.calc_and_plot_RCV(offset=[self.y_position, self.x_position])
-
-        result = cv2.addWeighted(points, 1, mask, 1, 0)
+        result, value, self.main_label_value = self.simulation.overlay_psf_rcv(self.image_matrix, self.x_position,
+                                                                               self.y_position)
 
         return result, value
-
-    def calc_and_plot_EOFM(self):
-        lam = self.lam_value
-        NA = self.NA_value
-        is_confocal = self.is_confocal
-        FWHM = 1.22 / np.sqrt(2) * lam / NA
-        FOV = 3000
-
-        self.main_label_value = "FWHM = %.02f, is_confocal = %s" % (FWHM, is_confocal)
-
-        return self.psf_2d(FOV, lam, NA, FWHM // 2 if is_confocal else np.inf)
 
     def print_EOFM_image(self):
         self.dataframe = None
@@ -814,8 +747,7 @@ class MainController:
         if not self.command_line:
             self.update_settings()
 
-        L = self.calc_and_plot_EOFM()
-        R = fftconvolve(self.image_matrix, L, mode='same')
+        R, self.main_label_value = self.simulation.print_EOFM_image(self.image_matrix)
 
         return R
 
@@ -826,32 +758,26 @@ class MainController:
         confocal_input = laser_values['is_confocal']
 
         if lam_input is not None and lam_input != "":
-            self.lam_value = float(lam_input)
+            self.simulation.lam_value = float(lam_input)
         else:
-            self.lam_value = self.data["laser_config"]["lam"]
+            self.simulation.lam_value = self.data["laser_config"]["lam"]
 
         if NA_input is not None and NA_input != "":
-            self.NA_value = float(NA_input)
+            self.simulation.NA_value = float(NA_input)
         else:
-            self.NA_value = self.data["laser_config"]["NA"]
+            self.simulation.NA_value = self.data["laser_config"]["NA"]
 
         if confocal_input is not None and confocal_input != "":
-            self.is_confocal = bool(confocal_input)
+            self.simulation.is_confocal = bool(confocal_input)
         else:
-            self.is_confocal = self.data["laser_config"]["is_confocal"]
+            self.simulation.is_confocal = self.data["laser_config"]["is_confocal"]
 
     def print_psf(self):
         self.dataframe = None
         if not self.command_line:
             self.update_settings()
-        lam = self.lam_value
-        NA = self.NA_value
-        is_confocal = self.is_confocal
 
-        FWHM = 1.22 / np.sqrt(2) * lam / NA
-        FOV = 2000
-        self.main_label_value = "FWHM = %.02f, is_confocal = %s" % (FWHM, is_confocal)
-        L = self.psf_2d(FOV, lam, NA, FWHM // 2 if is_confocal else np.inf)
+        L, self.main_label_value = self.simulation.get_psf(FOV=3000)
 
         return L
 
@@ -865,10 +791,10 @@ class MainController:
 
         selected_columns = self.selected_columns
 
-        mask, L, _ = self.calc_and_plot_RCV(offset=[self.y_position, self.x_position])
+        mask, L, _, _ = self.simulation.calc_RCV(self.image_matrix, offset=[self.y_position, self.x_position])
 
-        _, old_G1, old_G2, _ = self.parameters_init(self.Kn_value, self.Kp_value, self.voltage_value, self.beta_value,
-                                                    self.Pl_value)
+        old_G1 = rcv_parameter(self.Kn_value, self.voltage_value, self.beta_value, self.Pl_value)
+        old_G2 = rcv_parameter(self.Kp_value, self.voltage_value, self.beta_value, self.Pl_value)
 
         self.dataframe['RCV'] = self.dataframe.apply(
             lambda row: self.calc_unique_rcv(row[selected_columns[1]], L, old_G1, old_G2), axis=1)
