@@ -47,16 +47,13 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="getting_started/installation.html">Install Auto-OPS</a></li>
 <li class="toctree-l1"><a class="reference internal" href="getting_started/quick-start.html">Quick Start</a></li>
+<li class="toctree-l1"><a class="reference internal" href="getting_started/config.html">Configuration</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">THE Auto-OPS PROJECT</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="auto-ops/propagation.html">Auto-OPS propagation library</a></li>
 <li class="toctree-l1"><a class="reference internal" href="auto-ops/user-interface.html">Graphical User Interface Overview</a></li>
 <li class="toctree-l1"><a class="reference internal" href="auto-ops/gui-cli.html">Graphical User Interface Command line Overview</a></li>
-</ul>
-<p class="caption" role="heading"><span class="caption-text">CONTRIBUTION</span></p>
-<ul>
-<li class="toctree-l1"><a class="reference internal" href="contribution/references.html">References and External Resources</a></li>
 </ul>
 
         </div>
@@ -86,23 +83,43 @@
   <section id="auto-ops-a-framework-for-automated-optical-probing-simulation-on-gds-ii">
 <h1>Auto-OPS: A Framework For Automated Optical Probing Simulation on GDS-II<a class="headerlink" href="#auto-ops-a-framework-for-automated-optical-probing-simulation-on-gds-ii" title="Link to this heading"></a></h1>
 <img alt="Logo" class="align-center" src="_images/logo.png" />
-<br/><br/><p>In computer security, Intellectual Property (IP) leakage can be performed by Side-Channel Analysis (SCA) attacks on modern chips.</p>
-<p>A side-channel attack refers to a security breach which allows the attacker to collect information by measuring indirect impacts of the system or its hardware, rather than directly targeting the program or its code. These SCA attacks and their countermeasures have been studied in literature.</p>
-<p>However, in recent years, Optical Probing Attack (OPA), has emerged as a non-invasive and laser-based SCA attack through the backside of chips. OPA can retrieve the chip’s IP by reading out the transistors’ terminal voltage.</p>
-<p>Nevertheless, in the literature, there are some countermeasures to mitigate OPA, which are too expensive to implement because they require a significant change in the fabrication process. These existing methods require a whole redesign of logic cells layout, characterization, synthesis, and place and route techniques which can be quite challenging.</p>
-<div class="admonition warning">
-<p class="admonition-title">Warning</p>
-<p>This documentation is a work in progress. We are actively writing it, but if there are things you’d like to be documented in priority, feel free to request in on the <a class="reference external" href="https://github.com/pflammarion/Auto-OPS">GitHub Repo</a>.</p>
-</div>
+<br/><br/><p>Optical Probing attacks have proven to be a powerful Side Channel analysis attack for bypassing protection mechanisms in integrated circuits. These attacks can extract sensitive information, like security keys or intellectual property (IP).</p>
+<p>Researchers have proposed several layout-level countermeasures that designers can use to strengthen their circuits against OP attacks.</p>
+<p>Designers need an evaluation environment for OP attacks during the design phase. However, the existing evaluation methods require designers to manually extract the OP-relevant layers from the layouts of logic cells for every possible input combination. This process is complex and error-prone.</p>
 <section id="the-auto-ops-project">
 <h2>The Auto-OPS project<a class="headerlink" href="#the-auto-ops-project" title="Link to this heading"></a></h2>
 <a class="reference internal image-reference" href="_images/auto-ops.png"><img alt="Auto-OPS project" class="align-center" src="_images/auto-ops.png" style="width: 70%;" />
 </a>
-<br/><br/><p>Nowadays, doing some optical probing demonstration are laborious and costly.</p>
-<p>The Auto-OPS project is a graphical interface which was developed to provide an easy to use and complete tool to perform optical probing simulation.</p>
-<p>Auto-OPS is created to be fast with a low ressources consumption.</p>
-<div class="toctree-wrapper compound">
+<br/><br/><p>In our work, we introduce Auto-OPS, an automated security evaluation framework for OP attacks that can be easily integrated into the ASIC design flow.</p>
+<p>We designed and developed Auto-OPS, to automate the process of performing OP in simulation on a full chip design file.</p>
+</section>
+<section id="read-the-paper">
+<h2>Read the Paper<a class="headerlink" href="#read-the-paper" title="Link to this heading"></a></h2>
+<p>You can find the paper at the following link:
+<a class="reference external" href="https://ieeexplore.ieee.org/document/10793101">Auto-OPS on IEEE Xplore</a></p>
+<p>This paper have been published in the 7th International Workshop on Secure Hardware, Architectures, and Software, Barcelona, Spain (<strong>SeHAS 2025</strong>) in
+collaboration with IEEE Embedded Systems Letters Journal (<strong>IEEE ESL</strong>) and received the <strong>Best Paper Award</strong>.</p>
+</section>
+<section id="abstract">
+<h2>Abstract<a class="headerlink" href="#abstract" title="Link to this heading"></a></h2>
+<p>In this work, for the first time, we propose a security evaluation framework, namely <strong>Auto-OPS</strong>, that automates performing the Optical Probing (OP) attack in simulation on a full GDS-II design file. Auto-OPS empowers designers by automatically extracting the active regions’ geometry model of each logic cell in the standard cell library or custom-designed logic cells to evaluate the security robustness of a design. Auto-OPS enables scaling up of the current OP evaluation environments, which rely on manual extraction of active regions—an error-prone and cumbersome procedure. Additionally, we evaluated and demonstrated the performance of our framework on several benchmark circuit GDS-II files designed using an open-source 45nm standard cell library.</p>
+</section>
+<section id="citing-this-work">
+<h2>Citing this Work<a class="headerlink" href="#citing-this-work" title="Link to this heading"></a></h2>
+<p>To cite this work, use the following BibTeX entry:</p>
+<div class="highlight-bibtex notranslate"><div class="highlight"><pre><span></span><span class="nc">@ARTICLE</span><span class="p">{</span><span class="nl">10793101</span><span class="p">,</span>
+<span class="w">   </span><span class="na">author</span><span class="p">=</span><span class="s">{Flammarion, Paul and Parvin, Sajjad and Torres, Frank Sill and Drechsler, Rolf}</span><span class="p">,</span>
+<span class="w">   </span><span class="na">journal</span><span class="p">=</span><span class="s">{IEEE Embedded Systems Letters}</span><span class="p">,</span>
+<span class="w">   </span><span class="na">title</span><span class="p">=</span><span class="s">{Auto-OPS: A Framework For Automated Optical Probing Simulation on GDS-II}</span><span class="p">,</span>
+<span class="w">   </span><span class="na">year</span><span class="p">=</span><span class="s">{2024}</span><span class="p">,</span>
+<span class="w">   </span><span class="na">doi</span><span class="p">=</span><span class="s">{10.1109/LES.2024.3513638}</span>
+<span class="p">}</span>
+</pre></div>
 </div>
+</section>
+<section id="acknowledgment">
+<h2>Acknowledgment<a class="headerlink" href="#acknowledgment" title="Link to this heading"></a></h2>
+<p>The work described in this paper has been supported by the <strong>Deutsche Forschungsgemeinschaft (DFG – German Research Foundation)</strong> under the priority programme SPP 2253 – 439918011 in project DR 287/38-1 and SPP 2253 - 535696594 in project DR 287/43-1.</p>
 <div class="toctree-wrapper compound">
 </div>
 <div class="toctree-wrapper compound">
@@ -120,7 +137,7 @@
   <hr/>
 
   <div role="contentinfo">
-    <p>&#169; Copyright 2025, Paul Flammarion, Sajjad Parvin, Rolf Drechsler.</p>
+    <p>&#169; Copyright 2025, Paul Flammarion, Sajjad Parvin, Frank Sill Torres, and Rolf Drechsler.</p>
   </div>
 
   Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a

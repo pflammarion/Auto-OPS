@@ -14,18 +14,13 @@ Auto-OPS: A Framework For Automated Optical Probing Simulation on GDS-II
 
    <br/><br/>
 
-In computer security, Intellectual Property (IP) leakage can be performed by Side-Channel Analysis (SCA) attacks on modern chips.
+.. Add the link to the repository and add a section for the def file and their usage
 
-A side-channel attack refers to a security breach which allows the attacker to collect information by measuring indirect impacts of the system or its hardware, rather than directly targeting the program or its code. These SCA attacks and their countermeasures have been studied in literature.
+Optical Probing attacks have proven to be a powerful Side Channel analysis attack for bypassing protection mechanisms in integrated circuits. These attacks can extract sensitive information, like security keys or intellectual property (IP).
 
-However, in recent years, Optical Probing Attack (OPA), has emerged as a non-invasive and laser-based SCA attack through the backside of chips. OPA can retrieve the chip’s IP by reading out the transistors’ terminal voltage.
+Researchers have proposed several layout-level countermeasures that designers can use to strengthen their circuits against OP attacks.
 
-Nevertheless, in the literature, there are some countermeasures to mitigate OPA, which are too expensive to implement because they require a significant change in the fabrication process. These existing methods require a whole redesign of logic cells layout, characterization, synthesis, and place and route techniques which can be quite challenging.
-
-
-.. warning::
-
-   This documentation is a work in progress. We are actively writing it, but if there are things you'd like to be documented in priority, feel free to request in on the `GitHub Repo <https://github.com/pflammarion/Auto-OPS>`_.
+Designers need an evaluation environment for OP attacks during the design phase. However, the existing evaluation methods require designers to manually extract the OP-relevant layers from the layouts of logic cells for every possible input combination. This process is complex and error-prone.
 
 
 
@@ -41,11 +36,45 @@ The Auto-OPS project
 
    <br/><br/>
 
-Nowadays, doing some optical probing demonstration are laborious and costly.
 
-The Auto-OPS project is a graphical interface which was developed to provide an easy to use and complete tool to perform optical probing simulation.
+In our work, we introduce Auto-OPS, an automated security evaluation framework for OP attacks that can be easily integrated into the ASIC design flow.
 
-Auto-OPS is created to be fast with a low ressources consumption.
+We designed and developed Auto-OPS, to automate the process of performing OP in simulation on a full chip design file.
+
+
+Read the Paper
+--------------
+
+You can find the paper at the following link:
+`Auto-OPS on IEEE Xplore <https://ieeexplore.ieee.org/document/10793101>`_
+
+This paper have been published in the 7th International Workshop on Secure Hardware, Architectures, and Software, Barcelona, Spain (**SeHAS 2025**) in
+collaboration with IEEE Embedded Systems Letters Journal (**IEEE ESL**) and received the **Best Paper Award**.
+
+Abstract
+--------
+
+In this work, for the first time, we propose a security evaluation framework, namely **Auto-OPS**, that automates performing the Optical Probing (OP) attack in simulation on a full GDS-II design file. Auto-OPS empowers designers by automatically extracting the active regions' geometry model of each logic cell in the standard cell library or custom-designed logic cells to evaluate the security robustness of a design. Auto-OPS enables scaling up of the current OP evaluation environments, which rely on manual extraction of active regions—an error-prone and cumbersome procedure. Additionally, we evaluated and demonstrated the performance of our framework on several benchmark circuit GDS-II files designed using an open-source 45nm standard cell library.
+
+Citing this Work
+----------------
+
+To cite this work, use the following BibTeX entry:
+
+.. code-block:: bibtex
+
+   @ARTICLE{10793101,
+      author={Flammarion, Paul and Parvin, Sajjad and Torres, Frank Sill and Drechsler, Rolf},
+      journal={IEEE Embedded Systems Letters},
+      title={Auto-OPS: A Framework For Automated Optical Probing Simulation on GDS-II},
+      year={2024},
+      doi={10.1109/LES.2024.3513638}
+   }
+
+Acknowledgment
+--------------
+
+The work described in this paper has been supported by the **Deutsche Forschungsgemeinschaft (DFG – German Research Foundation)** under the priority programme SPP 2253 – 439918011 in project DR 287/38-1 and SPP 2253 - 535696594 in project DR 287/43-1.
 
 
 .. toctree::
@@ -55,6 +84,7 @@ Auto-OPS is created to be fast with a low ressources consumption.
 
    getting_started/installation
    getting_started/quick-start
+   getting_started/config
 
 .. toctree::
    :maxdepth: 2
@@ -65,11 +95,5 @@ Auto-OPS is created to be fast with a low ressources consumption.
    auto-ops/user-interface
    auto-ops/gui-cli
 
-.. toctree::
-   :maxdepth: 2
-   :hidden:
-   :caption: CONTRIBUTION
-
-   contribution/references
 
 

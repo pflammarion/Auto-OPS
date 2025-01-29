@@ -81,6 +81,8 @@ Based on the fact the GUI tool is based on Auto-OPS the asked informations are s
 
 The in the file config/config.json you will find the default configuration and available parameters.
 
+More information can be found in :ref:`Configuration`.
+
 .. code-block:: json
 
     {
