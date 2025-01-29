@@ -9,8 +9,8 @@ import datetime
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = 'Auto-OPS'
-copyright = f'{datetime.datetime.now().year}, Paul Flammarion, Sajjad Parvin, Rolf Drechsler'
-author = 'Paul Flammarion, Sajjad Parvin, Rolf Drechsler'
+copyright = f'{datetime.datetime.now().year}, Paul Flammarion, Sajjad Parvin, Frank Sill Torres, and Rolf Drechsler'
+author = 'Paul Flammarion, Sajjad Parvin, Frank Sill Torres, and Rolf Drechsler'
 release = '1.0'
 
 # -- General configuration ---------------------------------------------------
