@@ -10,7 +10,7 @@ import datetime
 
 project = 'Auto-OPS'
 copyright = f'{datetime.datetime.now().year}, Paul Flammarion, Sajjad Parvin, Rolf Drechsler'
-author = 'Paul Flammarion, Sajjad Parvin, Rolf Drechsler'
+author = 'Paul Flammarion, Sajjad Parvin, Frank Sill Torres, and Rolf Drechsler'
 release = '1.0'
 
 # -- General configuration ---------------------------------------------------
