@@ -14,6 +14,7 @@ Auto-OPS: A Framework For Automated Optical Probing Simulation on GDS-II
 
    <br/><br/>
 
+.. Add the link to the repository and add a section for the def file and their usage
 
 Optical Probing attacks have proven to be a powerful Side Channel analysis attack for bypassing protection mechanisms in integrated circuits. These attacks can extract sensitive information, like security keys or intellectual property (IP).
 
@@ -62,13 +63,13 @@ To cite this work, use the following BibTeX entry:
 
 .. code-block:: bibtex
 
-@ARTICLE{10793101,
-    author={Flammarion, Paul and Parvin, Sajjad and Torres, Frank Sill and Drechsler, Rolf},
-    journal={IEEE Embedded Systems Letters},
-    title={Auto-OPS: A Framework For Automated Optical Probing Simulation on GDS-II},
-    year={2024},
-    doi={10.1109/LES.2024.3513638}
-}
+   @ARTICLE{10793101,
+      author={Flammarion, Paul and Parvin, Sajjad and Torres, Frank Sill and Drechsler, Rolf},
+      journal={IEEE Embedded Systems Letters},
+      title={Auto-OPS: A Framework For Automated Optical Probing Simulation on GDS-II},
+      year={2024},
+      doi={10.1109/LES.2024.3513638}
+   }
 
 Acknowledgment
 --------------
@@ -83,6 +84,7 @@ The work described in this paper has been supported by the **Deutsche Forschungs
 
    getting_started/installation
    getting_started/quick-start
+   getting_started/config
 
 .. toctree::
    :maxdepth: 2
