@@ -62,7 +62,7 @@ Please refer to the :ref:`Reflection Caliber Value` section for more details on 
 Optical Probing
 ===================
 
-The default configuration file for the 45nm open-source standard-cell library.
+The default configuration file for the 45nm open-source standard-cell library `FreePDK: An open-source variation-aware design kit <https://ieeexplore.ieee.org/stamp/stamp.jsp?arnumber=4231502>`_.
 
 .. code-block:: json
 
