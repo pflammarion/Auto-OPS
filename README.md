@@ -1,6 +1,8 @@
 # Auto-OPS
 
 [![Documentation](https://img.shields.io/badge/docs-available-brightgreen.svg)](https://pflammarion.github.io/Auto-OPS/)
+[![GitHub Actions](https://github.com/pflammarion/Auto-OPS/actions/workflows/test.yml/badge.svg?branch=master)](https://github.com/pflammarion/Auto-OPS/actions/workflows/test.yml)
+[![DOI](https://zenodo.org/badge/DOI/10.1109/LES.2024.3513638.svg)](https://doi.org/10.1109/LES.2024.3513638)
 
 ## Overview
 
@@ -52,3 +54,9 @@ If you use Auto-OPS in your research, please cite:
     doi={10.1109/LES.2024.3513638}
 }
 ```
+
+## Composition Example
+
+
+https://github.com/user-attachments/assets/5e5c429f-2e1e-4f9a-837b-6c8cc5d8015c
+
