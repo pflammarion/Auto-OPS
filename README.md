@@ -57,6 +57,7 @@ If you use Auto-OPS in your research, please cite:
 
 ## Composition Example
 
+https://github.com/user-attachments/assets/e6d905ee-59db-4ee1-a0bf-09f315e9ef3c
 
-https://github.com/user-attachments/assets/5e5c429f-2e1e-4f9a-837b-6c8cc5d8015c
+
 
